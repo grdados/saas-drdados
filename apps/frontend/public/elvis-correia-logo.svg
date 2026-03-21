@@ -1,0 +1,15 @@
+<svg width="240" height="240" viewBox="0 0 240 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ring" x1="24" y1="24" x2="216" y2="216" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F2BC6B"/>
+      <stop offset="1" stop-color="#DF9830"/>
+    </linearGradient>
+  </defs>
+  <circle cx="120" cy="120" r="115" fill="#F4F4F5" stroke="url(#ring)" stroke-width="6"/>
+  <circle cx="120" cy="120" r="82" fill="#ECECEE"/>
+  <path d="M120 38C157 38 187 68 187 105V124L167 105C167 79 146 58 120 58V38Z" fill="#DF9830"/>
+  <path d="M65 109C65 78 90 53 121 53V74C101 74 85 90 85 110V130L65 109Z" fill="#323236"/>
+  <path d="M122 139L143 118L170 145C158 166 136 180 111 180C79 180 53 154 53 122V110L73 131V122C73 143 90 160 111 160C115 160 118 160 122 159V139Z" fill="#323236"/>
+  <text x="120" y="27" text-anchor="middle" font-size="20" font-family="Verdana, Arial, sans-serif" letter-spacing="4" fill="#323236">ELVIS</text>
+  <text x="120" y="228" text-anchor="middle" font-size="20" font-family="Verdana, Arial, sans-serif" letter-spacing="4" fill="#323236">CORREIA</text>
+</svg>
