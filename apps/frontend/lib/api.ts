@@ -74,3 +74,21 @@ export function createTask(token: string, payload: { title: string; description?
     token
   );
 }
+
+export function getMySubscription(token: string) {
+  return request<JsonValue>("/api/billing/subscriptions/me/", { method: "GET" }, token);
+}
+
+export function createSubscription(
+  token: string,
+  payload: { value: number; billing_type?: string; cycle?: string; description?: string }
+) {
+  return request<JsonValue>(
+    "/api/billing/subscriptions/create/",
+    {
+      method: "POST",
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+}

@@ -50,3 +50,19 @@
 3. Variáveis de ambiente em produção
 4. Migrações automáticas no deploy
 5. Domínio e SSL
+
+## Rodar local agora (com Docker Desktop aberto)
+
+```bash
+copy .env.example .env
+docker compose up -d --build
+docker compose exec backend python manage.py migrate
+```
+
+Testes rápidos:
+
+1. Acessar `http://localhost:3000` (landing)
+2. Criar conta em `/register`
+3. Entrar em `/login`
+4. Criar lead e tarefa
+5. Acionar botão "Ativar licença" no dashboard

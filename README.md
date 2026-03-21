@@ -51,6 +51,9 @@ Serviços:
 - `GET /api/accounts/me/`: dados do usuário logado
 - `GET/POST /api/crm/leads/`: listar e criar leads
 - `GET/POST /api/crm/tasks/`: listar e criar tarefas
+- `POST /api/billing/subscriptions/create/`: criar assinatura no Asaas
+- `GET /api/billing/subscriptions/me/`: consultar assinatura atual
+- `POST /api/billing/webhooks/asaas/`: receber eventos de cobrança/licença
 
 ## Rotas do frontend
 
@@ -63,7 +66,7 @@ Serviços:
 
 ## Próximo passo
 
-1. Criar app Django `crm` com modelos (Lead, Company, Task)
-2. Implementar autenticação JWT
-3. Conectar telas do frontend à API
-4. Integrar cobrança/licença com Asaas (webhooks)
+1. Ligar credenciais reais do Asaas no `.env`
+2. Subir Docker e executar migrações
+3. Testar webhook com túnel (`ngrok` ou Cloudflare Tunnel)
+4. Integrar fluxo de checkout na landing/app

@@ -17,6 +17,7 @@ class Company(models.Model):
             ("blocked", "Blocked"),
         ],
     )
+    asaas_customer_id = models.CharField(max_length=40, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

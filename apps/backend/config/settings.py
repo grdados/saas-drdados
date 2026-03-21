@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "core",
     "accounts",
     "crm",
+    "billing",
 ]
 
 MIDDLEWARE = [
@@ -95,3 +96,7 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
 }
+
+ASAAS_API_URL = os.getenv("ASAAS_API_URL", "https://api-sandbox.asaas.com/v3")
+ASAAS_API_KEY = os.getenv("ASAAS_API_KEY", "")
+ASAAS_WEBHOOK_TOKEN = os.getenv("ASAAS_WEBHOOK_TOKEN", "")

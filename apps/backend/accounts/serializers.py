@@ -26,4 +26,13 @@ class RegisterSerializer(serializers.Serializer):
 class CompanySerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
-        fields = ["id", "name", "trade_name", "document", "license_status", "created_at", "updated_at"]
+        fields = [
+            "id",
+            "name",
+            "trade_name",
+            "document",
+            "license_status",
+            "asaas_customer_id",
+            "created_at",
+            "updated_at",
+        ]
