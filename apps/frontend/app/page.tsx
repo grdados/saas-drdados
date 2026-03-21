@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { HeroRotatingLine } from "@/components/HeroRotatingLine";
+
 const highlights = [
   "Pipeline visual para acompanhar cada oportunidade",
   "Tarefas e lembretes para nao perder follow-up",
@@ -63,19 +65,24 @@ export default function HomePage() {
             Sistemas sob medida e produtos digitais
           </p>
           <h1 className="text-4xl font-extrabold leading-tight md:text-6xl">
-            Chega de planilhas.
-            <span className="mt-2 block text-accent-400">Tenha um CRM que acelera receita.</span>
+            <span className="block">Chega de planilhas</span>
+            <HeroRotatingLine
+              phrases={[
+                "Vamos desenvolver seu projeto",
+                "Tenha um sistema seu, Feito para seu negocio."
+              ]}
+            />
           </h1>
           <p className="max-w-xl text-lg text-zinc-300">
             O GRDados organiza leads, tarefas e funil em uma plataforma escura, robusta e pronta para crescimento real.
           </p>
-          <div className="flex flex-wrap gap-3">
-            <Link href="/register" className="rounded-xl bg-accent-500 px-7 py-4 font-black text-zinc-950 hover:bg-accent-400">
-              Quero ver demo
+          <div className="flex justify-end">
+            <Link
+              href="/register"
+              className="rounded-xl bg-accent-500 px-7 py-4 font-black text-zinc-950 hover:bg-accent-400"
+            >
+              Iniciar um projeto
             </Link>
-            <a href="#contato" className="rounded-xl border border-zinc-700 bg-zinc-900 px-7 py-4 font-black text-zinc-100 hover:bg-zinc-800">
-              Falar com consultor
-            </a>
           </div>
         </div>
 
@@ -93,6 +100,19 @@ export default function HomePage() {
               <button className="w-full rounded-xl bg-accent-500 px-5 py-3 text-sm font-extrabold text-zinc-950">Enviar aplicacao</button>
             </form>
           </div>
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-6xl px-6 pb-6">
+        <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/60 px-6 py-4 md:flex-row">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Experiencia tecnica</p>
+          <p className="text-sm font-extrabold text-zinc-100">
+            <span className="text-accent-300">ERP &amp; Gestao</span>
+            <span className="px-2 text-zinc-500">|</span>
+            <span className="text-zinc-100">CRM</span>
+            <span className="px-2 text-zinc-500">|</span>
+            <span className="text-zinc-100">Landing Pages</span>
+          </p>
         </div>
       </section>
 
