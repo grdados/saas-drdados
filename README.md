@@ -76,3 +76,4 @@ Serviços:
 Guia completo de deploy:
 
 - `docs/DEPLOY_PRODUCAO.md`
+- `docs/GO_LIVE_CHECKLIST.md`

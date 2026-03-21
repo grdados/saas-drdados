@@ -1,13 +1,13 @@
 from rest_framework import permissions, viewsets
 
-from accounts.permissions import get_current_company
+from accounts.permissions import HasActiveLicense, get_current_company
 
 from .models import Lead, Task
 from .serializers import LeadSerializer, TaskSerializer
 
 
 class CompanyScopedViewSet(viewsets.ModelViewSet):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, HasActiveLicense]
 
     def get_company(self):
         return get_current_company(self.request.user)
