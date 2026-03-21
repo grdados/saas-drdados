@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 const benefits = [
   "Pipeline visual para acompanhar cada oportunidade",
   "Tarefas e lembretes para não perder follow-up",
@@ -17,9 +19,17 @@ export default function HomePage() {
           <a href="#planos">Planos</a>
           <a href="#contato">Contato</a>
         </nav>
-        <button className="rounded-xl bg-brand-800 px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-700">
-          Iniciar teste
-        </button>
+        <div className="flex items-center gap-3">
+          <Link href="/login" className="text-sm font-bold text-brand-800">
+            Entrar
+          </Link>
+          <Link
+            href="/register"
+            className="rounded-xl bg-brand-800 px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-700"
+          >
+            Iniciar teste
+          </Link>
+        </div>
       </header>
 
       <section className="mx-auto grid w-full max-w-6xl gap-10 px-6 pb-16 pt-8 md:grid-cols-2 md:items-center">
@@ -36,12 +46,12 @@ export default function HomePage() {
             com previsibilidade.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <button className="rounded-xl bg-brand-800 px-7 py-4 font-bold text-white hover:bg-brand-700">
+            <Link href="/register" className="rounded-xl bg-brand-800 px-7 py-4 font-bold text-white hover:bg-brand-700">
               Quero ver demo
-            </button>
-            <button className="rounded-xl border border-brand-300 bg-white px-7 py-4 font-bold text-brand-800 hover:bg-brand-50">
+            </Link>
+            <Link href="/login" className="rounded-xl border border-brand-300 bg-white px-7 py-4 font-bold text-brand-800 hover:bg-brand-50">
               Falar com especialista
-            </button>
+            </Link>
           </div>
         </div>
 

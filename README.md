@@ -44,6 +44,23 @@ Serviços:
 - Backend API: `http://localhost:8000/api/health/`
 - PostgreSQL: `localhost:5432`
 
+## Endpoints principais (MVP)
+
+- `POST /api/accounts/register/`: cadastro de usuário + empresa
+- `POST /api/auth/login/`: login JWT
+- `GET /api/accounts/me/`: dados do usuário logado
+- `GET/POST /api/crm/leads/`: listar e criar leads
+- `GET/POST /api/crm/tasks/`: listar e criar tarefas
+
+## Rotas do frontend
+
+- `/`: landing page
+- `/register`: cadastro
+- `/login`: login
+- `/dashboard`: painel do CRM
+- `/leads`: gestão de leads
+- `/tasks`: gestão de tarefas
+
 ## Próximo passo
 
 1. Criar app Django `crm` com modelos (Lead, Company, Task)
