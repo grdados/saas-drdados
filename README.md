@@ -78,3 +78,4 @@ Guia completo de deploy:
 - `docs/DEPLOY_PRODUCAO.md`
 - `docs/GO_LIVE_CHECKLIST.md`
 - `docs/EXECUCAO_3_PASSOS.md`
+- `docs/VALIDACAO_POS_DEPLOY.md`
