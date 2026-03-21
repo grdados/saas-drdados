@@ -70,3 +70,9 @@ Serviços:
 2. Subir Docker e executar migrações
 3. Testar webhook com túnel (`ngrok` ou Cloudflare Tunnel)
 4. Integrar fluxo de checkout na landing/app
+
+## Deploy
+
+Guia completo de deploy:
+
+- `docs/DEPLOY_PRODUCAO.md`
