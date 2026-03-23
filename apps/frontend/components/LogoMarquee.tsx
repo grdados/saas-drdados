@@ -1,3 +1,8 @@
+"use client";
+
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
+
 type LogoItem = {
   title: string;
   subtitle: string;
@@ -118,6 +123,34 @@ function LogoCard({ item }: { item: LogoItem }) {
 export function LogoMarquee() {
   // Duplicate content to create a seamless loop.
   const loop = [...items, ...items];
+  const imagesRef = useRef<HTMLDivElement | null>(null);
+  const [imagesInView, setImagesInView] = useState(false);
+
+  useEffect(() => {
+    const node = imagesRef.current;
+    if (!node) return;
+    if (typeof window === "undefined") return;
+
+    const prefersReduced =
+      window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+    if (prefersReduced) {
+      setImagesInView(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setImagesInView(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.18, rootMargin: "0px 0px -10% 0px" }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <section className="bg-[rgb(24_24_27)] py-10">
@@ -166,6 +199,81 @@ export function LogoMarquee() {
           </div>
         </div>
 
+        <div ref={imagesRef} className="mt-8 grid gap-4 md:grid-cols-2">
+          <div
+            className={[
+              "overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/40",
+              "motion-safe:transition motion-safe:duration-700 motion-safe:ease-out",
+              imagesInView
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-6",
+            ].join(" ")}
+            style={{ transitionDelay: "0ms" }}
+          >
+            <Image
+              src="/modulos/producao.svg"
+              alt="Modulo Producao"
+              width={1200}
+              height={720}
+              className="h-auto w-full"
+            />
+          </div>
+          <div
+            className={[
+              "overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/40",
+              "motion-safe:transition motion-safe:duration-700 motion-safe:ease-out",
+              imagesInView
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-6",
+            ].join(" ")}
+            style={{ transitionDelay: "120ms" }}
+          >
+            <Image
+              src="/modulos/producao-1.svg"
+              alt="Modulo Producao (variante)"
+              width={1200}
+              height={720}
+              className="h-auto w-full"
+            />
+          </div>
+          <div
+            className={[
+              "overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/40",
+              "motion-safe:transition motion-safe:duration-700 motion-safe:ease-out",
+              imagesInView
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-6",
+            ].join(" ")}
+            style={{ transitionDelay: "240ms" }}
+          >
+            <Image
+              src="/modulos/vendas.svg"
+              alt="Modulo Vendas"
+              width={1200}
+              height={720}
+              className="h-auto w-full"
+            />
+          </div>
+          <div
+            className={[
+              "overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/40",
+              "motion-safe:transition motion-safe:duration-700 motion-safe:ease-out",
+              imagesInView
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-6",
+            ].join(" ")}
+            style={{ transitionDelay: "360ms" }}
+          >
+            <Image
+              src="/modulos/vendas-1.svg"
+              alt="Modulo Vendas (variante)"
+              width={1200}
+              height={720}
+              className="h-auto w-full"
+            />
+          </div>
+        </div>
+
         <p className="mt-10 text-xs font-black uppercase tracking-[0.22em] text-zinc-400">
           Modulos que estruturam a operacao
         </p>
@@ -179,8 +287,8 @@ export function LogoMarquee() {
         </div>
 
         {/* Edge fades (left/right) to match the reference look */}
-        <div className="pointer-events-none absolute inset-y-0 left-0 w-[calc(18rem+40px)] bg-gradient-to-r from-[rgb(24_24_27)] via-[rgb(24_24_27)]/90 to-transparent md:w-[calc(24rem+40px)] lg:w-[460px]" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-[calc(18rem+40px)] bg-gradient-to-l from-[rgb(24_24_27)] via-[rgb(24_24_27)]/90 to-transparent md:w-[calc(24rem+40px)] lg:w-[460px]" />
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-[calc(18rem+120px)] bg-gradient-to-r from-[rgb(24_24_27)] via-[rgb(24_24_27)]/90 to-transparent md:w-[calc(24rem+120px)] lg:w-[540px]" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-[calc(18rem+120px)] bg-gradient-to-l from-[rgb(24_24_27)] via-[rgb(24_24_27)]/90 to-transparent md:w-[calc(24rem+120px)] lg:w-[540px]" />
       </div>
     </section>
   );
