@@ -7,11 +7,11 @@ export function SiteHeader() {
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
         <Link href="/" className="flex items-center">
           <Image
-            src="/gr-dados-logo-gray.svg"
+            src="/logo-1.svg"
             alt="GR Dados"
-            width={180}
-            height={46}
-            className="h-10 w-auto"
+            width={240}
+            height={60}
+            className="h-10 w-auto md:h-11"
           />
         </Link>
 

@@ -8,10 +8,11 @@ export function SiteFooter() {
         <div className="grid gap-10 md:grid-cols-12">
           <div className="md:col-span-4">
             <Image
-              src="/gr-dados-logo-gray.svg"
+              src="/logo_horizontal.png"
               alt="GR Dados"
-              width={210}
-              height={56}
+              width={360}
+              height={120}
+              className="h-12 w-auto"
             />
             <p className="mt-5 max-w-md text-sm leading-7 text-zinc-400">
               A GR Dados desenvolve sistemas sob medida para empresas que precisam
