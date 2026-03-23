@@ -88,8 +88,8 @@ export default function HomePage() {
               Sistemas sob medida e produtos digitais
             </p>
 
-            <h1 className="font-extrabold leading-[1.03] tracking-tight">
-              <span className="block text-4xl md:text-5xl lg:text-6xl md:whitespace-nowrap">
+            <h1 className="font-extrabold leading-[1.06] tracking-tight">
+              <span className="block text-3xl md:text-4xl lg:text-5xl md:whitespace-nowrap">
                 Chega de planilhas
               </span>
               <HeroRotatingLine
@@ -97,7 +97,7 @@ export default function HomePage() {
                   "Tenha um sistema seu,\nFeito para seu negocio.",
                   "Tudo centralizado no Power BI,\ncom dashboards dinamicos."
                 ]}
-                className="mt-2 text-balance text-2xl leading-[1.1] sm:text-3xl md:text-4xl lg:text-5xl"
+                className="mt-2 text-balance text-xl leading-[1.12] sm:text-2xl md:text-3xl lg:text-4xl"
               />
             </h1>
 

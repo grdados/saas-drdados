@@ -5,22 +5,14 @@ export function SiteHeader() {
   return (
     <header className="border-b border-zinc-800 bg-zinc-950/95">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/" className="flex items-center gap-3">
+        <Link href="/" className="flex items-center">
           <Image
-            src="/elvis-correia-logo.svg"
-            alt="Logo"
-            width={46}
+            src="/gr-dados-logo-gray.svg"
+            alt="GR Dados"
+            width={180}
             height={46}
-            className="rounded-full"
+            className="h-10 w-auto"
           />
-          <div>
-            <p className="text-lg font-extrabold leading-none tracking-tight text-white">
-              GR Dados
-            </p>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
-              ERP
-            </p>
-          </div>
         </Link>
 
         <nav className="hidden items-center gap-2 md:flex">
