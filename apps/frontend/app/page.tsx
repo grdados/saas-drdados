@@ -145,14 +145,7 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className='mt-8'>
-              <Link
-                href='/register'
-                className='inline-flex rounded-xl bg-accent-500 px-8 py-4 text-sm font-black text-zinc-950 hover:bg-accent-400'
-              >
-                Iniciar um projeto
-              </Link>
-            </div>
+            {/* CTA removido da sessao Sobre (mantemos apenas no Hero) */}
           </div>
 
           <div className='md:col-span-6'>
