@@ -21,8 +21,8 @@ export default function HomePage() {
             </span>
             <HeroRotatingLine
               phrases={[
-                'Vamos desenvolver\nseu projeto',
                 'Tenha um sistema seu,\nFeito para seu negocio.',
+                'Tudo centralizado no Power BI,\ncom dashboards dinamicos.',
               ]}
               className='mt-2 text-balance text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-[1.05]'
             />
@@ -31,12 +31,18 @@ export default function HomePage() {
             Sistemas sob medida para organizar processos, centralizar
             informações e dar mais controle ao seu negócio..
           </p>
-          <div className='flex justify-start'>
+          <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4'>
             <Link
               href='/register'
               className='rounded-xl bg-accent-500 px-7 py-4 font-black text-zinc-950 hover:bg-accent-400'
             >
               Iniciar um projeto
+            </Link>
+            <Link
+              href='/servicos/power-bi'
+              className='rounded-xl border border-zinc-700 bg-zinc-950/40 px-7 py-4 font-black text-zinc-100 hover:bg-zinc-900'
+            >
+              Ver Power BI
             </Link>
           </div>
         </div>
