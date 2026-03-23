@@ -46,40 +46,40 @@ export default function TasksPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-zinc-950 text-white">
       <AppNav />
       <section className="mx-auto w-full max-w-6xl px-6 py-10">
-        <h1 className="text-3xl font-black text-brand-900">Tarefas</h1>
+        <h1 className="text-3xl font-black text-white">Tarefas</h1>
 
-        <form className="mt-6 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-3" onSubmit={onSubmit}>
+        <form className="mt-6 grid gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 md:grid-cols-3" onSubmit={onSubmit}>
           <input
             required
             placeholder="Título da tarefa"
             value={form.title}
             onChange={(e) => setForm((old) => ({ ...old, title: e.target.value }))}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-500 focus:outline-none"
           />
           <input
             placeholder="Descrição"
             value={form.description}
             onChange={(e) => setForm((old) => ({ ...old, description: e.target.value }))}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-500 focus:outline-none"
           />
-          <button className="rounded-lg bg-brand-800 px-4 py-2 text-sm font-bold text-white">Adicionar tarefa</button>
+          <button className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-black text-zinc-950 hover:bg-accent-400">Adicionar tarefa</button>
         </form>
 
         <div className="mt-6 grid gap-3">
-          {loading ? <p className="text-slate-500">Carregando...</p> : null}
-          {!loading && items.length === 0 ? <p className="text-slate-500">Nenhuma tarefa cadastrada.</p> : null}
+          {loading ? <p className="text-zinc-400">Carregando...</p> : null}
+          {!loading && items.length === 0 ? <p className="text-zinc-400">Nenhuma tarefa cadastrada.</p> : null}
           {items.map((task) => (
-            <article key={task.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+            <article key={task.id} className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-black text-brand-900">{task.title}</h2>
-                <span className="rounded-md bg-brand-100 px-3 py-1 text-xs font-bold uppercase text-brand-800">
+                <h2 className="text-lg font-black text-white">{task.title}</h2>
+                <span className="rounded-md border border-zinc-800 bg-zinc-950 px-3 py-1 text-xs font-black uppercase text-accent-300">
                   {task.status}
                 </span>
               </div>
-              <p className="mt-2 text-sm text-slate-600">{task.description || "Sem descrição."}</p>
+              <p className="mt-2 text-sm text-zinc-300">{task.description || "Sem descrição."}</p>
             </article>
           ))}
         </div>

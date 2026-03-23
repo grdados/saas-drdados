@@ -47,37 +47,37 @@ export default function LeadsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-zinc-950 text-white">
       <AppNav />
       <section className="mx-auto w-full max-w-6xl px-6 py-10">
-        <h1 className="text-3xl font-black text-brand-900">Leads</h1>
+        <h1 className="text-3xl font-black text-white">Leads</h1>
 
-        <form className="mt-6 grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-4" onSubmit={onSubmit}>
+        <form className="mt-6 grid gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 md:grid-cols-4" onSubmit={onSubmit}>
           <input
             required
             placeholder="Nome do lead"
             value={form.name}
             onChange={(e) => setForm((old) => ({ ...old, name: e.target.value }))}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-500 focus:outline-none"
           />
           <input
             placeholder="E-mail"
             value={form.email}
             onChange={(e) => setForm((old) => ({ ...old, email: e.target.value }))}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-500 focus:outline-none"
           />
           <input
             placeholder="Telefone"
             value={form.phone}
             onChange={(e) => setForm((old) => ({ ...old, phone: e.target.value }))}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-500 focus:outline-none"
           />
-          <button className="rounded-lg bg-brand-800 px-4 py-2 text-sm font-bold text-white">Adicionar lead</button>
+          <button className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-black text-zinc-950 hover:bg-accent-400">Adicionar lead</button>
         </form>
 
-        <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="mt-6 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-100 text-slate-700">
+            <thead className="bg-zinc-950 text-zinc-200">
               <tr>
                 <th className="px-4 py-3">Nome</th>
                 <th className="px-4 py-3">E-mail</th>
@@ -88,23 +88,23 @@ export default function LeadsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-4 text-slate-500">
+                  <td colSpan={4} className="px-4 py-4 text-zinc-400">
                     Carregando...
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-4 text-slate-500">
+                  <td colSpan={4} className="px-4 py-4 text-zinc-400">
                     Nenhum lead cadastrado.
                   </td>
                 </tr>
               ) : (
                 items.map((lead) => (
-                  <tr key={lead.id} className="border-t border-slate-100">
+                  <tr key={lead.id} className="border-t border-zinc-800">
                     <td className="px-4 py-3 font-semibold">{lead.name}</td>
-                    <td className="px-4 py-3">{lead.email || "-"}</td>
-                    <td className="px-4 py-3">{lead.phone || "-"}</td>
-                    <td className="px-4 py-3 capitalize">{lead.stage}</td>
+                    <td className="px-4 py-3 text-zinc-300">{lead.email || "-"}</td>
+                    <td className="px-4 py-3 text-zinc-300">{lead.phone || "-"}</td>
+                    <td className="px-4 py-3 capitalize text-accent-300">{lead.stage}</td>
                   </tr>
                 ))
               )}

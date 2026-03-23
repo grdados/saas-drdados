@@ -44,36 +44,36 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-slate-50">
+    <main className="min-h-screen bg-zinc-950 text-white">
       <AppNav />
       <section className="mx-auto w-full max-w-6xl px-6 py-10">
-        <h1 className="text-3xl font-black text-brand-900">Painel GRDados</h1>
-        {loading ? <p className="mt-4 text-slate-500">Carregando dados...</p> : null}
+        <h1 className="text-3xl font-black text-white">Painel GRDados</h1>
+        {loading ? <p className="mt-4 text-zinc-400">Carregando dados...</p> : null}
 
         {!loading ? (
           <>
-            <p className="mt-2 text-slate-600">
+            <p className="mt-2 text-zinc-300">
               Bem-vindo, <strong>{name}</strong> {company ? `(${company})` : ""}.
             </p>
 
             <div className="mt-6 grid gap-4 md:grid-cols-3">
-              <article className="rounded-2xl border border-slate-200 bg-white p-6">
-                <p className="text-sm text-slate-500">Leads cadastrados</p>
-                <p className="mt-2 text-4xl font-black text-brand-800">{leadCount}</p>
+              <article className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+                <p className="text-sm text-zinc-400">Leads cadastrados</p>
+                <p className="mt-2 text-4xl font-black text-accent-300">{leadCount}</p>
               </article>
-              <article className="rounded-2xl border border-slate-200 bg-white p-6">
-                <p className="text-sm text-slate-500">Tarefas abertas</p>
-                <p className="mt-2 text-4xl font-black text-brand-800">{taskCount}</p>
+              <article className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+                <p className="text-sm text-zinc-400">Tarefas abertas</p>
+                <p className="mt-2 text-4xl font-black text-accent-300">{taskCount}</p>
               </article>
-              <article className="rounded-2xl border border-slate-200 bg-white p-6">
-                <p className="text-sm text-slate-500">Ações rápidas e licença</p>
-                <p className="mt-2 text-sm text-slate-600">Status da licença: <strong>{licenseStatus}</strong></p>
-                {subscriptionInfo ? <p className="mt-1 text-xs text-slate-500">{subscriptionInfo}</p> : null}
+              <article className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+                <p className="text-sm text-zinc-400">Ações rápidas e licença</p>
+                <p className="mt-2 text-sm text-zinc-300">Status da licença: <strong className="text-accent-300">{licenseStatus}</strong></p>
+                {subscriptionInfo ? <p className="mt-1 text-xs text-zinc-400">{subscriptionInfo}</p> : null}
                 <div className="mt-4 flex flex-wrap gap-3">
-                  <Link href="/leads" className="rounded-lg bg-brand-800 px-4 py-2 text-sm font-bold text-white">
+                  <Link href="/leads" className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-black text-zinc-950 hover:bg-accent-400">
                     Novo lead
                   </Link>
-                  <Link href="/tasks" className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-bold">
+                  <Link href="/tasks" className="rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2 text-sm font-bold text-zinc-200 hover:bg-zinc-800">
                     Nova tarefa
                   </Link>
                   <button
@@ -96,12 +96,12 @@ export default function DashboardPage() {
                         setBillingLoading(false);
                       }
                     }}
-                    className="rounded-lg border border-brand-300 px-4 py-2 text-sm font-bold text-brand-800"
+                    className="rounded-lg border border-accent-500/40 bg-zinc-950 px-4 py-2 text-sm font-black text-accent-300 hover:bg-zinc-800"
                   >
                     {billingLoading ? "Criando..." : "Ativar licença"}
                   </button>
                 </div>
-                {billingMessage ? <p className="mt-3 text-xs font-semibold text-slate-600">{billingMessage}</p> : null}
+                {billingMessage ? <p className="mt-3 text-xs font-semibold text-zinc-300">{billingMessage}</p> : null}
               </article>
             </div>
           </>
