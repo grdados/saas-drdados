@@ -9,9 +9,9 @@ export function SiteHeader() {
           <Image
             src="/logo-1.svg"
             alt="GR Dados"
-            width={240}
-            height={60}
-            className="h-10 w-auto md:h-11"
+            width={320}
+            height={80}
+            className="h-12 w-auto md:h-14"
           />
         </Link>
 
@@ -78,7 +78,7 @@ export function SiteHeader() {
                 Depoimentos
               </Link>
               <Link
-                href="/#iniciar-projeto"
+                href="/iniciar-projeto"
                 className="block px-4 py-3 text-sm font-bold text-zinc-200 hover:bg-zinc-900"
               >
                 Iniciar um projeto

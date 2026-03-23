@@ -123,3 +123,17 @@ export function createSubscription(
     token
   );
 }
+
+export function submitProjectIntake(payload: Record<string, unknown>) {
+  return request<{
+    id: number;
+    score: number;
+    temperature: string;
+    lead_created: boolean;
+    lead_id: number | null;
+    whatsapp_message: string;
+  }>("/api/public/project-intake/", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}

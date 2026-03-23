@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-zinc-800 bg-zinc-950">
+    <footer className="border-t border-black/10 bg-[#DF9830]">
       <div className="mx-auto w-full max-w-6xl px-6 py-14">
         <div className="grid gap-10 md:grid-cols-12">
           <div className="md:col-span-4">
@@ -14,13 +14,13 @@ export function SiteFooter() {
               height={120}
               className="h-12 w-auto"
             />
-            <p className="mt-5 max-w-md text-sm leading-7 text-zinc-400">
+            <p className="mt-5 max-w-md text-sm leading-7 text-zinc-900/90">
               A GR Dados desenvolve sistemas sob medida para empresas que precisam
               de mais controle, clareza operacional e base tecnologica para crescer.
             </p>
 
-            <div className="mt-6 flex items-start gap-3 text-sm text-zinc-300">
-              <span className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900 text-accent-300">
+            <div className="mt-6 flex items-start gap-3 text-sm text-zinc-900">
+              <span className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-xl border border-black/15 bg-black/10 text-zinc-950">
                 <svg
                   width="16"
                   height="16"
@@ -43,62 +43,62 @@ export function SiteFooter() {
                 </svg>
               </span>
               <div>
-                <p className="font-black text-zinc-100">Base estrategica</p>
-                <p className="text-zinc-400">
+                <p className="font-black text-zinc-950">Base estrategica</p>
+                <p className="text-zinc-900/90 whitespace-nowrap">
                   AV 22 de abril, 519 - Centro - Laguna Carapa - MS
                 </p>
-                <p className="text-zinc-400">CEP 79920-000</p>
+                <p className="text-zinc-900/90">CEP 79920-000</p>
               </div>
             </div>
           </div>
 
           <div className="md:col-span-3">
-            <p className="text-sm font-black text-zinc-100">Solucoes</p>
-            <div className="mt-4 space-y-3 text-sm text-zinc-400">
-              <Link className="block hover:text-zinc-200" href="/servicos/power-bi">
+            <p className="text-sm font-black text-zinc-950">Solucoes</p>
+            <div className="mt-4 space-y-3 text-sm text-zinc-900/90">
+              <Link className="block hover:text-zinc-950" href="/servicos/power-bi">
                 Power BI
               </Link>
-              <Link className="block hover:text-zinc-200" href="/servicos/erp">
+              <Link className="block hover:text-zinc-950" href="/servicos/erp">
                 ERP
               </Link>
-              <Link className="block hover:text-zinc-200" href="/servicos/crm">
+              <Link className="block hover:text-zinc-950" href="/servicos/crm">
                 CRM
               </Link>
-              <Link className="block hover:text-zinc-200" href="/servicos/landing-page">
+              <Link className="block hover:text-zinc-950" href="/servicos/landing-page">
                 Landing Page
               </Link>
             </div>
           </div>
 
           <div className="md:col-span-2">
-            <p className="text-sm font-black text-zinc-100">Institucional</p>
+            <p className="text-sm font-black text-zinc-950">Institucional</p>
             <div className="mt-4 space-y-3 text-sm">
-              <a className="block text-zinc-400 hover:text-zinc-200" href="/#inicio">
+              <a className="block text-zinc-900/90 hover:text-zinc-950" href="/#inicio">
                 Inicio
               </a>
-              <a className="block text-zinc-400 hover:text-zinc-200" href="/#problemas">
+              <a className="block text-zinc-900/90 hover:text-zinc-950" href="/#problemas">
                 Problemas
               </a>
-              <a className="block text-zinc-400 hover:text-zinc-200" href="/#solucao">
+              <a className="block text-zinc-900/90 hover:text-zinc-950" href="/#solucao">
                 Solucao
               </a>
-              <a className="block text-zinc-400 hover:text-zinc-200" href="/#modulos">
+              <a className="block text-zinc-900/90 hover:text-zinc-950" href="/#modulos">
                 Modulos
               </a>
-              <a className="block text-zinc-400 hover:text-zinc-200" href="/#beneficios">
+              <a className="block text-zinc-900/90 hover:text-zinc-950" href="/#beneficios">
                 Beneficios
               </a>
-              <a className="block text-zinc-400 hover:text-zinc-200" href="/#sobre">
+              <a className="block text-zinc-900/90 hover:text-zinc-950" href="/#sobre">
                 Sobre
               </a>
-              <a className="block text-zinc-400 hover:text-zinc-200" href="/#depoimentos">
+              <a className="block text-zinc-900/90 hover:text-zinc-950" href="/#depoimentos">
                 Depoimentos
               </a>
-              <a className="block text-zinc-400 hover:text-zinc-200" href="/#quanto-custa">
+              <a className="block text-zinc-900/90 hover:text-zinc-950" href="/#quanto-custa">
                 Quanto custa?
               </a>
               <a
-                className="block text-zinc-400 hover:text-zinc-200"
+                className="block text-zinc-900/90 hover:text-zinc-950"
                 href="/#localizacao"
               >
                 Localizacao
@@ -107,7 +107,7 @@ export function SiteFooter() {
           </div>
 
           <div className="md:col-span-3">
-            <p className="text-sm font-black text-zinc-100">Canais Institucionais</p>
+            <p className="text-sm font-black text-zinc-950">Canais Institucionais</p>
             <div className="mt-4 space-y-4">
               <div className="w-full min-w-[260px] rounded-2xl border border-zinc-800 bg-zinc-900 p-5 md:min-w-[320px]">
                 <p className="text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400">
@@ -135,13 +135,13 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-zinc-800 pt-8 text-sm text-zinc-500 md:flex-row md:items-center">
-          <p>© 2026 GR Dados. Todos os direitos reservados.</p>
+        <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-black/10 pt-8 text-sm text-zinc-900/80 md:flex-row md:items-center">
+          <p>(c) 2026 GR Dados. Todos os direitos reservados.</p>
           <div className="flex gap-6">
-            <a className="hover:text-zinc-300" href="#">
+            <a className="hover:text-zinc-950" href="#">
               Politica de Privacidade
             </a>
-            <a className="hover:text-zinc-300" href="#">
+            <a className="hover:text-zinc-950" href="#">
               Termos de Uso
             </a>
           </div>

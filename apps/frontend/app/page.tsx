@@ -107,16 +107,10 @@ export default function HomePage() {
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
               <Link
-                href="#iniciar-projeto"
+                href="/iniciar-projeto"
                 className="rounded-xl bg-accent-500 px-7 py-4 font-black text-zinc-950 hover:bg-accent-400"
               >
                 Iniciar um projeto
-              </Link>
-              <Link
-                href="/servicos/power-bi"
-                className="rounded-xl border border-zinc-700 bg-zinc-950/40 px-7 py-4 font-black text-zinc-100 hover:bg-zinc-900"
-              >
-                Ver Power BI
               </Link>
             </div>
           </div>
@@ -222,7 +216,7 @@ export default function HomePage() {
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <a
-                  href="#iniciar-projeto"
+                  href="/iniciar-projeto"
                   className="inline-flex justify-center rounded-xl bg-accent-500 px-8 py-4 text-sm font-black text-zinc-950 hover:bg-accent-400"
                 >
                   Solicitar demonstracao
