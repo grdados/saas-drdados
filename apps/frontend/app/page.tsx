@@ -78,12 +78,15 @@ export default function HomePage() {
   ];
 
   return (
-    <main className="min-h-screen text-white" id="inicio">
+    <main className="min-h-screen text-white">
       <SiteHeader />
       <SectionIndicator />
 
       {/* Sessao 1 - Inicio (Hero) */}
-      <section className="mx-auto grid min-h-[72vh] w-full max-w-6xl items-center gap-10 px-6 py-14 md:grid-cols-12">
+      <section
+        id="inicio"
+        className="mx-auto grid min-h-[72vh] w-full max-w-6xl items-center gap-10 px-6 py-14 md:grid-cols-12"
+      >
         <div className="md:col-span-6">
           <div className="space-y-6 text-left">
             <p className="inline-flex rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-accent-300">

@@ -88,13 +88,13 @@ export function SectionIndicator() {
 
   return (
     <div className="pointer-events-none fixed left-4 top-1/2 z-[55] -translate-y-1/2 sm:left-6">
-      <div className="pointer-events-auto relative rounded-[28px] border border-zinc-800 bg-zinc-950/40 px-3 py-4 backdrop-blur">
+      <div className="pointer-events-auto relative rounded-[24px] border border-zinc-800 bg-zinc-950/40 px-2 py-3 backdrop-blur">
         {/* Track */}
         <div className="pointer-events-none absolute inset-y-3 left-1/2 w-3 -translate-x-1/2 rounded-full bg-gradient-to-b from-white/10 via-white/5 to-transparent" />
         {/* Active glow that moves with the current section */}
         <div
-          className="pointer-events-none absolute left-1/2 top-4 h-8 w-3 -translate-x-1/2 rounded-full bg-gradient-to-b from-accent-500/70 via-accent-500/25 to-transparent blur-[0.3px] transition-transform duration-300"
-          style={{ transform: `translateX(-50%) translateY(${activeIndex * 40}px)` }}
+          className="pointer-events-none absolute left-1/2 top-3 h-7 w-3 -translate-x-1/2 rounded-full bg-gradient-to-b from-accent-500/70 via-accent-500/25 to-transparent blur-[0.3px] transition-transform duration-300"
+          style={{ transform: `translateX(-50%) translateY(${activeIndex * 36}px)` }}
         />
         <div className="flex flex-col gap-2">
           {sections.map((s) => {
@@ -108,7 +108,7 @@ export function SectionIndicator() {
                   if (!el) return;
                   el.scrollIntoView({ behavior: "smooth", block: "start" });
                 }}
-                className="group relative flex h-8 w-8 items-center justify-center"
+                className="group relative flex h-7 w-7 items-center justify-center"
                 aria-label={`Ir para ${s.label}`}
               >
                 <span
