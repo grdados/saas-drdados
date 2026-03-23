@@ -167,15 +167,15 @@ export default function HomePage() {
                 />
               </div>
 
-              <div className='relative mt-6 inline-block rounded-2xl border border-zinc-800 bg-zinc-950/70 p-6'>
-                <p className='text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400'>
-                  Software house
-                </p>
-                <p className='mt-2 text-sm font-extrabold text-white'>
-                  Engenharia sob medida
-                  <br />
-                  para negocios B2B
-                </p>
+              <div className='relative mt-6 flex justify-center text-center'>
+                <div className='max-w-full'>
+                  <p className='text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400'>
+                    Software house
+                  </p>
+                  <p className='mt-2 max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-sm font-extrabold text-white'>
+                    Engenharia sob medida para negocios B2B
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -212,7 +212,7 @@ export default function HomePage() {
       <footer className='border-t border-zinc-800 bg-zinc-950'>
         <div className='mx-auto w-full max-w-6xl px-6 py-14'>
           <div className='grid gap-10 md:grid-cols-12'>
-            <div className='md:col-span-5'>
+            <div className='md:col-span-4'>
               <Image
                 src='/gr-dados-logo-gray.svg'
                 alt='GR Dados'
@@ -266,24 +266,24 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className='md:col-span-2'>
+            <div className='md:col-span-3'>
               <p className='text-sm font-black text-zinc-100'>Canais Institucionais</p>
               <div className='mt-4 space-y-4'>
-                <div className='rounded-2xl border border-zinc-800 bg-zinc-900 p-5'>
+                <div className='w-full min-w-[260px] rounded-2xl border border-zinc-800 bg-zinc-900 p-5 md:min-w-[320px]'>
                   <p className='text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400'>
                     WhatsApp Comercial
                   </p>
-                  <p className='mt-2 text-sm font-black text-zinc-100'>
-                    <a className='underline' href='tel:+5567998698159'>
+                  <p className='mt-2 whitespace-nowrap text-sm font-black text-zinc-100'>
+                    <a className='inline-block whitespace-nowrap underline tabular-nums' href='tel:+5567998698159'>
                       (67) 99869-8159
                     </a>
                   </p>
                 </div>
-                <div className='rounded-2xl border border-zinc-800 bg-zinc-900 p-5'>
+                <div className='w-full min-w-[260px] rounded-2xl border border-zinc-800 bg-zinc-900 p-5 md:min-w-[320px]'>
                   <p className='text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400'>
                     Endereco
                   </p>
-                  <p className='mt-2 text-sm font-black text-zinc-100'>
+                  <p className='mt-2 whitespace-nowrap text-sm font-black text-zinc-100'>
                     Laguna Carapa - MS
                   </p>
                   <p className='text-xs font-semibold text-zinc-400'>CEP 79920-000</p>
