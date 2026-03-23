@@ -29,6 +29,11 @@ export function HeroRotatingLine({ phrases, intervalMs = 4200, className }: Prop
     return () => clearInterval(timer);
   }, [phrases, intervalMs]);
 
+  const raw = phrases[index] ?? "";
+  const parts = raw.split("\n");
+  const line1 = parts[0] ?? "";
+  const line2 = parts.slice(1).join(" ").trim();
+
   return (
     <span
       className={[
@@ -41,7 +46,8 @@ export function HeroRotatingLine({ phrases, intervalMs = 4200, className }: Prop
       ].join(" ")}
       aria-live="polite"
     >
-      {phrases[index] ?? ""}
+      <span className="block">{line1}</span>
+      <span className="block">{line2}</span>
     </span>
   );
 }

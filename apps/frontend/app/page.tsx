@@ -119,10 +119,10 @@ export default function HomePage() {
             </span>
             <HeroRotatingLine
               phrases={[
-                'Vamos desenvolver seu projeto',
-                'Tenha um sistema seu, Feito para seu negocio.',
+                'Vamos desenvolver\nseu projeto',
+                'Tenha um sistema seu,\nFeito para seu negocio.',
               ]}
-              className='mt-2 text-balance text-4xl md:text-5xl lg:text-6xl leading-[1.05]'
+              className='mt-2 text-balance text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-[1.05]'
             />
           </h1>
           <p className='max-w-xl text-lg text-zinc-300'>
