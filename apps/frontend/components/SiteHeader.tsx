@@ -25,8 +25,8 @@ export function SiteHeader() {
 
         <nav className="hidden items-center gap-2 md:flex">
           <Link
-            href="/#"
-            className="rounded-xl bg-zinc-800 px-4 py-2 text-sm font-bold text-accent-300"
+            href="/#inicio"
+            className="rounded-xl px-4 py-2 text-sm font-bold text-zinc-300 hover:bg-zinc-900"
           >
             Inicio
           </Link>
@@ -36,23 +36,59 @@ export function SiteHeader() {
           >
             Sobre
           </Link>
+
+          <details className="group relative">
+            <summary className="list-none cursor-pointer rounded-xl px-4 py-2 text-sm font-bold text-zinc-300 hover:bg-zinc-900">
+              <span className="inline-flex items-center gap-2">
+                Servicos
+                <svg
+                  className="h-4 w-4 text-zinc-400 transition group-open:rotate-180"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.24a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08Z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </span>
+            </summary>
+
+            <div className="absolute left-0 top-[calc(100%+10px)] z-30 w-56 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/95 shadow-2xl shadow-black/50">
+              <Link
+                href="/servicos/power-bi"
+                className="block px-4 py-3 text-sm font-black text-accent-300 hover:bg-zinc-900"
+              >
+                Power BI
+              </Link>
+              <Link
+                href="/servicos/erp"
+                className="block px-4 py-3 text-sm font-bold text-zinc-200 hover:bg-zinc-900"
+              >
+                ERP
+              </Link>
+              <Link
+                href="/servicos/crm"
+                className="block px-4 py-3 text-sm font-bold text-zinc-200 hover:bg-zinc-900"
+              >
+                CRM
+              </Link>
+              <Link
+                href="/servicos/landing-page"
+                className="block px-4 py-3 text-sm font-bold text-zinc-200 hover:bg-zinc-900"
+              >
+                Landing Page
+              </Link>
+            </div>
+          </details>
+
           <Link
-            href="/#recursos"
+            href="/#localizacao"
             className="rounded-xl px-4 py-2 text-sm font-bold text-zinc-300 hover:bg-zinc-900"
           >
-            Servicos
-          </Link>
-          <Link
-            href="/#planos"
-            className="rounded-xl px-4 py-2 text-sm font-bold text-zinc-300 hover:bg-zinc-900"
-          >
-            Cases
-          </Link>
-          <Link
-            href="/#contato"
-            className="rounded-xl px-4 py-2 text-sm font-bold text-zinc-300 hover:bg-zinc-900"
-          >
-            Blog
+            Localizacao
           </Link>
         </nav>
 
