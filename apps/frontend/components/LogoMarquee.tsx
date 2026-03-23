@@ -101,14 +101,17 @@ export function LogoMarquee() {
         </h2>
       </div>
 
-      <div className="mt-8 overflow-hidden">
+      <div className="relative mt-8 overflow-hidden">
         <div className="marquee-track px-6">
           {loop.map((item, idx) => (
             <LogoCard key={`${item.title}-${idx}`} item={item} />
           ))}
         </div>
+
+        {/* Edge fades (left/right) to match the reference look */}
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[rgb(24_24_27)] to-transparent" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-[rgb(24_24_27)] to-transparent" />
       </div>
     </section>
   );
 }
-

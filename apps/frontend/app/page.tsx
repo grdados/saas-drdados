@@ -126,7 +126,7 @@ export default function HomePage() {
               className='mt-2 text-balance text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-[1.05]'
             />
           </h1>
-          <p className='max-w-xl text-lg text-zinc-300'>
+          <p className='max-w-xl text-lg text-zinc-200'>
             Sistemas sob medida para organizar processos, centralizar
             informações e dar mais controle ao seu negócio..
           </p>
