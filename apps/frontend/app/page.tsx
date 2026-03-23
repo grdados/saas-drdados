@@ -40,6 +40,63 @@ export default function HomePage() {
             >
               Sobre
             </a>
+            <details className='group relative'>
+              <summary className='list-none cursor-pointer rounded-xl px-4 py-2 text-sm font-bold text-zinc-300 hover:bg-zinc-900'>
+                <span className='inline-flex items-center gap-2'>
+                  Servicos
+                  <svg
+                    className='h-4 w-4 text-zinc-400 transition group-open:rotate-180'
+                    viewBox='0 0 20 20'
+                    fill='currentColor'
+                    aria-hidden='true'
+                  >
+                    <path
+                      fillRule='evenodd'
+                      d='M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.24a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08Z'
+                      clipRule='evenodd'
+                    />
+                  </svg>
+                </span>
+              </summary>
+              <div className='absolute left-0 top-[calc(100%+10px)] z-30 w-56 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/95 shadow-2xl shadow-black/50'>
+                <a
+                  href='#servicos-erp'
+                  className='block px-4 py-3 text-sm font-black text-accent-300 hover:bg-zinc-900'
+                >
+                  Sistemas ERP
+                </a>
+                <a
+                  href='#servicos-saas'
+                  className='block px-4 py-3 text-sm font-bold text-zinc-200 hover:bg-zinc-900'
+                >
+                  SaaS e MVP
+                </a>
+                <a
+                  href='#servicos-crm'
+                  className='block px-4 py-3 text-sm font-bold text-zinc-200 hover:bg-zinc-900'
+                >
+                  CRM Personalizado
+                </a>
+                <a
+                  href='#servicos-ia'
+                  className='block px-4 py-3 text-sm font-bold text-zinc-200 hover:bg-zinc-900'
+                >
+                  IA e Automacao
+                </a>
+                <a
+                  href='#servicos-portais'
+                  className='block px-4 py-3 text-sm font-bold text-zinc-200 hover:bg-zinc-900'
+                >
+                  Portais Web
+                </a>
+                <a
+                  href='#servicos-sites'
+                  className='block px-4 py-3 text-sm font-bold text-zinc-200 hover:bg-zinc-900'
+                >
+                  Sites Corporativos
+                </a>
+              </div>
+            </details>
             <a
               href='#localizacao'
               className='rounded-xl px-4 py-2 text-sm font-bold text-zinc-300 hover:bg-zinc-900'
@@ -175,6 +232,196 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section
+        id='servicos'
+        className='relative overflow-hidden bg-zinc-950 py-16 scroll-mt-24'
+      >
+        <div className='pointer-events-none absolute inset-0 opacity-[0.25]'>
+          <div
+            className='absolute inset-0'
+            style={{
+              backgroundImage:
+                'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)',
+              backgroundSize: '52px 52px',
+            }}
+          />
+          <div className='absolute inset-0 bg-gradient-to-b from-zinc-950/20 via-zinc-950/70 to-zinc-950' />
+        </div>
+
+        <div className='relative mx-auto w-full max-w-6xl px-6'>
+          <div
+            id='servicos-erp'
+            className='grid items-center gap-10 md:grid-cols-12'
+          >
+            <div className='md:col-span-6'>
+              <p className='inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950/60 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-accent-300'>
+                <span className='h-2 w-2 rounded-full bg-accent-400' />
+                Sistemas de gestao &amp; ERP
+              </p>
+
+              <h2 className='mt-6 text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl'>
+                Organize a operacao da
+                <span className='block'>
+                  sua empresa com{' '}
+                  <span className='text-accent-400'>controle total.</span>
+                </span>
+              </h2>
+
+              <p className='mt-5 max-w-xl text-sm leading-7 text-zinc-300'>
+                Desenvolvemos sistemas sob medida para empresas que precisam sair das planilhas,
+                centralizar processos, acompanhar indicadores e ganhar mais controle financeiro e
+                gerencial da operacao.
+              </p>
+
+              <div className='mt-8 flex flex-col gap-3 sm:flex-row sm:items-center'>
+                <Link
+                  href='/register'
+                  className='inline-flex justify-center rounded-xl bg-accent-500 px-8 py-4 text-sm font-black text-zinc-950 hover:bg-accent-400'
+                >
+                  Iniciar um projeto
+                </Link>
+                <a
+                  href='#localizacao'
+                  className='inline-flex justify-center rounded-xl border border-zinc-700 bg-zinc-950/40 px-8 py-4 text-sm font-black text-zinc-100 hover:bg-zinc-900'
+                >
+                  Ver casos reais
+                </a>
+              </div>
+
+              <div className='mt-8 flex flex-wrap gap-3'>
+                <span className='inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950/40 px-4 py-2 text-xs font-bold text-zinc-200'>
+                  <span className='inline-flex h-5 w-5 items-center justify-center rounded-full bg-accent-500/15 text-accent-300'>
+                    ✓
+                  </span>
+                  Sob medida para a operacao
+                </span>
+                <span className='inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950/40 px-4 py-2 text-xs font-bold text-zinc-200'>
+                  <span className='inline-flex h-5 w-5 items-center justify-center rounded-full bg-accent-500/15 text-accent-300'>
+                    ✓
+                  </span>
+                  Nada de software pronto engessado
+                </span>
+                <span className='inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950/40 px-4 py-2 text-xs font-bold text-zinc-200'>
+                  <span className='inline-flex h-5 w-5 items-center justify-center rounded-full bg-accent-500/15 text-accent-300'>
+                    ✓
+                  </span>
+                  Integracao financeira total
+                </span>
+              </div>
+            </div>
+
+            <div className='md:col-span-6'>
+              <div className='relative'>
+                <div className='absolute -right-10 -top-10 h-64 w-64 rounded-full bg-accent-500/15 blur-3xl' />
+                <div className='relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/50 p-5'>
+                  <div className='overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950'>
+                    <Image
+                      src='/service-erp-dashboard.svg'
+                      alt='Dashboard ERP'
+                      width={1200}
+                      height={740}
+                      className='h-auto w-full'
+                      priority={false}
+                    />
+                  </div>
+                </div>
+
+                <div className='absolute -bottom-6 right-4 max-w-[340px] rounded-2xl border border-zinc-800 bg-white p-5 text-zinc-900 shadow-2xl shadow-black/40'>
+                  <p className='text-[11px] font-black uppercase tracking-[0.22em] text-zinc-500'>
+                    Operacao centralizada
+                  </p>
+                  <p className='mt-2 text-sm font-extrabold leading-6 text-zinc-900'>
+                    Financeiro, processos e relatorios em um so ambiente.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className='mt-14 grid gap-4 md:grid-cols-3'>
+            <a
+              id='servicos-saas'
+              href='#servicos-saas'
+              className='group rounded-2xl border border-zinc-800 bg-zinc-950/40 p-6 hover:bg-zinc-900/40'
+            >
+              <p className='text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400'>
+                SaaS e MVP
+              </p>
+              <p className='mt-2 text-lg font-black text-zinc-100 group-hover:text-white'>
+                Lancamento rapido com base pronta
+              </p>
+              <p className='mt-2 text-sm leading-7 text-zinc-400'>
+                Autenticacao, licenca e portal para validar e vender.
+              </p>
+            </a>
+
+            <a
+              id='servicos-crm'
+              href='#servicos-crm'
+              className='group rounded-2xl border border-zinc-800 bg-zinc-950/40 p-6 hover:bg-zinc-900/40'
+            >
+              <p className='text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400'>
+                CRM Personalizado
+              </p>
+              <p className='mt-2 text-lg font-black text-zinc-100 group-hover:text-white'>
+                Funil, tarefas e operacao comercial
+              </p>
+              <p className='mt-2 text-sm leading-7 text-zinc-400'>
+                Tudo alinhado ao seu processo e realidade.
+              </p>
+            </a>
+
+            <a
+              id='servicos-ia'
+              href='#servicos-ia'
+              className='group rounded-2xl border border-zinc-800 bg-zinc-950/40 p-6 hover:bg-zinc-900/40'
+            >
+              <p className='text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400'>
+                IA e Automacao
+              </p>
+              <p className='mt-2 text-lg font-black text-zinc-100 group-hover:text-white'>
+                Processos mais rapidos e consistentes
+              </p>
+              <p className='mt-2 text-sm leading-7 text-zinc-400'>
+                Integracoes, rotinas e assistentes para o time.
+              </p>
+            </a>
+
+            <a
+              id='servicos-portais'
+              href='#servicos-portais'
+              className='group rounded-2xl border border-zinc-800 bg-zinc-950/40 p-6 hover:bg-zinc-900/40'
+            >
+              <p className='text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400'>
+                Portais Web
+              </p>
+              <p className='mt-2 text-lg font-black text-zinc-100 group-hover:text-white'>
+                Area do cliente e operacao online
+              </p>
+              <p className='mt-2 text-sm leading-7 text-zinc-400'>
+                Acesso, relatorios e processos em um lugar.
+              </p>
+            </a>
+
+            <a
+              id='servicos-sites'
+              href='#servicos-sites'
+              className='group rounded-2xl border border-zinc-800 bg-zinc-950/40 p-6 hover:bg-zinc-900/40 md:col-span-2'
+            >
+              <p className='text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400'>
+                Sites Corporativos
+              </p>
+              <p className='mt-2 text-lg font-black text-zinc-100 group-hover:text-white'>
+                Marca forte, claro e rapido
+              </p>
+              <p className='mt-2 max-w-2xl text-sm leading-7 text-zinc-400'>
+                Landing pages e sites com performance, SEO e visual de alto nivel.
+              </p>
+            </a>
+          </div>
+        </div>
+      </section>
+
       <section id='localizacao' className='bg-zinc-950 py-16 scroll-mt-24'>
         <div className='mx-auto grid w-full max-w-6xl items-stretch gap-6 px-6 md:grid-cols-12'>
           <div className='rounded-3xl border border-zinc-800 bg-zinc-900 p-8 md:col-span-5'>
@@ -252,6 +499,9 @@ export default function HomePage() {
                 </a>
                 <a className='block text-zinc-400 hover:text-zinc-200' href='#sobre'>
                   Sobre
+                </a>
+                <a className='block text-zinc-400 hover:text-zinc-200' href='#servicos'>
+                  Servicos
                 </a>
                 <a className='block text-zinc-400 hover:text-zinc-200' href='#localizacao'>
                   Localizacao
