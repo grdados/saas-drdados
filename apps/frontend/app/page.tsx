@@ -100,34 +100,36 @@ export default function HomePage() {
           </nav>
 
           <Link
-            href='/register'
+            href='/login'
             className='rounded-2xl bg-accent-500 px-6 py-3 text-sm font-black text-zinc-950 transition hover:bg-accent-400'
           >
-            Iniciar um projeto
+            Login
           </Link>
         </div>
       </header>
 
-      <section className='mx-auto grid w-full max-w-6xl gap-10 px-6 pb-16 pt-12 md:grid-cols-2 md:items-center'>
+      <section className='mx-auto grid w-full max-w-6xl gap-10 px-6 pb-16 pt-12 md:items-center'>
         <div className='space-y-6'>
           <p className='inline-flex rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-accent-300'>
             Sistemas sob medida e produtos digitais
           </p>
-          <h1 className='text-4xl font-extrabold leading-tight md:text-6xl'>
-            <span className='block'>Chega de planilhas</span>
+          <h1 className='font-extrabold leading-[1.03] tracking-tight'>
+            <span className='block text-5xl md:text-6xl lg:text-7xl md:whitespace-nowrap'>
+              Chega de planilhas
+            </span>
             <HeroRotatingLine
               phrases={[
                 'Vamos desenvolver seu projeto',
-                'Tenha um sistema seu',
-                'Feito para seu negocio.',
+                'Tenha um sistema seu, Feito para seu negocio.',
               ]}
+              className='mt-2 text-balance text-4xl md:text-5xl lg:text-6xl leading-[1.05]'
             />
           </h1>
           <p className='max-w-xl text-lg text-zinc-300'>
             Sistemas sob medida para organizar processos, centralizar
             informações e dar mais controle ao seu negócio..
           </p>
-          <div className='flex justify-end'>
+          <div className='flex justify-start'>
             <Link
               href='/register'
               className='rounded-xl bg-accent-500 px-7 py-4 font-black text-zinc-950 hover:bg-accent-400'

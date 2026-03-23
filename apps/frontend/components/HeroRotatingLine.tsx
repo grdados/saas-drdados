@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 type Props = {
   phrases: string[];
   intervalMs?: number;
+  className?: string;
 };
 
 export function HeroRotatingLine({ phrases, intervalMs = 4200 }: Props) {
@@ -33,6 +34,7 @@ export function HeroRotatingLine({ phrases, intervalMs = 4200 }: Props) {
       className={[
         "block",
         "text-accent-400",
+        className ?? "",
         "transition-all",
         "duration-500",
         visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
@@ -43,4 +45,3 @@ export function HeroRotatingLine({ phrases, intervalMs = 4200 }: Props) {
     </span>
   );
 }
-
