@@ -63,11 +63,11 @@ export function SiteHeader() {
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
         <Link href="/" className="flex items-center">
           <Image
-            src="/logo-1.svg"
+            src="/logo-2.svg"
             alt="GR Dados"
             width={320}
             height={80}
-            className="h-12 w-auto md:h-14"
+            className="h-12 w-auto rounded-2xl md:h-14"
             priority
           />
         </Link>
