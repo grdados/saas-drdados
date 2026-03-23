@@ -8,7 +8,7 @@ type Props = {
   className?: string;
 };
 
-export function HeroRotatingLine({ phrases, intervalMs = 4200 }: Props) {
+export function HeroRotatingLine({ phrases, intervalMs = 4200, className }: Props) {
   const [index, setIndex] = useState(0);
   const [visible, setVisible] = useState(true);
 
