@@ -122,20 +122,51 @@ export function LogoMarquee() {
   return (
     <section className="bg-[rgb(24_24_27)] py-10">
       <div className="mx-auto w-full max-w-6xl px-6">
-        <p className="text-sm font-black text-zinc-100">
+        {/* 1) Problema (pequeno) */}
+        <p className="inline-flex items-center gap-2 text-sm font-black text-zinc-100">
+          <span className="h-2 w-2 rounded-full bg-red-500" />
           Seu sistema e engessado e te obriga a criar relatorios paralelos?
         </p>
-        <h2 className="mt-3 text-2xl font-black text-white md:text-3xl">
-          E se voce tivesse tudo centralizado no Power BI, com dashboards dinamicos e prontos para apoiar suas decisoes?
-        </h2>
-        <p className="mt-5 text-sm font-black text-zinc-100">Com dashboards no Power BI, voce tem:</p>
-        <ul className="mt-3 grid gap-2 text-sm text-zinc-300 md:grid-cols-3">
-          <li>Tudo centralizado</li>
-          <li>Dados atualizados em tempo real</li>
-          <li>Visao clara para tomar decisoes rapidas</li>
-        </ul>
 
-        <p className="mt-8 text-xs font-black uppercase tracking-[0.22em] text-zinc-400">
+        {/* 2) Headline principal (grande) */}
+        <h2 className="mt-4 text-3xl font-black leading-[1.08] text-white md:text-4xl">
+          Centralize tudo no Power BI e tenha dashboards prontos para tomar decisoes com seguranca
+        </h2>
+
+        {/* 3) Subheadline (apoio) */}
+        <p className="mt-4 max-w-3xl text-sm leading-7 text-zinc-300 md:text-base">
+          Dados organizados, atualizados em tempo real e apresentados de forma simples para voce agir rapido
+        </p>
+
+        {/* 4) Beneficios (3 colunas em destaque visual) */}
+        <div className="mt-7 grid gap-3 md:grid-cols-3">
+          <div className="flex items-start gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/40 px-5 py-4">
+            <span className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-accent-500/15 text-accent-300">
+              ✓
+            </span>
+            <p className="text-sm font-bold text-zinc-100">
+              Tudo centralizado em um so lugar
+            </p>
+          </div>
+          <div className="flex items-start gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/40 px-5 py-4">
+            <span className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-accent-500/15 text-accent-300">
+              ✓
+            </span>
+            <p className="text-sm font-bold text-zinc-100">
+              Dados atualizados em tempo real
+            </p>
+          </div>
+          <div className="flex items-start gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/40 px-5 py-4">
+            <span className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-accent-500/15 text-accent-300">
+              ✓
+            </span>
+            <p className="text-sm font-bold text-zinc-100">
+              Clareza total para decisoes rapidas
+            </p>
+          </div>
+        </div>
+
+        <p className="mt-10 text-xs font-black uppercase tracking-[0.22em] text-zinc-400">
           Modulos que estruturam a operacao
         </p>
       </div>
