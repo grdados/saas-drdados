@@ -6,7 +6,7 @@ const manrope = Manrope({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "GR Dados",
-  description: "SaaS CRM para gestão de leads, clientes e vendas."
+  description: "Solucoes sob medida para gestao, CRM e BI com Power BI."
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -16,3 +16,4 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     </html>
   );
 }
+

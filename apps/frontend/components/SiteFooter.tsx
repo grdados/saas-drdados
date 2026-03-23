@@ -75,11 +75,26 @@ export function SiteFooter() {
               <a className="block text-zinc-400 hover:text-zinc-200" href="/#inicio">
                 Inicio
               </a>
+              <a className="block text-zinc-400 hover:text-zinc-200" href="/#problemas">
+                Problemas
+              </a>
+              <a className="block text-zinc-400 hover:text-zinc-200" href="/#solucao">
+                Solucao
+              </a>
+              <a className="block text-zinc-400 hover:text-zinc-200" href="/#modulos">
+                Modulos
+              </a>
+              <a className="block text-zinc-400 hover:text-zinc-200" href="/#beneficios">
+                Beneficios
+              </a>
               <a className="block text-zinc-400 hover:text-zinc-200" href="/#sobre">
                 Sobre
               </a>
-              <a className="block text-zinc-400 hover:text-zinc-200" href="/#servicos">
-                Servicos
+              <a className="block text-zinc-400 hover:text-zinc-200" href="/#depoimentos">
+                Depoimentos
+              </a>
+              <a className="block text-zinc-400 hover:text-zinc-200" href="/#quanto-custa">
+                Quanto custa?
               </a>
               <a
                 className="block text-zinc-400 hover:text-zinc-200"

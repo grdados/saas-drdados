@@ -1,46 +1,101 @@
-import Image from 'next/image';
-import Link from 'next/link';
+import Image from "next/image";
+import Link from "next/link";
 
-import { HeroRotatingLine } from '@/components/HeroRotatingLine';
-import { LogoMarquee } from '@/components/LogoMarquee';
-import { SiteHeader } from '@/components/SiteHeader';
+import { HeroRotatingLine } from "@/components/HeroRotatingLine";
+import { SiteFooter } from "@/components/SiteFooter";
+import { SiteHeader } from "@/components/SiteHeader";
 
 export default function HomePage() {
+  const solutionItems = [
+    "CRM personalizado para sua operacao",
+    "Dashboards inteligentes em Power BI",
+    "Integracao com seus sistemas",
+    "Automacao de processos"
+  ];
+
+  const solutionCards = [
+    { title: "Power BI", href: "/servicos/power-bi", img: "/service-card-powerbi.svg" },
+    { title: "ERP", href: "/servicos/erp", img: "/service-card-erp.svg" },
+    { title: "CRM", href: "/servicos/crm", img: "/service-card-crm.svg" },
+    { title: "Landing Page", href: "/servicos/landing-page", img: "/service-card-landing.svg" }
+  ];
+
+  const modules = [
+    {
+      tag: "Comercial",
+      title: "Gestao de leads e funil de vendas"
+    },
+    {
+      tag: "Financeiro",
+      title: "Controle de receitas, despesas e lucro"
+    },
+    {
+      tag: "Estoque",
+      title: "Controle completo de produtos"
+    },
+    {
+      tag: "BI / Indicadores",
+      title: "Dashboards estrategicos em tempo real"
+    }
+  ];
+
+  const beneficios = [
+    "Agilidade na tomada de decisao",
+    "Mais produtividade",
+    "Decisoes com dados reais",
+    "Reducao de custos e erros"
+  ];
+
+  const depoimentos = [
+    "O sistema trouxe clareza total do meu negocio",
+    "Hoje sei exatamente onde estou ganhando dinheiro",
+    "A equipe ganhou produtividade e previsibilidade"
+  ];
+
+  const faq = [
+    { q: "Quanto custa?", a: "Depende do projeto, fazemos sob medida." },
+    { q: "Demora quanto tempo?", a: "Em media 15 a 30 dias." },
+    { q: "Funciona com meu sistema?", a: "Sim, fazemos integracao." }
+  ];
+
   return (
-    <main className='min-h-screen text-white scroll-mt-24' id='inicio'>
+    <main className="min-h-screen text-white" id="inicio">
       <SiteHeader />
 
-      <section className='mx-auto grid w-full max-w-6xl gap-10 px-6 pb-16 pt-12 md:items-center'>
-        <div className='space-y-6'>
-          <p className='inline-flex rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-accent-300'>
+      {/* Sessao 1 - Inicio (Hero) */}
+      <section className="mx-auto grid w-full max-w-6xl gap-10 px-6 pb-16 pt-12 md:items-center">
+        <div className="space-y-6">
+          <p className="inline-flex rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-accent-300">
             Sistemas sob medida e produtos digitais
           </p>
-          <h1 className='font-extrabold leading-[1.03] tracking-tight'>
-            <span className='block text-5xl md:text-6xl lg:text-7xl md:whitespace-nowrap'>
+
+          <h1 className="font-extrabold leading-[1.03] tracking-tight">
+            <span className="block text-5xl md:text-6xl lg:text-7xl md:whitespace-nowrap">
               Chega de planilhas
             </span>
             <HeroRotatingLine
               phrases={[
-                'Tenha um sistema seu,\nFeito para seu negocio.',
-                'Tudo centralizado no Power BI,\ncom dashboards dinamicos.',
+                "Tenha um sistema seu,\nFeito para seu negocio.",
+                "Tudo centralizado no Power BI,\ncom dashboards dinamicos."
               ]}
-              className='mt-2 text-balance text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-[1.05]'
+              className="mt-2 text-balance text-3xl leading-[1.05] sm:text-4xl md:text-5xl lg:text-6xl"
             />
           </h1>
-          <p className='max-w-xl text-lg text-zinc-200'>
-            Sistemas sob medida para organizar processos, centralizar
-            informações e dar mais controle ao seu negócio..
+
+          <p className="max-w-xl text-lg text-zinc-200">
+            Sistemas sob medida para organizar processos, centralizar informacoes e dar mais controle ao seu negocio.
           </p>
-          <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4'>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
             <Link
-              href='/register'
-              className='rounded-xl bg-accent-500 px-7 py-4 font-black text-zinc-950 hover:bg-accent-400'
+              href="#iniciar-projeto"
+              className="rounded-xl bg-accent-500 px-7 py-4 font-black text-zinc-950 hover:bg-accent-400"
             >
               Iniciar um projeto
             </Link>
             <Link
-              href='/servicos/power-bi'
-              className='rounded-xl border border-zinc-700 bg-zinc-950/40 px-7 py-4 font-black text-zinc-100 hover:bg-zinc-900'
+              href="/servicos/power-bi"
+              className="rounded-xl border border-zinc-700 bg-zinc-950/40 px-7 py-4 font-black text-zinc-100 hover:bg-zinc-900"
             >
               Ver Power BI
             </Link>
@@ -48,365 +103,365 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className='mx-auto w-full max-w-6xl px-6 pb-6'>
-        <div className='flex flex-col items-center justify-between gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/60 px-6 py-4 md:flex-row'>
-          <p className='text-xs font-black uppercase tracking-[0.22em] text-zinc-400'>
-            Experiencia tecnica
+      {/* Sessao 2 - Problemas */}
+      <section id="problemas" className="bg-zinc-950 py-14 scroll-mt-24">
+        <div className="mx-auto w-full max-w-6xl px-6">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">
+            Problemas
           </p>
-          <p className='text-sm font-extrabold text-zinc-100'>
-            <span className='text-accent-300'>ERP &amp; Gestao</span>
-            <span className='px-2 text-zinc-500'>|</span>
-            <span className='text-zinc-100'>CRM</span>
-            <span className='px-2 text-zinc-500'>|</span>
-            <span className='text-zinc-100'>Landing Pages</span>
+          <h2 className="mt-2 text-3xl font-black text-white md:text-4xl">
+            Onde a operacao trava
+          </h2>
+          <p className="mt-3 max-w-3xl text-sm leading-7 text-zinc-300">
+            Planilhas, retrabalho e falta de visao deixam a equipe lenta e a gestao sem previsibilidade.
           </p>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-6">
+              <p className="text-sm font-black text-zinc-100">Relatorios paralelos</p>
+              <p className="mt-2 text-sm leading-7 text-zinc-400">
+                Cada area cria o proprio controle e os numeros nao batem.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-6">
+              <p className="text-sm font-black text-zinc-100">Dados desatualizados</p>
+              <p className="mt-2 text-sm leading-7 text-zinc-400">
+                Informacao chega tarde e a decisao vira aposta.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-6">
+              <p className="text-sm font-black text-zinc-100">Baixa produtividade</p>
+              <p className="mt-2 text-sm leading-7 text-zinc-400">
+                Muito tempo em copiar e colar, pouco tempo em executar.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
-      <LogoMarquee />
+      {/* Sessao 3 - Solucao */}
+      <section id="solucao" className="bg-[rgb(24_24_27)] py-16 scroll-mt-24">
+        <div className="mx-auto w-full max-w-6xl px-6">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">
+            Solucao
+          </p>
+          <h2 className="mt-2 text-3xl font-black text-white md:text-5xl">
+            Uma solucao completa para gestao e inteligencia de dados
+          </h2>
 
-      <section id='sobre' className='bg-[rgb(24_24_27)] py-10 scroll-mt-24'>
-        <div className='mx-auto grid w-full max-w-6xl items-center gap-8 px-6 md:grid-cols-12'>
-          <div className='md:col-span-6'>
-            <p className='inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950/40 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-accent-300'>
-              <span className='h-2 w-2 rounded-full bg-accent-400' />
-              Sobre a GR Dados
-            </p>
+          <div className="mt-8 grid gap-4 md:grid-cols-2">
+            <div className="rounded-3xl border border-zinc-800 bg-zinc-950/40 p-8">
+              <ul className="space-y-4 text-sm text-zinc-200">
+                {solutionItems.map((text) => (
+                  <li key={text} className="flex items-start gap-3">
+                    <span className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-accent-500/15 text-accent-300">
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M20 6 9 17l-5-5"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
+                    <span className="font-bold text-zinc-100">{text}</span>
+                  </li>
+                ))}
+              </ul>
 
-            <h2 className='mt-6 text-4xl font-black leading-tight md:text-5xl'>
-              Projetos digitais com
-              <span className='block text-accent-400'>logica e controle</span>
-            </h2>
-
-            <p className='mt-5 max-w-xl text-sm leading-7 text-zinc-300'>
-              Engenharia de software sob medida para empresas que precisam de controle financeiro,
-              processo estruturado e clareza operacional na rotina.
-            </p>
-
-            <div className='mt-6 space-y-3 text-sm text-zinc-200'>
-              <div className='flex items-start gap-3'>
-                <span className='mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-accent-500/15 text-accent-300'>
-                  ✓
-                </span>
-                <p>ERP, CRM, SaaS e automacoes avancadas</p>
-              </div>
-              <div className='flex items-start gap-3'>
-                <span className='mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-accent-500/15 text-accent-300'>
-                  ✓
-                </span>
-                <p>Sistemas desenhados para a operacao real</p>
-              </div>
-              <div className='flex items-start gap-3'>
-                <span className='mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-accent-500/15 text-accent-300'>
-                  ✓
-                </span>
-                <p>Tecnologia feita para escalar junto com o negocio</p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <a
+                  href="#iniciar-projeto"
+                  className="inline-flex justify-center rounded-xl bg-accent-500 px-8 py-4 text-sm font-black text-zinc-950 hover:bg-accent-400"
+                >
+                  Solicitar demonstracao
+                </a>
+                <a
+                  href="https://wa.me/5567998698159"
+                  className="inline-flex justify-center rounded-xl border border-zinc-700 bg-zinc-950/40 px-8 py-4 text-sm font-black text-zinc-100 hover:bg-zinc-900"
+                >
+                  Falar agora
+                </a>
               </div>
             </div>
 
-            {/* CTA removido da sessao Sobre (mantemos apenas no Hero) */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              {solutionCards.map((card) => (
+                <Link
+                  key={card.title}
+                  href={card.href}
+                  className="group overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/40 hover:bg-zinc-900/30"
+                >
+                  <div className="relative">
+                    <Image
+                      src={card.img}
+                      alt={card.title}
+                      width={1200}
+                      height={720}
+                      className="h-auto w-full"
+                    />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-zinc-950/85 via-zinc-950/15 to-transparent" />
+                  </div>
+                  <div className="p-5">
+                    <p className="text-sm font-black text-zinc-100 group-hover:text-white">
+                      {card.title}
+                    </p>
+                    <p className="mt-1 text-xs font-semibold text-zinc-400">Ver detalhes</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Sessao 4 - Modulos */}
+      <section id="modulos" className="bg-zinc-950 py-16 scroll-mt-24">
+        <div className="mx-auto w-full max-w-6xl px-6">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">
+            Modulos
+          </p>
+          <h2 className="mt-2 text-3xl font-black text-white md:text-4xl">
+            Modulos que estruturam a operacao
+          </h2>
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {modules.map((m) => (
+              <div
+                key={m.tag}
+                className="group relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/40 p-6 transition hover:bg-zinc-900/30"
+              >
+                <div
+                  className="pointer-events-none absolute -inset-1 opacity-0 blur-2xl transition group-hover:opacity-100"
+                  style={{
+                    background:
+                      "radial-gradient(700px 160px at 30% 10%, rgba(223,152,48,0.35), transparent 60%)"
+                  }}
+                />
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400">
+                  {m.tag}
+                </p>
+                <p className="mt-3 text-sm font-black text-zinc-100">{m.title}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Sessao 5 - Beneficios */}
+      <section id="beneficios" className="bg-[rgb(24_24_27)] py-16 scroll-mt-24">
+        <div className="mx-auto w-full max-w-6xl px-6">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">
+            Beneficios
+          </p>
+          <h2 className="mt-2 text-3xl font-black text-white md:text-4xl">
+            Resultados que voce vai perceber na pratica
+          </h2>
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {beneficios.map((b) => (
+              <div key={b} className="rounded-3xl border border-zinc-800 bg-zinc-950/40 p-6">
+                <p className="text-sm font-black text-zinc-100">{b}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Sessao 6 - Sobre */}
+      <section id="sobre" className="bg-zinc-950 py-16 scroll-mt-24">
+        <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-6 md:grid-cols-12">
+          <div className="md:col-span-6">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">
+              Sobre
+            </p>
+            <h2 className="mt-2 text-3xl font-black text-white md:text-4xl">
+              Especialistas em solucoes inteligentes para empresas
+            </h2>
+            <p className="mt-4 max-w-xl text-sm leading-7 text-zinc-300">
+              Criamos sistemas sob medida combinando CRM + Business Intelligence, ajudando empresas a crescer com organizacao e estrategia.
+            </p>
           </div>
 
-          <div className='md:col-span-6'>
-            <div className='relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/30 p-10'>
-              <div className='absolute -right-24 -top-24 h-64 w-64 rounded-full bg-accent-500/15 blur-3xl' />
-              <div className='relative flex items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-950/50 p-12'>
+          <div className="md:col-span-6">
+            <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900">
+              <Image
+                src="/about-photo.svg"
+                alt="GR Dados - especialistas"
+                width={1400}
+                height={980}
+                className="h-auto w-full"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Sessao 7 - Depoimentos */}
+      <section id="depoimentos" className="bg-[rgb(24_24_27)] py-16 scroll-mt-24">
+        <div className="mx-auto w-full max-w-6xl px-6">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">
+            Depoimentos
+          </p>
+          <h2 className="mt-2 text-3xl font-black text-white md:text-4xl">
+            O que muda na pratica
+          </h2>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            {depoimentos.map((q) => (
+              <div key={q} className="rounded-3xl border border-zinc-800 bg-zinc-950/40 p-6">
+                <p className="text-sm font-black text-zinc-100">"{q}"</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { src: "/modulos/producao.svg", alt: "Print dashboard - Producao" },
+              { src: "/modulos/producao-1.svg", alt: "Print dashboard - Producao (variante)" },
+              { src: "/modulos/vendas.svg", alt: "Print dashboard - Vendas" },
+              { src: "/modulos/vendas-1.svg", alt: "Print dashboard - Vendas (variante)" }
+            ].map((img) => (
+              <div
+                key={img.src}
+                className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/40"
+              >
                 <Image
-                  src='/gr-dados-logo-gray.svg'
-                  alt='GR Dados'
-                  width={260}
-                  height={70}
+                  src={img.src}
+                  alt={img.alt}
+                  width={1200}
+                  height={720}
+                  className="h-auto w-full"
                 />
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-              <div className='relative mt-6 flex justify-center text-center'>
-                <div className='max-w-full'>
-                  <p className='text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400'>
-                    Software house
-                  </p>
-                  <p className='mt-2 max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-sm font-extrabold text-white'>
-                    Engenharia sob medida para negocios B2B
-                  </p>
+      {/* Sessao 8 - Iniciar um projeto */}
+      <section id="iniciar-projeto" className="bg-zinc-950 py-16 scroll-mt-24">
+        <div className="mx-auto w-full max-w-6xl px-6">
+          <div className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 p-10">
+            <div className="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-accent-500/20 blur-3xl" />
+            <div className="absolute -right-24 -bottom-24 h-72 w-72 rounded-full bg-accent-500/10 blur-3xl" />
+
+            <div className="relative grid gap-8 md:grid-cols-12 md:items-center">
+              <div className="md:col-span-7">
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">
+                  Iniciar um projeto
+                </p>
+                <h2 className="mt-2 text-3xl font-black text-white md:text-4xl">
+                  Pronto para transformar seu negocio?
+                </h2>
+                <p className="mt-3 max-w-xl text-sm leading-7 text-zinc-300">
+                  Vamos mapear seu processo e entregar um sistema sob medida com BI para decisao rapida.
+                </p>
+              </div>
+
+              <div className="md:col-span-5">
+                <div className="grid gap-3">
+                  <Link
+                    href="/register"
+                    className="inline-flex justify-center rounded-2xl bg-accent-500 px-8 py-5 text-base font-black text-zinc-950 hover:bg-accent-400"
+                  >
+                    Solicitar demonstracao
+                  </Link>
+                  <a
+                    href="https://wa.me/5567998698159"
+                    className="inline-flex justify-center rounded-2xl border border-zinc-700 bg-zinc-950/40 px-8 py-5 text-base font-black text-zinc-100 hover:bg-zinc-950"
+                  >
+                    Falar agora
+                  </a>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </section>
-      <section
-        id='servicos'
-        className='relative overflow-hidden bg-zinc-950 py-16 scroll-mt-24'
-      >
-        <div className='pointer-events-none absolute inset-0 opacity-[0.25]'>
-          <div
-            className='absolute inset-0'
-            style={{
-              backgroundImage:
-                'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)',
-              backgroundSize: '52px 52px',
-            }}
-          />
-          <div className='absolute inset-0 bg-gradient-to-b from-zinc-950/20 via-zinc-950/70 to-zinc-950' />
-        </div>
 
-        <div className='relative mx-auto w-full max-w-6xl px-6'>
-          <div className='flex flex-col items-start justify-between gap-6 md:flex-row md:items-end'>
-            <div>
-              <p className='text-xs font-black uppercase tracking-[0.22em] text-zinc-400'>
-                Servicos
-              </p>
-              <h2 className='mt-2 text-4xl font-black tracking-tight text-white md:text-5xl'>
-                Solucoes para sua operacao
-              </h2>
-              <p className='mt-3 max-w-2xl text-sm leading-7 text-zinc-300'>
-                Power BI, ERP, CRM e Landing Page. Cada servico tem uma pagina dedicada.
-              </p>
-            </div>
-          </div>
+      {/* Sessao 9 - Quanto custa? */}
+      <section id="quanto-custa" className="bg-[rgb(24_24_27)] py-16 scroll-mt-24">
+        <div className="mx-auto w-full max-w-6xl px-6">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">
+            Quanto custa?
+          </p>
+          <h2 className="mt-2 text-3xl font-black text-white md:text-4xl">
+            Perguntas frequentes
+          </h2>
 
-          <div className='mt-10 grid gap-6 md:grid-cols-2'>
-            <Link
-              href='/servicos/power-bi'
-              className='group overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/40 hover:bg-zinc-900/30'
-            >
-              <div className='relative'>
-                <Image
-                  src='/service-card-powerbi.svg'
-                  alt='Power BI'
-                  width={1200}
-                  height={720}
-                  className='h-auto w-full'
-                />
-                <div className='pointer-events-none absolute inset-0 bg-gradient-to-t from-zinc-950/85 via-zinc-950/15 to-transparent' />
-              </div>
-              <div className='p-7'>
-                <p className='text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400'>
-                  Power BI
-                </p>
-                <p className='mt-2 text-2xl font-black text-zinc-100 group-hover:text-white'>
-                  Dashboards e indicadores
-                </p>
-                <p className='mt-2 text-sm leading-7 text-zinc-400'>
-                  Modelagem, DAX, relatorios e visao executiva para decisao rapida.
-                </p>
-              </div>
-            </Link>
-
-            <Link
-              href='/servicos/erp'
-              className='group overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/40 hover:bg-zinc-900/30'
-            >
-              <div className='relative'>
-                <Image
-                  src='/service-card-erp.svg'
-                  alt='ERP'
-                  width={1200}
-                  height={720}
-                  className='h-auto w-full'
-                />
-                <div className='pointer-events-none absolute inset-0 bg-gradient-to-t from-zinc-950/85 via-zinc-950/15 to-transparent' />
-              </div>
-              <div className='p-7'>
-                <p className='text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400'>
-                  ERP
-                </p>
-                <p className='mt-2 text-2xl font-black text-zinc-100 group-hover:text-white'>
-                  Gestao e operacao
-                </p>
-                <p className='mt-2 text-sm leading-7 text-zinc-400'>
-                  Processos, financeiro, estoque e relatorios centralizados.
-                </p>
-              </div>
-            </Link>
-
-            <Link
-              href='/servicos/crm'
-              className='group overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/40 hover:bg-zinc-900/30'
-            >
-              <div className='relative'>
-                <Image
-                  src='/service-card-crm.svg'
-                  alt='CRM'
-                  width={1200}
-                  height={720}
-                  className='h-auto w-full'
-                />
-                <div className='pointer-events-none absolute inset-0 bg-gradient-to-t from-zinc-950/85 via-zinc-950/15 to-transparent' />
-              </div>
-              <div className='p-7'>
-                <p className='text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400'>
-                  CRM
-                </p>
-                <p className='mt-2 text-2xl font-black text-zinc-100 group-hover:text-white'>
-                  Funil e produtividade
-                </p>
-                <p className='mt-2 text-sm leading-7 text-zinc-400'>
-                  Leads, tarefas e acompanhamento do comercial em um unico painel.
-                </p>
-              </div>
-            </Link>
-
-            <Link
-              href='/servicos/landing-page'
-              className='group overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/40 hover:bg-zinc-900/30'
-            >
-              <div className='relative'>
-                <Image
-                  src='/service-card-landing.svg'
-                  alt='Landing Page'
-                  width={1200}
-                  height={720}
-                  className='h-auto w-full'
-                />
-                <div className='pointer-events-none absolute inset-0 bg-gradient-to-t from-zinc-950/85 via-zinc-950/15 to-transparent' />
-              </div>
-              <div className='p-7'>
-                <p className='text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400'>
-                  Landing Page
-                </p>
-                <p className='mt-2 text-2xl font-black text-zinc-100 group-hover:text-white'>
-                  Conversao com performance
-                </p>
-                <p className='mt-2 text-sm leading-7 text-zinc-400'>
-                  Design, copy, SEO e velocidade para gerar demanda.
-                </p>
-              </div>
-            </Link>
+          <div className="mt-8 space-y-3">
+            {faq.map((item) => (
+              <details
+                key={item.q}
+                className="group rounded-2xl border border-zinc-800 bg-zinc-950/40 p-6"
+              >
+                <summary className="cursor-pointer list-none text-sm font-black text-zinc-100">
+                  <span className="flex items-center justify-between gap-4">
+                    {item.q}
+                    <svg
+                      className="h-4 w-4 text-zinc-400 transition group-open:rotate-180"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.24a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08Z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </span>
+                </summary>
+                <p className="mt-3 text-sm leading-7 text-zinc-300">{item.a}</p>
+              </details>
+            ))}
           </div>
         </div>
       </section>
 
-      <section id='localizacao' className='bg-zinc-950 py-16 scroll-mt-24'>
-        <div className='mx-auto grid w-full max-w-6xl items-stretch gap-6 px-6 md:grid-cols-12'>
-          <div className='rounded-3xl border border-zinc-800 bg-zinc-900 p-8 md:col-span-5'>
-            <p className='text-xs font-black uppercase tracking-[0.22em] text-zinc-400'>
+      {/* Sessao 10 - Localizacao */}
+      <section id="localizacao" className="bg-zinc-950 py-16 scroll-mt-24">
+        <div className="mx-auto grid w-full max-w-6xl items-stretch gap-6 px-6 md:grid-cols-12">
+          <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-8 md:col-span-5">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">
               Localizacao
             </p>
-            <h2 className='mt-2 text-3xl font-black text-white'>Onde estamos</h2>
-            <p className='mt-3 text-sm text-zinc-300'>
+            <h2 className="mt-2 text-3xl font-black text-white">Onde estamos</h2>
+            <p className="mt-3 text-sm text-zinc-300">
               AV 22 de abril, 519 - Centro - Laguna Carapa - MS
             </p>
-            <p className='mt-1 text-sm text-zinc-300'>CEP 79920-000</p>
-            <p className='mt-4 text-sm font-bold text-accent-300'>
-              Contato: <a className='underline' href='tel:+5567998698159'>(67) 99869-8159</a>
+            <p className="mt-1 text-sm text-zinc-300">CEP 79920-000</p>
+            <p className="mt-4 text-sm font-bold text-accent-300">
+              Contato:{" "}
+              <a className="underline" href="tel:+5567998698159">
+                (67) 99869-8159
+              </a>
             </p>
           </div>
-          <div className='overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 md:col-span-7'>
+
+          <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 md:col-span-7">
             <iframe
-              title='Mapa - GR Dados'
-              className='h-[360px] w-full md:h-full'
-              loading='lazy'
-              referrerPolicy='no-referrer-when-downgrade'
-              src='https://www.google.com/maps?q=AV%2022%20de%20abril%2C%20519%20-%20Centro%20-%20Laguna%20Carap%C3%A3%20-%20MS%2C%2079920-000&output=embed'
+              title="Mapa - GR Dados"
+              className="h-[360px] w-full md:h-full"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              src="https://www.google.com/maps?q=AV%2022%20de%20abril%2C%20519%20-%20Centro%20-%20Laguna%20Carap%C3%A3%20-%20MS%2C%2079920-000&output=embed"
             />
           </div>
         </div>
       </section>
 
-      <footer className='border-t border-zinc-800 bg-zinc-950'>
-        <div className='mx-auto w-full max-w-6xl px-6 py-14'>
-          <div className='grid gap-10 md:grid-cols-12'>
-            <div className='md:col-span-4'>
-              <Image
-                src='/gr-dados-logo-gray.svg'
-                alt='GR Dados'
-                width={210}
-                height={56}
-              />
-              <p className='mt-5 max-w-md text-sm leading-7 text-zinc-400'>
-                A GR Dados desenvolve sistemas sob medida para empresas que precisam de
-                mais controle, clareza operacional e base tecnologica para crescer.
-              </p>
-
-              <div className='mt-6 flex items-start gap-3 text-sm text-zinc-300'>
-                <span className='mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900 text-accent-300'>
-                  ⦿
-                </span>
-                <div>
-                  <p className='font-black text-zinc-100'>Base estrategica</p>
-                  <p className='text-zinc-400'>
-                    AV 22 de abril, 519 - Centro - Laguna Carapa - MS
-                  </p>
-                  <p className='text-zinc-400'>CEP 79920-000</p>
-                </div>
-              </div>
-            </div>
-
-            <div className='md:col-span-3'>
-              <p className='text-sm font-black text-zinc-100'>Solucoes</p>
-              <div className='mt-4 space-y-3 text-sm text-zinc-400'>
-                <Link className='block hover:text-zinc-200' href='/servicos/power-bi'>
-                  Power BI
-                </Link>
-                <Link className='block hover:text-zinc-200' href='/servicos/erp'>
-                  ERP
-                </Link>
-                <Link className='block hover:text-zinc-200' href='/servicos/crm'>
-                  CRM
-                </Link>
-                <Link className='block hover:text-zinc-200' href='/servicos/landing-page'>
-                  Landing Page
-                </Link>
-              </div>
-            </div>
-
-            <div className='md:col-span-2'>
-              <p className='text-sm font-black text-zinc-100'>Institucional</p>
-              <div className='mt-4 space-y-3 text-sm'>
-                <a className='block text-zinc-400 hover:text-zinc-200' href='#inicio'>
-                  Inicio
-                </a>
-                <a className='block text-zinc-400 hover:text-zinc-200' href='#sobre'>
-                  Sobre
-                </a>
-                <a className='block text-zinc-400 hover:text-zinc-200' href='#servicos'>
-                  Servicos
-                </a>
-                <a className='block text-zinc-400 hover:text-zinc-200' href='#localizacao'>
-                  Localizacao
-                </a>
-              </div>
-            </div>
-
-            <div className='md:col-span-3'>
-              <p className='text-sm font-black text-zinc-100'>Canais Institucionais</p>
-              <div className='mt-4 space-y-4'>
-                <div className='w-full min-w-[260px] rounded-2xl border border-zinc-800 bg-zinc-900 p-5 md:min-w-[320px]'>
-                  <p className='text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400'>
-                    WhatsApp Comercial
-                  </p>
-                  <p className='mt-2 whitespace-nowrap text-sm font-black text-zinc-100'>
-                    <a className='inline-block whitespace-nowrap underline tabular-nums' href='tel:+5567998698159'>
-                      (67) 99869-8159
-                    </a>
-                  </p>
-                </div>
-                <div className='w-full min-w-[260px] rounded-2xl border border-zinc-800 bg-zinc-900 p-5 md:min-w-[320px]'>
-                  <p className='text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400'>
-                    Endereco
-                  </p>
-                  <p className='mt-2 whitespace-nowrap text-sm font-black text-zinc-100'>
-                    Laguna Carapa - MS
-                  </p>
-                  <p className='text-xs font-semibold text-zinc-400'>CEP 79920-000</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className='mt-12 flex flex-col items-start justify-between gap-4 border-t border-zinc-800 pt-8 text-sm text-zinc-500 md:flex-row md:items-center'>
-            <p>© 2026 GR Dados. Todos os direitos reservados.</p>
-            <div className='flex gap-6'>
-              <a className='hover:text-zinc-300' href='#'>
-                Politica de Privacidade
-              </a>
-              <a className='hover:text-zinc-300' href='#'>
-                Termos de Uso
-              </a>
-            </div>
-          </div>
-        </div>
-      </footer>
+      {/* Sessao 11 - Rodape */}
+      <SiteFooter />
     </main>
   );
 }
+

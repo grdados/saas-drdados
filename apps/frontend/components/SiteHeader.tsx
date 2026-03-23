@@ -31,16 +31,39 @@ export function SiteHeader() {
             Inicio
           </Link>
           <Link
+            href="/#problemas"
+            className="rounded-xl px-4 py-2 text-sm font-bold text-zinc-300 hover:bg-zinc-900"
+          >
+            Problemas
+          </Link>
+          <Link
+            href="/#solucao"
+            className="rounded-xl px-4 py-2 text-sm font-bold text-zinc-300 hover:bg-zinc-900"
+          >
+            Solucao
+          </Link>
+          <Link
+            href="/#modulos"
+            className="rounded-xl px-4 py-2 text-sm font-bold text-zinc-300 hover:bg-zinc-900"
+          >
+            Modulos
+          </Link>
+          <Link
+            href="/#beneficios"
+            className="rounded-xl px-4 py-2 text-sm font-bold text-zinc-300 hover:bg-zinc-900"
+          >
+            Beneficios
+          </Link>
+          <Link
             href="/#sobre"
             className="rounded-xl px-4 py-2 text-sm font-bold text-zinc-300 hover:bg-zinc-900"
           >
             Sobre
           </Link>
-
           <details className="group relative">
             <summary className="list-none cursor-pointer rounded-xl px-4 py-2 text-sm font-bold text-zinc-300 hover:bg-zinc-900">
               <span className="inline-flex items-center gap-2">
-                Servicos
+                Mais
                 <svg
                   className="h-4 w-4 text-zinc-400 transition group-open:rotate-180"
                   viewBox="0 0 20 20"
@@ -55,31 +78,30 @@ export function SiteHeader() {
                 </svg>
               </span>
             </summary>
-
-            <div className="absolute left-0 top-[calc(100%+10px)] z-30 w-56 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/95 shadow-2xl shadow-black/50">
+            <div className="absolute left-0 top-[calc(100%+10px)] z-30 w-64 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/95 shadow-2xl shadow-black/50">
               <Link
-                href="/servicos/power-bi"
-                className="block px-4 py-3 text-sm font-black text-accent-300 hover:bg-zinc-900"
-              >
-                Power BI
-              </Link>
-              <Link
-                href="/servicos/erp"
+                href="/#depoimentos"
                 className="block px-4 py-3 text-sm font-bold text-zinc-200 hover:bg-zinc-900"
               >
-                ERP
+                Depoimentos
               </Link>
               <Link
-                href="/servicos/crm"
+                href="/#iniciar-projeto"
                 className="block px-4 py-3 text-sm font-bold text-zinc-200 hover:bg-zinc-900"
               >
-                CRM
+                Iniciar um projeto
               </Link>
               <Link
-                href="/servicos/landing-page"
+                href="/#quanto-custa"
                 className="block px-4 py-3 text-sm font-bold text-zinc-200 hover:bg-zinc-900"
               >
-                Landing Page
+                Quanto custa?
+              </Link>
+              <Link
+                href="/#localizacao"
+                className="block px-4 py-3 text-sm font-bold text-zinc-200 hover:bg-zinc-900"
+              >
+                Localizacao
               </Link>
             </div>
           </details>

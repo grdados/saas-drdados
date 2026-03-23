@@ -1,0 +1,47 @@
+<svg width="1400" height="980" viewBox="0 0 1400 980" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="260" y1="80" x2="1140" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B0B0F"/>
+      <stop offset="1" stop-color="#1A1A21"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#F2BC6B"/>
+      <stop offset="1" stop-color="#DF9830"/>
+    </linearGradient>
+    <filter id="shadow" x="-80" y="-80" width="1560" height="1140" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="22" stdDeviation="26" flood-color="#000000" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <rect x="60" y="60" width="1280" height="860" rx="36" fill="url(#bg)" stroke="#2A2A31" stroke-width="2"/>
+
+  <!-- ambient glows -->
+  <circle cx="1120" cy="180" r="220" fill="url(#gold)" opacity="0.18"/>
+  <circle cx="260" cy="820" r="260" fill="url(#gold)" opacity="0.10"/>
+
+  <!-- card -->
+  <g filter="url(#shadow)">
+    <rect x="160" y="170" width="1080" height="640" rx="32" fill="#0F0F15" stroke="#2A2A31" stroke-width="2"/>
+  </g>
+
+  <!-- header placeholder -->
+  <rect x="220" y="230" width="320" height="18" rx="9" fill="#B8B8C0" opacity="0.35"/>
+  <rect x="220" y="262" width="520" height="12" rx="6" fill="#B8B8C0" opacity="0.18"/>
+
+  <!-- silhouettes -->
+  <g opacity="0.95">
+    <path d="M430 700c0-74 60-134 134-134s134 60 134 134v40H430v-40Z" fill="#121219" stroke="#2A2A31" stroke-width="2"/>
+    <circle cx="564" cy="520" r="82" fill="#121219" stroke="#2A2A31" stroke-width="2"/>
+
+    <path d="M720 700c0-70 57-127 127-127s127 57 127 127v40H720v-40Z" fill="#121219" stroke="#2A2A31" stroke-width="2"/>
+    <circle cx="847" cy="528" r="78" fill="#121219" stroke="#2A2A31" stroke-width="2"/>
+
+    <path d="M280 720c0-60 49-109 109-109s109 49 109 109v20H280v-20Z" fill="#121219" stroke="#2A2A31" stroke-width="2" opacity="0.75"/>
+    <circle cx="389" cy="585" r="62" fill="#121219" stroke="#2A2A31" stroke-width="2" opacity="0.75"/>
+  </g>
+
+  <!-- bottom badge -->
+  <rect x="980" y="704" width="200" height="54" rx="27" fill="url(#gold)" opacity="0.95"/>
+  <rect x="1020" y="724" width="120" height="14" rx="7" fill="#0B0B0F" opacity="0.65"/>
+</svg>
+
