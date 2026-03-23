@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-black/10 bg-[#DF9830]">
+    <footer className="border-t border-black/10 bg-white/70 backdrop-blur-xl">
       <div className="mx-auto w-full max-w-6xl px-6 py-14">
         <div className="grid gap-10 md:grid-cols-12">
           <div className="md:col-span-4">
@@ -109,11 +109,11 @@ export function SiteFooter() {
           <div className="md:col-span-3">
             <p className="text-sm font-black text-zinc-950">Canais Institucionais</p>
             <div className="mt-4 space-y-4">
-              <div className="w-full min-w-[260px] rounded-2xl border border-zinc-800 bg-zinc-900 p-5 md:min-w-[320px]">
-                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400">
+              <div className="w-full min-w-[260px] rounded-2xl border border-black/10 bg-white/70 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.08)] md:min-w-[320px]">
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-zinc-700">
                   WhatsApp Comercial
                 </p>
-                <p className="mt-2 whitespace-nowrap text-sm font-black text-zinc-100">
+                <p className="mt-2 whitespace-nowrap text-sm font-black text-zinc-950">
                   <a
                     className="inline-block whitespace-nowrap underline tabular-nums"
                     href="tel:+5567998698159"
@@ -122,14 +122,14 @@ export function SiteFooter() {
                   </a>
                 </p>
               </div>
-              <div className="w-full min-w-[260px] rounded-2xl border border-zinc-800 bg-zinc-900 p-5 md:min-w-[320px]">
-                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400">
+              <div className="w-full min-w-[260px] rounded-2xl border border-black/10 bg-white/70 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.08)] md:min-w-[320px]">
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-zinc-700">
                   Endereco
                 </p>
-                <p className="mt-2 whitespace-nowrap text-sm font-black text-zinc-100">
+                <p className="mt-2 whitespace-nowrap text-sm font-black text-zinc-950">
                   Laguna Carapa - MS
                 </p>
-                <p className="text-xs font-semibold text-zinc-400">CEP 79920-000</p>
+                <p className="text-xs font-semibold text-zinc-900/80">CEP 79920-000</p>
               </div>
             </div>
           </div>

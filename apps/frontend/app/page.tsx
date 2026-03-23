@@ -182,7 +182,7 @@ export default function HomePage() {
       {/* Sessao 3 - Solucao */}
       <section id="solucao" className="bg-[rgb(24_24_27)] py-16 scroll-mt-24">
         <div className="mx-auto w-full max-w-6xl px-6">
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">
+          <p className="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-emerald-200">
             Solucao
           </p>
           <h2 className="mt-2 text-3xl font-black text-white md:text-5xl">

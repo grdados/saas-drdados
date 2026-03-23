@@ -38,8 +38,10 @@ export function SectionIndicator() {
     let raf = 0;
     const update = () => {
       raf = 0;
+      const header = document.querySelector("header");
+      const headerH = header ? header.getBoundingClientRect().height : 0;
       // Line used to decide "current section" (below sticky header).
-      const lineY = 140;
+      const lineY = Math.round(headerH + 26);
 
       for (const el of els) {
         const r = el.getBoundingClientRect();
@@ -81,8 +83,9 @@ export function SectionIndicator() {
   if (!onHome) return null;
 
   return (
-    <div className="pointer-events-none fixed right-6 top-1/2 z-[55] hidden -translate-y-1/2 lg:block">
-      <div className="pointer-events-auto rounded-full border border-zinc-800 bg-zinc-950/40 px-3 py-3 backdrop-blur">
+    <div className="pointer-events-none fixed left-4 top-1/2 z-[55] -translate-y-1/2 sm:left-6">
+      <div className="pointer-events-auto relative rounded-[28px] border border-zinc-800 bg-zinc-950/40 px-3 py-4 backdrop-blur">
+        <div className="pointer-events-none absolute inset-y-3 left-1/2 w-3 -translate-x-1/2 rounded-full bg-gradient-to-b from-accent-500/35 via-accent-500/10 to-transparent" />
         <div className="flex flex-col gap-2">
           {sections.map((s) => {
             const isActive = active === s.id;
@@ -108,7 +111,7 @@ export function SectionIndicator() {
                 />
                 <span
                   className={[
-                    "pointer-events-none absolute right-6 whitespace-nowrap rounded-xl border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs font-black text-zinc-200 shadow-2xl shadow-black/40 transition",
+                    "pointer-events-none absolute left-6 whitespace-nowrap rounded-xl border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-xs font-black text-zinc-200 shadow-2xl shadow-black/40 transition",
                     isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                   ].join(" ")}
                 >
