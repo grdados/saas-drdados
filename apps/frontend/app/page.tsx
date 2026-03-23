@@ -146,7 +146,7 @@ export default function HomePage() {
       {/* Sessao 2 - Problemas */}
       <section id="problemas" className="bg-zinc-950 py-14 scroll-mt-24">
         <div className="mx-auto w-full max-w-6xl px-6">
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">
+          <p className="inline-flex items-center gap-2 rounded-full border border-red-500/25 bg-red-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-red-200">
             Problemas
           </p>
           <h2 className="mt-2 text-3xl font-black text-white md:text-4xl">
@@ -157,19 +157,19 @@ export default function HomePage() {
           </p>
 
           <div className="mt-8 grid gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-6">
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-6 transition hover:border-red-500/25 hover:bg-zinc-900/50 hover:shadow-[0_22px_70px_rgba(0,0,0,0.45)]">
               <p className="text-sm font-black text-zinc-100">Relatorios paralelos</p>
               <p className="mt-2 text-sm leading-7 text-zinc-400">
                 Cada area cria o proprio controle e os numeros nao batem.
               </p>
             </div>
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-6">
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-6 transition hover:border-red-500/25 hover:bg-zinc-900/50 hover:shadow-[0_22px_70px_rgba(0,0,0,0.45)]">
               <p className="text-sm font-black text-zinc-100">Dados desatualizados</p>
               <p className="mt-2 text-sm leading-7 text-zinc-400">
                 Informacao chega tarde e a decisao vira aposta.
               </p>
             </div>
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-6">
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-6 transition hover:border-red-500/25 hover:bg-zinc-900/50 hover:shadow-[0_22px_70px_rgba(0,0,0,0.45)]">
               <p className="text-sm font-black text-zinc-100">Baixa produtividade</p>
               <p className="mt-2 text-sm leading-7 text-zinc-400">
                 Muito tempo em copiar e colar, pouco tempo em executar.
@@ -263,8 +263,21 @@ export default function HomePage() {
       </section>
 
       {/* Sessao 4 - Modulos */}
-      <section id="modulos" className="bg-zinc-950 py-16 scroll-mt-24">
-        <div className="mx-auto w-full max-w-6xl px-6">
+      <section id="modulos" className="relative bg-zinc-950 py-16 scroll-mt-24">
+        {/* Background imagem suave cobrindo a sessao */}
+        <div className="pointer-events-none absolute inset-0">
+          <Image
+            src="/service-erp-dashboard.svg"
+            alt=""
+            fill
+            className="object-cover opacity-[0.08] blur-[1px]"
+            priority={false}
+          />
+          <div className="absolute inset-0 bg-[radial-gradient(900px_380px_at_25%_0%,rgba(223,152,48,0.18),transparent_60%)]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/40 via-zinc-950/85 to-zinc-950" />
+        </div>
+
+        <div className="relative mx-auto w-full max-w-6xl px-6">
           <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">
             Modulos
           </p>
@@ -344,10 +357,10 @@ export default function HomePage() {
         </div>
       </section>
 
-       {/* Sessao 7 - Depoimentos */}
+      {/* Sessao 7 - Depoimentos */}
       <section id="depoimentos" className="relative bg-zinc-950 py-16 scroll-mt-24">
         {/* Fundo suave (diferente do primario/secondary) */}
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_420px_at_20%_-10%,rgba(99,102,241,0.18),transparent_60%),radial-gradient(900px_420px_at_85%_110%,rgba(14,165,233,0.14),transparent_60%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(980px_440px_at_-10%_10%,rgba(99,102,241,0.22),transparent_62%),radial-gradient(920px_460px_at_15%_110%,rgba(14,165,233,0.16),transparent_62%)]" />
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.04),transparent_35%,rgba(0,0,0,0.10))]" />
 
         <div className="relative mx-auto w-full max-w-6xl px-6">

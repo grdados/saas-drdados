@@ -35,21 +35,47 @@ export function SectionIndicator() {
 
     if (!els.length) return;
 
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) setActive((entry.target as HTMLElement).id);
-        }
-      },
-      {
-        root: null,
-        threshold: 0.12,
-        rootMargin: "-40% 0px -55% 0px"
-      }
-    );
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      // Line used to decide "current section" (below sticky header).
+      const lineY = 140;
 
-    for (const el of els) io.observe(el);
-    return () => io.disconnect();
+      for (const el of els) {
+        const r = el.getBoundingClientRect();
+        if (r.top <= lineY && r.bottom >= lineY) {
+          setActive(el.id);
+          return;
+        }
+      }
+
+      // Fallback: closest section to the line
+      let bestId = els[0].id;
+      let bestDist = Number.POSITIVE_INFINITY;
+      for (const el of els) {
+        const r = el.getBoundingClientRect();
+        const dist = Math.abs(r.top - lineY);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestId = el.id;
+        }
+      }
+      setActive(bestId);
+    };
+
+    const onScroll = () => {
+      if (raf) return;
+      raf = window.requestAnimationFrame(update);
+    };
+
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      if (raf) window.cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
   }, [onHome, sections]);
 
   if (!onHome) return null;
