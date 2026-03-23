@@ -65,9 +65,9 @@ export function SiteHeader() {
           <Image
             src="/logo-2.svg"
             alt="GR Dados"
-            width={320}
-            height={80}
-            className="h-12 w-auto rounded-2xl md:h-14"
+            width={220}
+            height={56}
+            className="h-10 w-auto rounded-2xl md:h-11"
             priority
           />
         </Link>
