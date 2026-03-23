@@ -2,6 +2,29 @@ export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000
 
 type JsonValue = Record<string, unknown>;
 
+function extractErrorMessage(payloadText: string): string {
+  const trimmed = (payloadText || "").trim();
+  if (!trimmed) return "Erro na requisicao.";
+
+  try {
+    const json = JSON.parse(trimmed) as unknown;
+    if (typeof json === "string") return json;
+    if (json && typeof json === "object") {
+      const obj = json as Record<string, unknown>;
+      if (typeof obj.detail === "string") return obj.detail;
+
+      const firstKey = Object.keys(obj)[0];
+      const firstVal = firstKey ? obj[firstKey] : undefined;
+      if (typeof firstVal === "string") return firstVal;
+      if (Array.isArray(firstVal) && typeof firstVal[0] === "string") return firstVal[0];
+    }
+  } catch {
+    // ignore JSON parse failures
+  }
+
+  return trimmed;
+}
+
 async function request<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
@@ -14,7 +37,7 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
 
   if (!response.ok) {
     const errorPayload = await response.text();
-    throw new Error(errorPayload || "Erro na requisição.");
+    throw new Error(extractErrorMessage(errorPayload));
   }
 
   return (await response.json()) as T;
