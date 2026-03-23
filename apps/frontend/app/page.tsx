@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import { HeroRotatingLine } from '@/components/HeroRotatingLine';
+import { LogoMarquee } from '@/components/LogoMarquee';
 
 const highlights = [
   'Pipeline visual para acompanhar cada oportunidade',
@@ -154,6 +155,8 @@ export default function HomePage() {
           </p>
         </div>
       </section>
+
+      <LogoMarquee />
 
       <section id='sobre' className='mx-auto w-full max-w-6xl px-6 pb-8'>
         <div className='grid gap-4 md:grid-cols-4'>
