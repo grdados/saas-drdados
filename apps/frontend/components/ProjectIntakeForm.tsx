@@ -169,6 +169,7 @@ export function ProjectIntakeForm() {
   const [resultTemp, setResultTemp] = useState<Temperature>("cold");
   const [resultScore, setResultScore] = useState(0);
   const [autoWhatsApp, setAutoWhatsApp] = useState(true);
+  const [whatsPopupBlocked, setWhatsPopupBlocked] = useState(false);
 
   const [form, setForm] = useState<IntakePayload>({
     name: "",
@@ -226,7 +227,8 @@ export function ProjectIntakeForm() {
 
       if (autoWhatsApp && res.whatsapp_message) {
         // Open WhatsApp in a user-initiated flow (submit click). Some browsers may still block.
-        window.open(formatWhatsAppLink(res.whatsapp_message), "_blank", "noopener,noreferrer");
+        const win = window.open(formatWhatsAppLink(res.whatsapp_message), "_blank", "noopener,noreferrer");
+        setWhatsPopupBlocked(!win);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -567,6 +569,12 @@ export function ProjectIntakeForm() {
                       <p className="mt-2 text-sm leading-7 text-zinc-300">
                         {successMessage || "Recebemos suas informacoes. Retornaremos seu contato."}
                       </p>
+                      {whatsPopupBlocked ? (
+                        <div className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm font-semibold text-amber-200">
+                          Seu navegador bloqueou a abertura automatica do WhatsApp. Clique no botao abaixo para enviar o
+                          resumo.
+                        </div>
+                      ) : null}
                       <div className="mt-4 flex flex-wrap items-center gap-3">
                         <TempPill temperature={resultTemp} score={resultScore} />
                         {whatsMessage ? (

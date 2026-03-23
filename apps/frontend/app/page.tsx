@@ -4,6 +4,7 @@ import Link from "next/link";
 import { HeroRotatingLine } from "@/components/HeroRotatingLine";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
+import { SectionIndicator } from "@/components/SectionIndicator";
 
 export default function HomePage() {
   const solutionItems = [
@@ -79,6 +80,7 @@ export default function HomePage() {
   return (
     <main className="min-h-screen text-white" id="inicio">
       <SiteHeader />
+      <SectionIndicator />
 
       {/* Sessao 1 - Inicio (Hero) */}
       <section className="mx-auto grid min-h-[72vh] w-full max-w-6xl items-center gap-10 px-6 py-14 md:grid-cols-12">
@@ -342,9 +344,13 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Sessao 7 - Depoimentos */}
-      <section id="depoimentos" className="bg-[rgb(24_24_27)] py-16 scroll-mt-24">
-        <div className="mx-auto w-full max-w-6xl px-6">
+       {/* Sessao 7 - Depoimentos */}
+      <section id="depoimentos" className="relative bg-zinc-950 py-16 scroll-mt-24">
+        {/* Fundo suave (diferente do primario/secondary) */}
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_420px_at_20%_-10%,rgba(99,102,241,0.18),transparent_60%),radial-gradient(900px_420px_at_85%_110%,rgba(14,165,233,0.14),transparent_60%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.04),transparent_35%,rgba(0,0,0,0.10))]" />
+
+        <div className="relative mx-auto w-full max-w-6xl px-6">
           <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">
             Depoimentos
           </p>
