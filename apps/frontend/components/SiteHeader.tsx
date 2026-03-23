@@ -15,7 +15,7 @@ export function SiteHeader() {
           />
           <div>
             <p className="text-lg font-extrabold leading-none tracking-tight text-white">
-              GRDados
+              GR Dados
             </p>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
               CRM SAAS
@@ -66,4 +66,3 @@ export function SiteHeader() {
     </header>
   );
 }
-

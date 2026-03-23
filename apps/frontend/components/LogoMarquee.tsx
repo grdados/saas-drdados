@@ -109,8 +109,8 @@ export function LogoMarquee() {
         </div>
 
         {/* Edge fades (left/right) to match the reference look */}
-        <div className="pointer-events-none absolute inset-y-0 left-0 w-40 bg-gradient-to-r from-[rgb(24_24_27)] to-transparent md:w-56" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-40 bg-gradient-to-l from-[rgb(24_24_27)] to-transparent md:w-56" />
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-72 bg-gradient-to-r from-[rgb(24_24_27)] via-[rgb(24_24_27)]/90 to-transparent md:w-96 lg:w-[420px]" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-72 bg-gradient-to-l from-[rgb(24_24_27)] via-[rgb(24_24_27)]/90 to-transparent md:w-96 lg:w-[420px]" />
       </div>
     </section>
   );

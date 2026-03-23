@@ -34,7 +34,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <AuthLayout title="Criar conta GRDados" subtitle="Comece seu CRM agora.">
+    <AuthLayout title="Criar conta GR Dados" subtitle="Comece seu CRM agora.">
       <form className="space-y-4" onSubmit={onSubmit}>
         <input
           required

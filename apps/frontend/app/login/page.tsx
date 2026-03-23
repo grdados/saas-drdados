@@ -33,7 +33,7 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthLayout title="Entrar no GRDados" subtitle="Acesse seu CRM.">
+    <AuthLayout title="Entrar no GR Dados" subtitle="Acesse seu CRM.">
       <form className="space-y-4" onSubmit={onSubmit}>
         <input
           value={username}

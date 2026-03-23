@@ -1,0 +1,9 @@
+<svg width="220" height="56" viewBox="0 0 220 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="1" y="1" width="54" height="54" rx="14" stroke="#3f3f46" stroke-width="2"/>
+  <path d="M29 17c-7 0-12 5-12 12s5 12 12 12c6 0 11-4 12-10h-8v-4h13c.2 1 .3 2 .3 3 0 10-7 17-17.3 17C18 49 9 40 9 29S18 9 29 9c6.2 0 11.2 2.3 14.8 6.1l-3.4 3.2C37.7 15.6 33.8 17 29 17Z" fill="#a1a1aa"/>
+  <path d="M43 35c-2.2 4.5-6.8 7.6-12.1 7.6V38c3.1 0 5.9-1.6 7.4-4.1H43Z" fill="#71717a"/>
+  <text x="72" y="26" font-family="Verdana, Arial, sans-serif" font-size="20" font-weight="800" fill="#d4d4d8">GR</text>
+  <text x="104" y="26" font-family="Verdana, Arial, sans-serif" font-size="20" font-weight="800" fill="#d4d4d8">Dados</text>
+  <text x="72" y="46" font-family="Verdana, Arial, sans-serif" font-size="11" font-weight="700" letter-spacing="3" fill="#71717a">CRM SAAS</text>
+</svg>
+

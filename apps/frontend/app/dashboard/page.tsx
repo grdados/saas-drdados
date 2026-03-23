@@ -47,7 +47,7 @@ export default function DashboardPage() {
     <main className="min-h-screen bg-zinc-950 text-white">
       <AppNav />
       <section className="mx-auto w-full max-w-6xl px-6 py-10">
-        <h1 className="text-3xl font-black text-white">Painel GRDados</h1>
+        <h1 className="text-3xl font-black text-white">Painel GR Dados</h1>
         {loading ? <p className="mt-4 text-zinc-400">Carregando dados...</p> : null}
 
         {!loading ? (
@@ -87,7 +87,7 @@ export default function DashboardPage() {
                           value: 99.9,
                           cycle: "MONTHLY",
                           billing_type: "BOLETO",
-                          description: "Licença GRDados CRM - Plano Base"
+                          description: "Licença GR Dados CRM - Plano Base"
                         });
                         setBillingMessage("Assinatura criada no Asaas com sucesso.");
                       } catch {

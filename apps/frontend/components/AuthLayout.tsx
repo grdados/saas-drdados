@@ -33,7 +33,7 @@ export function AuthLayout({
           <div className="absolute -right-28 -top-28 h-72 w-72 rounded-full bg-accent-500/20 blur-3xl" />
           <div className="relative h-full p-8">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">
-              Portal GRDados
+              Portal GR Dados
             </p>
             <p className="mt-3 max-w-sm text-sm text-zinc-300">
               Uma visao rapida do seu funil, tarefas e performance comercial em um unico painel.
@@ -54,4 +54,3 @@ export function AuthLayout({
     </main>
   );
 }
-

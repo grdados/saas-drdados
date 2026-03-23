@@ -11,39 +11,6 @@ const highlights = [
   'Dashboard comercial em tempo real',
 ];
 
-const steps = [
-  {
-    title: '1. Estruturamos seu funil',
-    text: 'Configure etapas, origem de lead e responsaveis comerciais em minutos.',
-  },
-  {
-    title: '2. Centralizamos o relacionamento',
-    text: 'Todas as interacoes e tarefas em um unico lugar por empresa.',
-  },
-  {
-    title: '3. Escalamos com previsibilidade',
-    text: 'Relatorios claros para decisoes rapidas e crescimento consistente.',
-  },
-];
-
-const plans = [
-  {
-    name: 'Start',
-    price: 'R$ 99',
-    text: 'Ate 3 usuarios, funil, tarefas e dashboard base.',
-  },
-  {
-    name: 'Growth',
-    price: 'R$ 249',
-    text: 'Ate 12 usuarios, automacoes comerciais e indicadores avancados.',
-  },
-  {
-    name: 'Scale',
-    price: 'Sob consulta',
-    text: 'Usuarios ilimitados, integracoes dedicadas e onboarding estrategico.',
-  },
-];
-
 export default function HomePage() {
   return (
     <main className='min-h-screen text-white'>
@@ -59,7 +26,7 @@ export default function HomePage() {
             />
             <div>
               <p className='text-lg font-extrabold leading-none tracking-tight'>
-                GRDados
+                GR Dados
               </p>
               <p className='text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400'>
                 CRM SaaS
@@ -174,84 +141,62 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section id='recursos' className='mx-auto w-full max-w-6xl px-6 py-16'>
-        <div className='grid gap-5 md:grid-cols-3'>
-          {steps.map((step) => (
-            <article
-              key={step.title}
-              className='rounded-2xl border border-zinc-700 bg-zinc-900 p-6'
-            >
-              <h3 className='text-xl font-black text-accent-300'>
-                {step.title}
-              </h3>
-              <p className='mt-3 text-sm leading-6 text-zinc-300'>
-                {step.text}
-              </p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section
-        id='planos'
-        className='border-y border-zinc-800 bg-zinc-950 py-16'
-      >
-        <div className='mx-auto w-full max-w-6xl px-6'>
-          <h2 className='text-3xl font-black'>Planos GRDados</h2>
-          <p className='mt-2 max-w-xl text-sm text-zinc-400'>
-            Escolha o formato ideal para seu estagio e escale sua operacao
-            comercial com seguranca.
-          </p>
-          <div className='mt-8 grid gap-4 md:grid-cols-3'>
-            {plans.map((plan) => (
-              <article
-                key={plan.name}
-                className='rounded-2xl border border-zinc-700 bg-zinc-900 p-6'
-              >
-                <h3 className='text-xl font-black'>{plan.name}</h3>
-                <p className='mt-2 text-2xl font-black text-accent-300'>
-                  {plan.price}
-                </p>
-                <p className='mt-3 text-sm text-zinc-300'>{plan.text}</p>
-                <Link
-                  href='/register'
-                  className='mt-5 inline-block rounded-lg bg-accent-500 px-4 py-2 text-sm font-black text-zinc-950'
-                >
-                  Comecar
-                </Link>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id='contato' className='mx-auto w-full max-w-6xl px-6 py-16'>
-        <div className='rounded-3xl border border-zinc-700 bg-zinc-900 p-8 md:flex md:items-center md:justify-between'>
-          <div>
-            <h2 className='text-3xl font-black'>
-              Pronto para lancar o CRM GRDados?
-            </h2>
-            <p className='mt-2 max-w-2xl text-sm text-zinc-300'>
-              Comecamos pelo MVP, validamos cobranca e licenca e evoluimos para
-              o seu cenario completo.
+      <section id='localizacao' className='bg-zinc-950 py-16'>
+        <div className='mx-auto grid w-full max-w-6xl items-stretch gap-6 px-6 md:grid-cols-12'>
+          <div className='rounded-3xl border border-zinc-800 bg-zinc-900 p-8 md:col-span-5'>
+            <p className='text-xs font-black uppercase tracking-[0.22em] text-zinc-400'>
+              Localizacao
+            </p>
+            <h2 className='mt-2 text-3xl font-black text-white'>Onde estamos</h2>
+            <p className='mt-3 text-sm text-zinc-300'>
+              AV 22 de abril, 519 - Centro - Laguna Carapa - MS
+            </p>
+            <p className='mt-1 text-sm text-zinc-300'>CEP 79920-000</p>
+            <p className='mt-4 text-sm font-bold text-accent-300'>
+              Contato: <a className='underline' href='tel:+5567998698159'>(67) 99869-8159</a>
             </p>
           </div>
-          <div className='mt-6 flex gap-3 md:mt-0'>
-            <Link
-              href='/register'
-              className='rounded-xl bg-accent-500 px-6 py-3 text-sm font-black text-zinc-950'
-            >
-              Solicitar acesso
-            </Link>
-            <Link
-              href='/login'
-              className='rounded-xl border border-zinc-700 px-6 py-3 text-sm font-black text-zinc-200'
-            >
-              Entrar no app
-            </Link>
+          <div className='overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 md:col-span-7'>
+            <iframe
+              title='Mapa - GR Dados'
+              className='h-[360px] w-full md:h-full'
+              loading='lazy'
+              referrerPolicy='no-referrer-when-downgrade'
+              src='https://www.google.com/maps?q=AV%2022%20de%20abril%2C%20519%20-%20Centro%20-%20Laguna%20Carap%C3%A3%20-%20MS%2C%2079920-000&output=embed'
+            />
           </div>
         </div>
       </section>
+
+      <footer className='border-t border-zinc-800 bg-zinc-950 py-12'>
+        <div className='mx-auto w-full max-w-6xl px-6'>
+          <div className='flex flex-col items-start justify-between gap-8 md:flex-row md:items-center'>
+            <div className='flex items-center gap-4'>
+              <Image
+                src='/gr-dados-logo-gray.svg'
+                alt='GR Dados'
+                width={180}
+                height={46}
+              />
+              <div className='text-sm text-zinc-400'>
+                <p className='font-bold text-zinc-300'>GR Dados</p>
+                <p>Todos Direitos reservados</p>
+              </div>
+            </div>
+
+            <div className='text-sm text-zinc-400'>
+              <p>AV 22 de abril, 519 - Centro - Laguna Carapa - MS</p>
+              <p>CEP 79920-000</p>
+              <p className='mt-2'>
+                Contato:{' '}
+                <a className='font-bold text-zinc-300 underline' href='tel:+5567998698159'>
+                  (67) 99869-8159
+                </a>
+              </p>
+            </div>
+          </div>
+        </div>
+      </footer>
     </main>
   );
 }

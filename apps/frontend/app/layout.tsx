@@ -5,7 +5,7 @@ import { Manrope } from "next/font/google";
 const manrope = Manrope({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "GRDados",
+  title: "GR Dados",
   description: "SaaS CRM para gestão de leads, clientes e vendas."
 };
 

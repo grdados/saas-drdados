@@ -18,7 +18,7 @@ export function AppNav() {
   return (
     <header className="border-b border-zinc-800 bg-zinc-950/95">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
-        <div className="text-lg font-black text-white">GRDados CRM</div>
+        <div className="text-lg font-black text-white">GR Dados CRM</div>
         <nav className="flex items-center gap-2">
           {links.map((link) => (
             <Link
