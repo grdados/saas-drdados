@@ -18,7 +18,7 @@ export function SiteHeader() {
               GR Dados
             </p>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
-              CRM SAAS
+              ERP
             </p>
           </div>
         </Link>

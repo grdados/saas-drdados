@@ -4,16 +4,9 @@ import Link from 'next/link';
 import { HeroRotatingLine } from '@/components/HeroRotatingLine';
 import { LogoMarquee } from '@/components/LogoMarquee';
 
-const highlights = [
-  'Pipeline visual para acompanhar cada oportunidade',
-  'Tarefas e lembretes para nao perder follow-up',
-  'Licenciamento SaaS com cobranca recorrente',
-  'Dashboard comercial em tempo real',
-];
-
 export default function HomePage() {
   return (
-    <main className='min-h-screen text-white'>
+    <main className='min-h-screen text-white scroll-mt-24' id='inicio'>
       <header className='border-b border-zinc-800 bg-zinc-950/95'>
         <div className='mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4'>
           <div className='flex items-center gap-3'>
@@ -29,14 +22,14 @@ export default function HomePage() {
                 GR Dados
               </p>
               <p className='text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400'>
-                CRM SaaS
+                ERP
               </p>
             </div>
           </div>
 
           <nav className='hidden items-center gap-2 md:flex'>
             <a
-              href='#'
+              href='#inicio'
               className='rounded-xl bg-zinc-800 px-4 py-2 text-sm font-bold text-accent-300'
             >
               Inicio
@@ -48,22 +41,10 @@ export default function HomePage() {
               Sobre
             </a>
             <a
-              href='#recursos'
+              href='#localizacao'
               className='rounded-xl px-4 py-2 text-sm font-bold text-zinc-300 hover:bg-zinc-900'
             >
-              Servicos
-            </a>
-            <a
-              href='#planos'
-              className='rounded-xl px-4 py-2 text-sm font-bold text-zinc-300 hover:bg-zinc-900'
-            >
-              Cases
-            </a>
-            <a
-              href='#contato'
-              className='rounded-xl px-4 py-2 text-sm font-bold text-zinc-300 hover:bg-zinc-900'
-            >
-              Blog
+              Localizacao
             </a>
           </nav>
 
@@ -125,23 +106,83 @@ export default function HomePage() {
 
       <LogoMarquee />
 
-      <section id='sobre' className='mx-auto w-full max-w-6xl px-6 pb-8'>
-        <div className='grid gap-4 md:grid-cols-4'>
-          {highlights.map((item) => (
-            <article
-              key={item}
-              className='rounded-2xl border border-zinc-700 bg-zinc-900 p-5'
-            >
-              <h3 className='text-sm font-black uppercase tracking-[0.15em] text-accent-300'>
-                Diferencial
-              </h3>
-              <p className='mt-2 text-sm text-zinc-300'>{item}</p>
-            </article>
-          ))}
+      <section id='sobre' className='bg-[rgb(24_24_27)] py-10 scroll-mt-24'>
+        <div className='mx-auto grid w-full max-w-6xl items-center gap-8 px-6 md:grid-cols-12'>
+          <div className='md:col-span-6'>
+            <p className='inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950/40 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-accent-300'>
+              <span className='h-2 w-2 rounded-full bg-accent-400' />
+              Sobre a GR Dados
+            </p>
+
+            <h2 className='mt-6 text-4xl font-black leading-tight md:text-5xl'>
+              Projetos digitais com
+              <span className='block text-accent-400'>logica e controle</span>
+            </h2>
+
+            <p className='mt-5 max-w-xl text-sm leading-7 text-zinc-300'>
+              Engenharia de software sob medida para empresas que precisam de controle financeiro,
+              processo estruturado e clareza operacional na rotina.
+            </p>
+
+            <div className='mt-6 space-y-3 text-sm text-zinc-200'>
+              <div className='flex items-start gap-3'>
+                <span className='mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-accent-500/15 text-accent-300'>
+                  ✓
+                </span>
+                <p>ERP, CRM, SaaS e automacoes avancadas</p>
+              </div>
+              <div className='flex items-start gap-3'>
+                <span className='mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-accent-500/15 text-accent-300'>
+                  ✓
+                </span>
+                <p>Sistemas desenhados para a operacao real</p>
+              </div>
+              <div className='flex items-start gap-3'>
+                <span className='mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-accent-500/15 text-accent-300'>
+                  ✓
+                </span>
+                <p>Tecnologia feita para escalar junto com o negocio</p>
+              </div>
+            </div>
+
+            <div className='mt-8'>
+              <Link
+                href='/register'
+                className='inline-flex rounded-xl bg-accent-500 px-8 py-4 text-sm font-black text-zinc-950 hover:bg-accent-400'
+              >
+                Iniciar um projeto
+              </Link>
+            </div>
+          </div>
+
+          <div className='md:col-span-6'>
+            <div className='relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/30 p-10'>
+              <div className='absolute -right-24 -top-24 h-64 w-64 rounded-full bg-accent-500/15 blur-3xl' />
+              <div className='relative flex items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-950/50 p-12'>
+                <Image
+                  src='/gr-dados-logo-gray.svg'
+                  alt='GR Dados'
+                  width={260}
+                  height={70}
+                />
+              </div>
+
+              <div className='relative mt-6 inline-block rounded-2xl border border-zinc-800 bg-zinc-950/70 p-6'>
+                <p className='text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400'>
+                  Software house
+                </p>
+                <p className='mt-2 text-sm font-extrabold text-white'>
+                  Engenharia sob medida
+                  <br />
+                  para negocios B2B
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section id='localizacao' className='bg-zinc-950 py-16'>
+      <section id='localizacao' className='bg-zinc-950 py-16 scroll-mt-24'>
         <div className='mx-auto grid w-full max-w-6xl items-stretch gap-6 px-6 md:grid-cols-12'>
           <div className='rounded-3xl border border-zinc-800 bg-zinc-900 p-8 md:col-span-5'>
             <p className='text-xs font-black uppercase tracking-[0.22em] text-zinc-400'>
