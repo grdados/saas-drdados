@@ -81,42 +81,68 @@ export default function HomePage() {
       <SiteHeader />
 
       {/* Sessao 1 - Inicio (Hero) */}
-      <section className="mx-auto flex min-h-[72vh] w-full max-w-6xl items-center justify-center px-6 py-14">
-        <div className="w-full max-w-3xl space-y-6 text-center">
-          <p className="mx-auto inline-flex rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-accent-300">
-            Sistemas sob medida e produtos digitais
-          </p>
+      <section className="mx-auto grid min-h-[72vh] w-full max-w-6xl items-center gap-10 px-6 py-14 md:grid-cols-12">
+        <div className="md:col-span-6">
+          <div className="space-y-6 text-left">
+            <p className="inline-flex rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-accent-300">
+              Sistemas sob medida e produtos digitais
+            </p>
 
-          <h1 className="font-extrabold leading-[1.03] tracking-tight">
-            <span className="block text-4xl md:text-5xl lg:text-6xl md:whitespace-nowrap">
-              Chega de planilhas
-            </span>
-            <HeroRotatingLine
-              phrases={[
-                "Tenha um sistema seu,\nFeito para seu negocio.",
-                "Tudo centralizado no Power BI,\ncom dashboards dinamicos."
-              ]}
-              className="mt-2 text-balance text-2xl leading-[1.1] sm:text-3xl md:text-4xl lg:text-5xl"
-            />
-          </h1>
+            <h1 className="font-extrabold leading-[1.03] tracking-tight">
+              <span className="block text-4xl md:text-5xl lg:text-6xl md:whitespace-nowrap">
+                Chega de planilhas
+              </span>
+              <HeroRotatingLine
+                phrases={[
+                  "Tenha um sistema seu,\nFeito para seu negocio.",
+                  "Tudo centralizado no Power BI,\ncom dashboards dinamicos."
+                ]}
+                className="mt-2 text-balance text-2xl leading-[1.1] sm:text-3xl md:text-4xl lg:text-5xl"
+              />
+            </h1>
 
-          <p className="mx-auto max-w-2xl text-base leading-7 text-zinc-200 md:text-lg">
-            Sistemas sob medida para organizar processos, centralizar informacoes e dar mais controle ao seu negocio.
-          </p>
+            <p className="max-w-xl text-base leading-7 text-zinc-200 md:text-lg">
+              Sistemas sob medida para organizar processos, centralizar informacoes e dar mais controle ao seu negocio.
+            </p>
 
-          <div className="flex flex-col justify-center gap-3 sm:flex-row sm:items-center sm:gap-4">
-            <Link
-              href="#iniciar-projeto"
-              className="rounded-xl bg-accent-500 px-7 py-4 font-black text-zinc-950 hover:bg-accent-400"
-            >
-              Iniciar um projeto
-            </Link>
-            <Link
-              href="/servicos/power-bi"
-              className="rounded-xl border border-zinc-700 bg-zinc-950/40 px-7 py-4 font-black text-zinc-100 hover:bg-zinc-900"
-            >
-              Ver Power BI
-            </Link>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+              <Link
+                href="#iniciar-projeto"
+                className="rounded-xl bg-accent-500 px-7 py-4 font-black text-zinc-950 hover:bg-accent-400"
+              >
+                Iniciar um projeto
+              </Link>
+              <Link
+                href="/servicos/power-bi"
+                className="rounded-xl border border-zinc-700 bg-zinc-950/40 px-7 py-4 font-black text-zinc-100 hover:bg-zinc-900"
+              >
+                Ver Power BI
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative hidden md:col-span-6 md:block">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full bg-accent-500/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-10 left-10 h-72 w-72 rounded-full bg-accent-500/10 blur-3xl" />
+
+          <div className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/40 p-5">
+            <div className="absolute inset-0">
+              {/* shape */}
+              <div className="absolute -right-20 top-8 h-80 w-80 rounded-[48px] bg-gradient-to-br from-accent-500/20 via-zinc-950/0 to-transparent blur-2xl" />
+            </div>
+
+            <div className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
+              <Image
+                src="/modulos/vendas-1.svg"
+                alt="Dashboard exemplo"
+                width={1200}
+                height={720}
+                className="h-auto w-full"
+                priority
+              />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-zinc-950/5 to-transparent" />
+            </div>
           </div>
         </div>
       </section>
