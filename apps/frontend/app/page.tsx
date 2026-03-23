@@ -47,9 +47,27 @@ export default function HomePage() {
   ];
 
   const depoimentos = [
-    "O sistema trouxe clareza total do meu negocio",
-    "Hoje sei exatamente onde estou ganhando dinheiro",
-    "A equipe ganhou produtividade e previsibilidade"
+    {
+      quote: "O sistema trouxe clareza total do meu negocio",
+      name: "Rogajo",
+      role: "Diretoria",
+      avatar: "/avatars/cliente-1.svg",
+      dash: "/modulos/producao.svg"
+    },
+    {
+      quote: "Hoje sei exatamente onde estou ganhando dinheiro",
+      name: "Valor Agro",
+      role: "Financeiro",
+      avatar: "/avatars/cliente-2.svg",
+      dash: "/modulos/vendas.svg"
+    },
+    {
+      quote: "A equipe ganhou produtividade e previsibilidade",
+      name: "Irineu Cassol",
+      role: "Operacao",
+      avatar: "/avatars/cliente-3.svg",
+      dash: "/modulos/producao-1.svg"
+    }
   ];
 
   const faq = [
@@ -63,14 +81,14 @@ export default function HomePage() {
       <SiteHeader />
 
       {/* Sessao 1 - Inicio (Hero) */}
-      <section className="mx-auto grid w-full max-w-6xl gap-10 px-6 pb-16 pt-12 md:items-center">
-        <div className="space-y-6">
-          <p className="inline-flex rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-accent-300">
+      <section className="mx-auto flex min-h-[72vh] w-full max-w-6xl items-center justify-center px-6 py-14">
+        <div className="w-full max-w-3xl space-y-6 text-center">
+          <p className="mx-auto inline-flex rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-xs font-black uppercase tracking-[0.15em] text-accent-300">
             Sistemas sob medida e produtos digitais
           </p>
 
           <h1 className="font-extrabold leading-[1.03] tracking-tight">
-            <span className="block text-5xl md:text-6xl lg:text-7xl md:whitespace-nowrap">
+            <span className="block text-4xl md:text-5xl lg:text-6xl md:whitespace-nowrap">
               Chega de planilhas
             </span>
             <HeroRotatingLine
@@ -78,15 +96,15 @@ export default function HomePage() {
                 "Tenha um sistema seu,\nFeito para seu negocio.",
                 "Tudo centralizado no Power BI,\ncom dashboards dinamicos."
               ]}
-              className="mt-2 text-balance text-3xl leading-[1.05] sm:text-4xl md:text-5xl lg:text-6xl"
+              className="mt-2 text-balance text-2xl leading-[1.1] sm:text-3xl md:text-4xl lg:text-5xl"
             />
           </h1>
 
-          <p className="max-w-xl text-lg text-zinc-200">
+          <p className="mx-auto max-w-2xl text-base leading-7 text-zinc-200 md:text-lg">
             Sistemas sob medida para organizar processos, centralizar informacoes e dar mais controle ao seu negocio.
           </p>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+          <div className="flex flex-col justify-center gap-3 sm:flex-row sm:items-center sm:gap-4">
             <Link
               href="#iniciar-projeto"
               className="rounded-xl bg-accent-500 px-7 py-4 font-black text-zinc-950 hover:bg-accent-400"
@@ -314,32 +332,44 @@ export default function HomePage() {
             O que muda na pratica
           </h2>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {depoimentos.map((q) => (
-              <div key={q} className="rounded-3xl border border-zinc-800 bg-zinc-950/40 p-6">
-                <p className="text-sm font-black text-zinc-100">"{q}"</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              { src: "/modulos/producao.svg", alt: "Print dashboard - Producao" },
-              { src: "/modulos/producao-1.svg", alt: "Print dashboard - Producao (variante)" },
-              { src: "/modulos/vendas.svg", alt: "Print dashboard - Vendas" },
-              { src: "/modulos/vendas-1.svg", alt: "Print dashboard - Vendas (variante)" }
-            ].map((img) => (
+          <div className="mt-10 grid gap-6 lg:grid-cols-3">
+            {depoimentos.map((t) => (
               <div
-                key={img.src}
-                className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/40"
+                key={t.quote}
+                className="group overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/40"
               >
-                <Image
-                  src={img.src}
-                  alt={img.alt}
-                  width={1200}
-                  height={720}
-                  className="h-auto w-full"
-                />
+                <div className="relative">
+                  <Image
+                    src={t.dash}
+                    alt="Dashboard"
+                    width={1200}
+                    height={720}
+                    className="h-auto w-full"
+                  />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-zinc-950/85 via-zinc-950/10 to-transparent" />
+                </div>
+
+                <div className="p-7">
+                  <p className="text-sm font-black leading-7 text-zinc-100">
+                    "{t.quote}"
+                  </p>
+
+                  <div className="mt-6 flex items-center gap-3">
+                    <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/40">
+                      <Image
+                        src={t.avatar}
+                        alt={t.name}
+                        width={52}
+                        height={52}
+                        className="h-12 w-12"
+                      />
+                    </div>
+                    <div className="leading-tight">
+                      <p className="text-sm font-black text-white">{t.name}</p>
+                      <p className="text-xs font-semibold text-zinc-400">{t.role}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -464,4 +494,3 @@ export default function HomePage() {
     </main>
   );
 }
-
