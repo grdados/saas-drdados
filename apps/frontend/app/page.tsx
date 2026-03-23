@@ -209,31 +209,98 @@ export default function HomePage() {
         </div>
       </section>
 
-      <footer className='border-t border-zinc-800 bg-zinc-950 py-12'>
-        <div className='mx-auto w-full max-w-6xl px-6'>
-          <div className='flex flex-col items-start justify-between gap-8 md:flex-row md:items-center'>
-            <div className='flex items-center gap-4'>
+      <footer className='border-t border-zinc-800 bg-zinc-950'>
+        <div className='mx-auto w-full max-w-6xl px-6 py-14'>
+          <div className='grid gap-10 md:grid-cols-12'>
+            <div className='md:col-span-5'>
               <Image
                 src='/gr-dados-logo-gray.svg'
                 alt='GR Dados'
-                width={180}
-                height={46}
+                width={210}
+                height={56}
               />
-              <div className='text-sm text-zinc-400'>
-                <p className='font-bold text-zinc-300'>GR Dados</p>
-                <p>Todos Direitos reservados</p>
+              <p className='mt-5 max-w-md text-sm leading-7 text-zinc-400'>
+                A GR Dados desenvolve sistemas sob medida para empresas que precisam de
+                mais controle, clareza operacional e base tecnologica para crescer.
+              </p>
+
+              <div className='mt-6 flex items-start gap-3 text-sm text-zinc-300'>
+                <span className='mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-900 text-accent-300'>
+                  ⦿
+                </span>
+                <div>
+                  <p className='font-black text-zinc-100'>Base estrategica</p>
+                  <p className='text-zinc-400'>
+                    AV 22 de abril, 519 - Centro - Laguna Carapa - MS
+                  </p>
+                  <p className='text-zinc-400'>CEP 79920-000</p>
+                </div>
               </div>
             </div>
 
-            <div className='text-sm text-zinc-400'>
-              <p>AV 22 de abril, 519 - Centro - Laguna Carapa - MS</p>
-              <p>CEP 79920-000</p>
-              <p className='mt-2'>
-                Contato:{' '}
-                <a className='font-bold text-zinc-300 underline' href='tel:+5567998698159'>
-                  (67) 99869-8159
+            <div className='md:col-span-3'>
+              <p className='text-sm font-black text-zinc-100'>Solucoes</p>
+              <div className='mt-4 space-y-3 text-sm text-zinc-400'>
+                <p>Agrogestao</p>
+                <p>Producao</p>
+                <p>Estoque</p>
+                <p>Contas a Pagar</p>
+                <p>Contas a Receber</p>
+                <p>Fluxo de Caixa</p>
+                <p>DRE</p>
+              </div>
+            </div>
+
+            <div className='md:col-span-2'>
+              <p className='text-sm font-black text-zinc-100'>Institucional</p>
+              <div className='mt-4 space-y-3 text-sm'>
+                <a className='block text-zinc-400 hover:text-zinc-200' href='#inicio'>
+                  Inicio
                 </a>
-              </p>
+                <a className='block text-zinc-400 hover:text-zinc-200' href='#sobre'>
+                  Sobre
+                </a>
+                <a className='block text-zinc-400 hover:text-zinc-200' href='#localizacao'>
+                  Localizacao
+                </a>
+              </div>
+            </div>
+
+            <div className='md:col-span-2'>
+              <p className='text-sm font-black text-zinc-100'>Canais Institucionais</p>
+              <div className='mt-4 space-y-4'>
+                <div className='rounded-2xl border border-zinc-800 bg-zinc-900 p-5'>
+                  <p className='text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400'>
+                    WhatsApp Comercial
+                  </p>
+                  <p className='mt-2 text-sm font-black text-zinc-100'>
+                    <a className='underline' href='tel:+5567998698159'>
+                      (67) 99869-8159
+                    </a>
+                  </p>
+                </div>
+                <div className='rounded-2xl border border-zinc-800 bg-zinc-900 p-5'>
+                  <p className='text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400'>
+                    Endereco
+                  </p>
+                  <p className='mt-2 text-sm font-black text-zinc-100'>
+                    Laguna Carapa - MS
+                  </p>
+                  <p className='text-xs font-semibold text-zinc-400'>CEP 79920-000</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className='mt-12 flex flex-col items-start justify-between gap-4 border-t border-zinc-800 pt-8 text-sm text-zinc-500 md:flex-row md:items-center'>
+            <p>© 2026 GR Dados. Todos os direitos reservados.</p>
+            <div className='flex gap-6'>
+              <a className='hover:text-zinc-300' href='#'>
+                Politica de Privacidade
+              </a>
+              <a className='hover:text-zinc-300' href='#'>
+                Termos de Uso
+              </a>
             </div>
           </div>
         </div>
