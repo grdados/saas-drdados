@@ -25,7 +25,9 @@ function extractErrorMessage(payloadText: string): string {
     if (typeof json === "string") return json;
     if (json && typeof json === "object") {
       const obj = json as Record<string, unknown>;
-      if (typeof obj.detail === "string") return obj.detail;
+      const detail = typeof obj.detail === "string" ? obj.detail : "";
+      const errorId = typeof obj.error_id === "string" ? obj.error_id : "";
+      if (detail) return errorId ? `${detail} (error_id: ${errorId})` : detail;
 
       const firstKey = Object.keys(obj)[0];
       const firstVal = firstKey ? obj[firstKey] : undefined;
