@@ -36,6 +36,13 @@ class HasModuleAccess(BasePermission):
     def __init__(self, module_code: str):
         self.module_code = module_code
 
+    # DRF espera classes em `permission_classes` e chama `permission()` internamente.
+    # Como aqui usamos um construtor com parametro (HasModuleAccess("erp")), acabamos
+    # passando uma instancia. Tornamos a instancia "callable" para o DRF obter a
+    # propria instancia sem quebrar.
+    def __call__(self):
+        return self
+
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False

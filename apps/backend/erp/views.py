@@ -3,7 +3,6 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.response import Response
 
 from accounts.permissions import get_current_company
-from billing.permissions import HasModuleAccess
 
 from . import models, serializers
 
@@ -14,7 +13,9 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
     Tudo sempre filtrado por company_id (multi-tenant).
     """
 
-    permission_classes = [permissions.IsAuthenticated, HasModuleAccess("erp")]
+    # TEMP (dev/unblock): sem bloqueio por licenca/modulo.
+    # Vamos reintroduzir as restricoes depois que os cadastros basicos estiverem estaveis.
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_company(self):
         return get_current_company(self.request.user)

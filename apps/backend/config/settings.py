@@ -123,3 +123,29 @@ ASAAS_WEBHOOK_TOKEN = os.getenv("ASAAS_WEBHOOK_TOKEN", "")
 
 # DEV helper: permite acessar o app com licenca "trialing". Em producao deixe 0.
 ALLOW_TRIAL_LICENSES = os.getenv("ALLOW_TRIAL_LICENSES", "0") == "1"
+
+# Ensure errors/tracebacks show up in Render runtime logs.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": os.getenv("LOG_LEVEL", "INFO"),
+    },
+    "loggers": {
+        # Ensure 500s are visible
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "core": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": True,
+        },
+    },
+}
