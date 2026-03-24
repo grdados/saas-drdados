@@ -86,6 +86,12 @@ function formatArea(val: string | number | null | undefined) {
   return `${n.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} ha`;
 }
 
+function parseNumber(val: string | number | null | undefined): number {
+  const raw = String(val ?? "").trim().replace(",", ".");
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 0;
+}
+
 export default function TalhaoPage() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Talhao[]>([]);
@@ -106,6 +112,26 @@ export default function TalhaoPage() {
   const [formActive, setFormActive] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
+
+  const selectedPropriedade = useMemo(() => {
+    if (formPropriedadeId === "") return null;
+    return propriedades.find((p) => p.id === Number(formPropriedadeId)) ?? null;
+  }, [formPropriedadeId, propriedades]);
+
+  const availableArea = useMemo(() => {
+    if (!selectedPropriedade) return null;
+    const propArea = parseNumber(selectedPropriedade.area_ha);
+    const used = items
+      .filter((t) => (t.propriedade?.id ?? -1) === selectedPropriedade.id)
+      .filter((t) => (editingId ? t.id !== editingId : true))
+      .reduce((acc, t) => acc + parseNumber(t.area_ha), 0);
+    return Math.max(0, propArea - used);
+  }, [selectedPropriedade, items, editingId]);
+
+  const areaExceeds = useMemo(() => {
+    if (availableArea === null) return false;
+    return parseNumber(formArea) > availableArea + 1e-9;
+  }, [availableArea, formArea]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -178,6 +204,10 @@ export default function TalhaoPage() {
     setSaving(true);
     setSaveMessage("");
     try {
+      if (selectedPropriedade && availableArea !== null && areaExceeds) {
+        setSaveMessage(`Area excede a area disponivel da propriedade. Disponivel: ${availableArea.toFixed(2)} ha.`);
+        return;
+      }
       const payload = {
         name: formName.trim(),
         propriedade_id: formPropriedadeId === "" ? null : Number(formPropriedadeId),
@@ -380,6 +410,21 @@ export default function TalhaoPage() {
                         </option>
                       ))}
                   </select>
+                  {selectedPropriedade ? (
+                    <p className="text-xs font-semibold text-zinc-400">
+                      Area da propriedade:{" "}
+                      <span className="font-black text-zinc-200">{formatArea(selectedPropriedade.area_ha)}</span>
+                      {availableArea !== null ? (
+                        <>
+                          {" "}
+                          | Disponivel para talhoes:{" "}
+                          <span className={`font-black ${areaExceeds ? "text-rose-200" : "text-emerald-200"}`}>
+                            {availableArea.toFixed(2)} ha
+                          </span>
+                        </>
+                      ) : null}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="grid gap-2">
@@ -391,6 +436,11 @@ export default function TalhaoPage() {
                     placeholder="0"
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
+                  {selectedPropriedade && areaExceeds ? (
+                    <p className="text-xs font-black text-rose-200">
+                      Area informada excede a disponivel ({availableArea?.toFixed(2)} ha).
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="grid gap-2">
@@ -457,4 +507,3 @@ export default function TalhaoPage() {
     </AuthedAdminShell>
   );
 }
-

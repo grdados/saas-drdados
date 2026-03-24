@@ -1,3 +1,7 @@
+from decimal import Decimal
+
+from django.db.models import Sum
+from django.db.models.functions import Coalesce
 from rest_framework import serializers
 
 from . import models
@@ -215,6 +219,33 @@ class TalhaoSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+    def validate(self, attrs):
+        """
+        Regra: a soma das areas dos talhoes de uma propriedade nao pode ultrapassar a area da propriedade.
+        Considera todos os talhoes (ativos ou nao) para evitar ultrapassar por "desativar" e criar novo.
+        """
+        propriedade = attrs.get("propriedade") or getattr(self.instance, "propriedade", None)
+        area_ha = attrs.get("area_ha", getattr(self.instance, "area_ha", None))
+
+        if propriedade is None or area_ha is None:
+            return attrs
+
+        qs = models.Talhao.objects.filter(company=propriedade.company, propriedade=propriedade)
+        if self.instance and getattr(self.instance, "pk", None):
+            qs = qs.exclude(pk=self.instance.pk)
+
+        used = qs.aggregate(total=Coalesce(Sum("area_ha"), Decimal("0")))["total"] or Decimal("0")
+        limit = propriedade.area_ha or Decimal("0")
+        new_total = used + (area_ha if isinstance(area_ha, Decimal) else Decimal(str(area_ha)))
+
+        if new_total > limit:
+            remaining = limit - used
+            raise serializers.ValidationError(
+                {"area_ha": f"Area excede a area da propriedade. Disponivel: {remaining} ha."}
+            )
+
+        return attrs
 MaquinaSerializer = _mk_serializer(models.Maquina)
 BenfeitoriaSerializer = _mk_serializer(models.Benfeitoria)
 BombaCombustivelSerializer = _mk_serializer(models.BombaCombustivel)
