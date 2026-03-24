@@ -200,3 +200,65 @@ export function updateCultura(token: string, id: number, payload: { name?: strin
     token
   );
 }
+
+export type Safra = {
+  id: number;
+  name: string;
+  year: number | null;
+  start_date: string | null;
+  end_date: string | null;
+  status: "in_progress" | "finished";
+  cultura: { id: number; name: string } | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export function listSafras(token: string) {
+  return request<Safra[]>("/api/erp/safras/", { method: "GET" }, token);
+}
+
+export function createSafra(
+  token: string,
+  payload: {
+    name: string;
+    year?: number | null;
+    start_date?: string | null;
+    end_date?: string | null;
+    cultura_id?: number | null;
+    status?: "in_progress" | "finished";
+    is_active?: boolean;
+  }
+) {
+  return request<Safra>(
+    "/api/erp/safras/",
+    {
+      method: "POST",
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+}
+
+export function updateSafra(
+  token: string,
+  id: number,
+  payload: Partial<{
+    name: string;
+    year: number | null;
+    start_date: string | null;
+    end_date: string | null;
+    cultura_id: number | null;
+    status: "in_progress" | "finished";
+    is_active: boolean;
+  }>
+) {
+  return request<Safra>(
+    `/api/erp/safras/${id}/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+}

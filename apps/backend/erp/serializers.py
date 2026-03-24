@@ -21,7 +21,39 @@ def _mk_serializer(model_cls):
 
 
 CulturaSerializer = _mk_serializer(models.Cultura)
-SafraSerializer = _mk_serializer(models.Safra)
+
+
+class SafraSerializer(serializers.ModelSerializer):
+    cultura_id = serializers.PrimaryKeyRelatedField(
+        source="cultura",
+        queryset=models.Cultura.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    cultura = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.Safra
+        fields = [
+            "id",
+            "name",
+            "year",
+            "start_date",
+            "end_date",
+            "cultura",
+            "cultura_id",
+            "status",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_cultura(self, obj):
+        if not getattr(obj, "cultura_id", None):
+            return None
+        # cultura pode vir via select_related
+        return {"id": obj.cultura_id, "name": obj.cultura.name}
+
 GrupoCompraSerializer = _mk_serializer(models.GrupoCompra)
 ProdutorSerializer = _mk_serializer(models.Produtor)
 ClienteSerializer = _mk_serializer(models.Cliente)
@@ -50,4 +82,3 @@ MaquinaSerializer = _mk_serializer(models.Maquina)
 BenfeitoriaSerializer = _mk_serializer(models.Benfeitoria)
 BombaCombustivelSerializer = _mk_serializer(models.BombaCombustivel)
 DepositoSerializer = _mk_serializer(models.Deposito)
-

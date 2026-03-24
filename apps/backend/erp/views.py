@@ -55,7 +55,7 @@ class CulturaViewSet(CompanyScopedViewSet):
 
 
 class SafraViewSet(CompanyScopedViewSet):
-    queryset = models.Safra.objects.select_related("company")
+    queryset = models.Safra.objects.select_related("company", "cultura")
     serializer_class = serializers.SafraSerializer
 
 
