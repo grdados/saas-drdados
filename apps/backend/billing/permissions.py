@@ -1,4 +1,5 @@
 from rest_framework.permissions import BasePermission
+from django.db.utils import OperationalError, ProgrammingError
 
 from accounts.permissions import get_current_company, has_active_license
 from billing.models import BillingSubscription
@@ -10,11 +11,18 @@ def has_active_module(user, module_code: str) -> bool:
         return False
     if not has_active_license(user):
         return False
-    return BillingSubscription.objects.filter(
-        company=company,
-        status="active",
-        module_code=module_code,
-    ).exists()
+
+    # Em ambientes onde a migracao ainda nao foi aplicada (ex: coluna module_code),
+    # a consulta pode falhar com erro de banco e virar 500. Aqui preferimos falhar
+    # com "sem acesso ao modulo" (403) e deixar o erro para os logs/ops corrigirem.
+    try:
+        return BillingSubscription.objects.filter(
+            company=company,
+            status="active",
+            module_code=module_code,
+        ).exists()
+    except (OperationalError, ProgrammingError):
+        return False
 
 
 class HasModuleAccess(BasePermission):
@@ -32,4 +40,3 @@ class HasModuleAccess(BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
         return has_active_module(request.user, self.module_code)
-

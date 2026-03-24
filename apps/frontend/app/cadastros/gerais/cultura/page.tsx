@@ -6,6 +6,16 @@ import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
 import { createCultura, Cultura, isApiError, listCulturas, updateCultura } from "@/lib/api";
 
+function prettyError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  const trimmed = (msg || "").trim();
+  if (!trimmed) return "Falha inesperada.";
+  if (trimmed.toLowerCase().includes("<!doctype html") || trimmed.toLowerCase().includes("<html")) {
+    return "Erro interno no servidor (500). Verifique os logs do backend e se as migracoes foram aplicadas.";
+  }
+  return trimmed;
+}
+
 function IconPencil({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2">
@@ -69,7 +79,7 @@ export default function CulturaPage() {
         window.location.href = "/login";
         return;
       }
-      setError(err instanceof Error ? err.message : "Falha ao carregar culturas.");
+      setError(prettyError(err));
     } finally {
       setLoading(false);
     }
@@ -137,7 +147,7 @@ export default function CulturaPage() {
         window.location.href = "/login";
         return;
       }
-      setSaveMessage(err instanceof Error ? err.message : "Falha ao salvar.");
+      setSaveMessage(prettyError(err));
     } finally {
       setSaving(false);
     }
@@ -173,17 +183,19 @@ export default function CulturaPage() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[440px_1fr]">
-            {/* Left: list + filters */}
-            <section className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-black text-white">Lista</p>
+            {/* Left: filters */}
+            <section className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl lg:col-span-2">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black text-white">Filtros</p>
+                  <p className="mt-1 text-xs text-zinc-400">Refine a lista por nome e status.</p>
+                </div>
                 <div className="text-xs font-semibold text-zinc-400">
                   {loading ? "Carregando..." : `${filtered.length} item(ns)`}
                 </div>
               </div>
 
-              {/* Filters */}
-              <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_140px]">
+              <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_180px]">
                 <div className="relative">
                   <input
                     value={query}
@@ -209,6 +221,14 @@ export default function CulturaPage() {
                   {error}
                 </div>
               ) : null}
+            </section>
+
+            {/* Left: list + filters */}
+            <section className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-black text-white">Lista</p>
+                <div className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : "Ordenado A-Z"}</div>
+              </div>
 
               {/* List */}
               <div className="mt-4 max-h-[520px] overflow-auto pr-1">
@@ -385,4 +405,3 @@ export default function CulturaPage() {
     </AuthedAdminShell>
   );
 }
-
