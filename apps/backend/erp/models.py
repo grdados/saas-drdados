@@ -109,7 +109,11 @@ class Combustivel(CompanyNamedModel):
 
 
 class Cultivar(CompanyNamedModel):
-    pass
+    description = models.TextField(blank=True, default="")
+    cycle = models.CharField(max_length=80, blank=True, default="")
+    maturity = models.CharField(max_length=80, blank=True, default="")
+    region_indicated = models.CharField(max_length=180, blank=True, default="")
+    brand = models.CharField(max_length=120, blank=True, default="")
 
 
 class Diverso(CompanyNamedModel):

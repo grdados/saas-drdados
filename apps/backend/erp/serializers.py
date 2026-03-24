@@ -72,7 +72,24 @@ InsumoSerializer = _mk_serializer(models.Insumo)
 ProdutoSerializer = _mk_serializer(models.Produto)
 PecaSerializer = _mk_serializer(models.Peca)
 CombustivelSerializer = _mk_serializer(models.Combustivel)
-CultivarSerializer = _mk_serializer(models.Cultivar)
+
+
+class CultivarSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Cultivar
+        fields = [
+            "id",
+            "name",
+            "description",
+            "cycle",
+            "maturity",
+            "region_indicated",
+            "brand",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+
 DiversoSerializer = _mk_serializer(models.Diverso)
 FabricanteSerializer = _mk_serializer(models.Fabricante)
 

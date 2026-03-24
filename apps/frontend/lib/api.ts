@@ -262,3 +262,49 @@ export function updateSafra(
     token
   );
 }
+
+export type Cultivar = {
+  id: number;
+  name: string;
+  description: string;
+  cycle: string;
+  maturity: string;
+  region_indicated: string;
+  brand: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export function listCultivares(token: string) {
+  return request<Cultivar[]>("/api/erp/estoque/cultivares/", { method: "GET" }, token);
+}
+
+export function createCultivar(
+  token: string,
+  payload: Partial<Pick<Cultivar, "name" | "description" | "cycle" | "maturity" | "region_indicated" | "brand" | "is_active">>
+) {
+  return request<Cultivar>(
+    "/api/erp/estoque/cultivares/",
+    {
+      method: "POST",
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+}
+
+export function updateCultivar(
+  token: string,
+  id: number,
+  payload: Partial<Pick<Cultivar, "name" | "description" | "cycle" | "maturity" | "region_indicated" | "brand" | "is_active">>
+) {
+  return request<Cultivar>(
+    `/api/erp/estoque/cultivares/${id}/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+}

@@ -4,15 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
-import {
-  createSafra,
-  Cultura,
-  isApiError,
-  listCulturas,
-  listSafras,
-  Safra,
-  updateSafra
-} from "@/lib/api";
+import { createCultivar, Cultivar, isApiError, listCultivares, updateCultivar } from "@/lib/api";
 
 function prettyError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
@@ -64,7 +56,7 @@ function Modal({
   return (
     <div className="fixed inset-0 z-50 grid place-items-center px-4">
       <button aria-label="Fechar" onClick={onClose} className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm" />
-      <div className="relative w-full max-w-[860px] overflow-hidden rounded-3xl border border-white/10 bg-zinc-950/90 shadow-2xl">
+      <div className="relative w-full max-w-[920px] overflow-hidden rounded-3xl border border-white/10 bg-zinc-950/90 shadow-2xl">
         <div className="flex items-start justify-between gap-3 border-b border-white/10 p-5">
           <div>
             <p className="text-sm font-black text-white">{title}</p>
@@ -88,18 +80,14 @@ function Modal({
   );
 }
 
-type Status = "in_progress" | "finished";
-
-export default function SafraPage() {
+export default function CultivaresPage() {
   const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<Safra[]>([]);
-  const [culturas, setCulturas] = useState<Cultura[]>([]);
+  const [items, setItems] = useState<Cultivar[]>([]);
   const [error, setError] = useState("");
 
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
-  const [culturaFilter, setCulturaFilter] = useState<number | "all">("all");
-  const [yearFilter, setYearFilter] = useState<string>("");
+  const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("all");
+  const [brandFilter, setBrandFilter] = useState("");
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -107,37 +95,34 @@ export default function SafraPage() {
   const editing = useMemo(() => items.find((i) => i.id === editingId) ?? null, [items, editingId]);
 
   const [formName, setFormName] = useState("");
-  const [formYear, setFormYear] = useState<string>("");
-  const [formStart, setFormStart] = useState<string>("");
-  const [formEnd, setFormEnd] = useState<string>("");
-  const [formCulturaId, setFormCulturaId] = useState<number | "">("");
-  const [formStatus, setFormStatus] = useState<Status>("in_progress");
+  const [formDesc, setFormDesc] = useState("");
+  const [formCycle, setFormCycle] = useState("");
+  const [formMaturity, setFormMaturity] = useState("");
+  const [formRegion, setFormRegion] = useState("");
+  const [formBrand, setFormBrand] = useState("");
   const [formActive, setFormActive] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const yearNum = yearFilter.trim() ? Number(yearFilter.trim()) : null;
+    const bq = brandFilter.trim().toLowerCase();
     return [...items]
-      .filter((s) => {
-        if (statusFilter !== "all" && s.status !== statusFilter) return false;
-        if (culturaFilter !== "all" && (s.cultura?.id ?? -1) !== culturaFilter) return false;
-        if (yearNum && (s.year ?? -1) !== yearNum) return false;
+      .filter((c) => {
+        if (activeFilter === "active" && !c.is_active) return false;
+        if (activeFilter === "inactive" && c.is_active) return false;
+        if (bq && !c.brand.toLowerCase().includes(bq)) return false;
         if (!q) return true;
         return (
-          s.name.toLowerCase().includes(q) ||
-          (s.cultura?.name ?? "").toLowerCase().includes(q) ||
-          String(s.year ?? "").includes(q)
+          c.name.toLowerCase().includes(q) ||
+          c.brand.toLowerCase().includes(q) ||
+          c.region_indicated.toLowerCase().includes(q) ||
+          c.maturity.toLowerCase().includes(q) ||
+          c.cycle.toLowerCase().includes(q)
         );
       })
-      .sort((a, b) => {
-        const ya = a.year ?? 0;
-        const yb = b.year ?? 0;
-        if (ya !== yb) return yb - ya; // ano desc
-        return a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" });
-      });
-  }, [items, query, statusFilter, culturaFilter, yearFilter]);
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }));
+  }, [items, query, activeFilter, brandFilter]);
 
   async function refresh() {
     const token = getAccessToken();
@@ -145,9 +130,8 @@ export default function SafraPage() {
     setError("");
     setLoading(true);
     try {
-      const [safrasData, culturasData] = await Promise.all([listSafras(token), listCulturas(token)]);
-      setItems(safrasData);
-      setCulturas(culturasData);
+      const data = await listCultivares(token);
+      setItems(data);
     } catch (err) {
       if (isApiError(err) && err.status === 401) {
         window.location.href = "/login";
@@ -167,27 +151,27 @@ export default function SafraPage() {
   function openCreate() {
     setEditingId(null);
     setFormName("");
-    setFormYear("");
-    setFormStart("");
-    setFormEnd("");
-    setFormCulturaId("");
-    setFormStatus("in_progress");
+    setFormDesc("");
+    setFormCycle("");
+    setFormMaturity("");
+    setFormRegion("");
+    setFormBrand("");
     setFormActive(true);
     setSaveMessage("");
     setModalOpen(true);
   }
 
   function openEdit(id: number) {
-    const s = items.find((i) => i.id === id);
-    if (!s) return;
+    const c = items.find((i) => i.id === id);
+    if (!c) return;
     setEditingId(id);
-    setFormName(s.name ?? "");
-    setFormYear(s.year ? String(s.year) : "");
-    setFormStart(s.start_date ?? "");
-    setFormEnd(s.end_date ?? "");
-    setFormCulturaId(s.cultura?.id ?? "");
-    setFormStatus(s.status);
-    setFormActive(Boolean(s.is_active));
+    setFormName(c.name ?? "");
+    setFormDesc(c.description ?? "");
+    setFormCycle(c.cycle ?? "");
+    setFormMaturity(c.maturity ?? "");
+    setFormRegion(c.region_indicated ?? "");
+    setFormBrand(c.brand ?? "");
+    setFormActive(Boolean(c.is_active));
     setSaveMessage("");
     setModalOpen(true);
   }
@@ -200,22 +184,22 @@ export default function SafraPage() {
     try {
       const payload = {
         name: formName.trim(),
-        year: formYear.trim() ? Number(formYear.trim()) : null,
-        start_date: formStart || null,
-        end_date: formEnd || null,
-        cultura_id: formCulturaId === "" ? null : Number(formCulturaId),
-        status: formStatus,
+        description: formDesc,
+        cycle: formCycle,
+        maturity: formMaturity,
+        region_indicated: formRegion,
+        brand: formBrand,
         is_active: formActive
       };
 
       if (!editingId) {
-        const created = await createSafra(token, payload);
+        const created = await createCultivar(token, payload);
         setItems((prev) => [...prev, created]);
         setModalOpen(false);
         return;
       }
 
-      const updated = await updateSafra(token, editingId, payload);
+      const updated = await updateCultivar(token, editingId, payload);
       setItems((prev) => prev.map((i) => (i.id === editingId ? updated : i)));
       setModalOpen(false);
     } catch (err) {
@@ -229,10 +213,6 @@ export default function SafraPage() {
     }
   }
 
-  function statusLabel(s: Status) {
-    return s === "in_progress" ? "Em andamento" : "Finalizada";
-  }
-
   return (
     <AuthedAdminShell>
       {() => (
@@ -240,8 +220,8 @@ export default function SafraPage() {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Cadastros · Gerais</p>
-              <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Safra</h1>
-              <p className="mt-1 text-sm text-zinc-300">Gerencie safras com ano, periodo, cultura e status.</p>
+              <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Cultivares</h1>
+              <p className="mt-1 text-sm text-zinc-300">Cadastre cultivar com descricao, ciclo, maturidade, regiao e marca.</p>
             </div>
 
             <button
@@ -257,64 +237,39 @@ export default function SafraPage() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-black text-white">Filtros</p>
-                <p className="mt-1 text-xs text-zinc-400">Refine por safra, ano, cultura e status.</p>
+                <p className="mt-1 text-xs text-zinc-400">Refine por nome/marca e status.</p>
               </div>
               <div className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</div>
             </div>
 
-            <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_140px_220px_200px_180px]">
+            <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_220px_180px]">
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar (safra/cultura/ano)..."
+                placeholder="Buscar (cultivar/marca/regiao/ciclo)..."
                 className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
               />
-
               <input
-                value={yearFilter}
-                onChange={(e) => setYearFilter(e.target.value)}
-                placeholder="Ano"
-                inputMode="numeric"
-                className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
+                value={brandFilter}
+                onChange={(e) => setBrandFilter(e.target.value)}
+                placeholder="Filtrar por marca..."
+                className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
               />
-
               <select
-                value={culturaFilter}
-                onChange={(e) => setCulturaFilter(e.target.value === "all" ? "all" : Number(e.target.value))}
+                value={activeFilter}
+                onChange={(e) => setActiveFilter(e.target.value as "all" | "active" | "inactive")}
                 className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50"
               >
                 <option value="all" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
-                  Todas culturas
+                  Todos
                 </option>
-                {culturas
-                  .slice()
-                  .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }))
-                  .map((c) => (
-                    <option key={c.id} value={c.id} style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
-                      {c.name}
-                    </option>
-                  ))}
-              </select>
-
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as "all" | Status)}
-                className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50"
-              >
-                <option value="all" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
-                  Todos status
+                <option value="active" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
+                  Ativos
                 </option>
-                <option value="in_progress" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
-                  Em andamento
-                </option>
-                <option value="finished" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
-                  Finalizada
+                <option value="inactive" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
+                  Inativos
                 </option>
               </select>
-
-              <div className="hidden items-center justify-end text-xs font-semibold text-zinc-400 lg:flex">
-                {loading ? "Carregando..." : "Ordenado por Ano"}
-              </div>
             </div>
 
             {error ? (
@@ -327,53 +282,57 @@ export default function SafraPage() {
           <section className="h-fit rounded-3xl border border-white/10 bg-white/5 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-black text-white">Lista</p>
-              <div className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : "Ano desc"}</div>
+              <div className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : "Ordenado A-Z"}</div>
             </div>
 
             <div className="mt-3 hidden grid-cols-12 gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 sm:grid">
-              <div className="col-span-3">Safra</div>
-              <div className="col-span-1">Ano</div>
-              <div className="col-span-3">Cultura</div>
-              <div className="col-span-2">Inicio</div>
-              <div className="col-span-2">Fim</div>
+              <div className="col-span-3">Cultivar</div>
+              <div className="col-span-2">Marca</div>
+              <div className="col-span-2">Regiao</div>
+              <div className="col-span-2">Ciclo</div>
+              <div className="col-span-2">Maturidade</div>
               <div className="col-span-1 text-right">Status</div>
             </div>
 
             <div className={`mt-4 pr-1 ${filtered.length > 10 ? "max-h-[560px] overflow-auto" : ""}`}>
               <div className="space-y-2">
-                {filtered.map((s) => {
-                  const status = statusLabel(s.status);
-                  const badge =
-                    s.status === "finished"
-                      ? "bg-sky-500/10 text-sky-200 ring-sky-500/20"
-                      : "bg-amber-500/10 text-amber-200 ring-amber-500/20";
+                {filtered.map((c) => {
+                  const badge = c.is_active
+                    ? "bg-emerald-500/10 text-emerald-200 ring-emerald-500/20"
+                    : "bg-zinc-500/10 text-zinc-300 ring-white/10";
 
                   return (
                     <div
-                      key={s.id}
+                      key={c.id}
                       className="group flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3 transition-colors hover:bg-white/5"
                     >
-                      <button onClick={() => openEdit(s.id)} className="grid min-w-0 flex-1 grid-cols-12 items-center gap-3 text-left">
+                      <button onClick={() => openEdit(c.id)} className="grid min-w-0 flex-1 grid-cols-12 items-center gap-3 text-left">
                         <div className="col-span-3 min-w-0">
-                          <p className="truncate text-sm font-black text-white">{s.name}</p>
-                          <p className="mt-0.5 text-xs font-semibold text-zinc-400">ID: {s.id}</p>
+                          <p className="truncate text-sm font-black text-white">{c.name}</p>
+                          <p className="mt-0.5 text-xs font-semibold text-zinc-400">ID: {c.id}</p>
                         </div>
-                        <div className="col-span-1 text-sm font-black text-zinc-100">{s.year ?? "—"}</div>
-                        <div className="col-span-3 min-w-0">
-                          <p className="truncate text-sm font-semibold text-zinc-200">{s.cultura?.name ?? "—"}</p>
+                        <div className="col-span-2 min-w-0">
+                          <p className="truncate text-sm font-semibold text-zinc-200">{c.brand || "—"}</p>
                         </div>
-                        <div className="col-span-2 text-sm font-semibold text-zinc-200">{s.start_date ?? "—"}</div>
-                        <div className="col-span-2 text-sm font-semibold text-zinc-200">{s.end_date ?? "—"}</div>
+                        <div className="col-span-2 min-w-0">
+                          <p className="truncate text-sm font-semibold text-zinc-200">{c.region_indicated || "—"}</p>
+                        </div>
+                        <div className="col-span-2 min-w-0">
+                          <p className="truncate text-sm font-semibold text-zinc-200">{c.cycle || "—"}</p>
+                        </div>
+                        <div className="col-span-2 min-w-0">
+                          <p className="truncate text-sm font-semibold text-zinc-200">{c.maturity || "—"}</p>
+                        </div>
                         <div className="col-span-1 text-right">
                           <span className={`inline-flex items-center rounded-full px-2 py-1 text-[11px] font-black ring-1 ${badge}`}>
-                            {status}
+                            {c.is_active ? "Ativo" : "Inativo"}
                           </span>
                         </div>
                       </button>
 
                       <button
                         type="button"
-                        onClick={() => openEdit(s.id)}
+                        onClick={() => openEdit(c.id)}
                         className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-zinc-950/30 text-zinc-300 hover:bg-white/5"
                         aria-label="Editar"
                         title="Editar"
@@ -386,7 +345,7 @@ export default function SafraPage() {
 
                 {!loading && filtered.length === 0 ? (
                   <div className="rounded-2xl border border-white/10 bg-zinc-950/30 p-4 text-sm text-zinc-300">
-                    Nenhuma safra encontrada.
+                    Nenhum cultivar encontrado.
                   </div>
                 ) : null}
               </div>
@@ -395,7 +354,7 @@ export default function SafraPage() {
 
           <Modal
             open={modalOpen}
-            title={editing ? "Editar safra" : "Nova safra"}
+            title={editing ? "Editar cultivar" : "Novo cultivar"}
             onClose={() => {
               setModalOpen(false);
               setSaveMessage("");
@@ -404,81 +363,64 @@ export default function SafraPage() {
             <div className="grid gap-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Safra</label>
+                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Cultivar</label>
                   <input
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
-                    placeholder="Ex: Safra 2026"
+                    placeholder="Ex: BRS 1010"
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
                 </div>
 
                 <div className="grid gap-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Ano</label>
+                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Marca</label>
                   <input
-                    value={formYear}
-                    onChange={(e) => setFormYear(e.target.value)}
-                    placeholder="2026"
-                    inputMode="numeric"
+                    value={formBrand}
+                    onChange={(e) => setFormBrand(e.target.value)}
+                    placeholder="Ex: Bayer"
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
                 </div>
 
                 <div className="grid gap-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Data inicio</label>
+                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Ciclo</label>
                   <input
-                    value={formStart}
-                    onChange={(e) => setFormStart(e.target.value)}
-                    type="date"
-                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50"
+                    value={formCycle}
+                    onChange={(e) => setFormCycle(e.target.value)}
+                    placeholder="Ex: 120 dias"
+                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
                 </div>
 
                 <div className="grid gap-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Data fim</label>
+                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Maturidade</label>
                   <input
-                    value={formEnd}
-                    onChange={(e) => setFormEnd(e.target.value)}
-                    type="date"
-                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50"
+                    value={formMaturity}
+                    onChange={(e) => setFormMaturity(e.target.value)}
+                    placeholder="Ex: Precoce"
+                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
                 </div>
 
-                <div className="grid gap-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Cultura</label>
-                  <select
-                    value={formCulturaId}
-                    onChange={(e) => setFormCulturaId(e.target.value === "" ? "" : Number(e.target.value))}
-                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50"
-                  >
-                    <option value="" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
-                      Selecione
-                    </option>
-                    {culturas
-                      .slice()
-                      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }))
-                      .map((c) => (
-                        <option key={c.id} value={c.id} style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
-                          {c.name}
-                        </option>
-                      ))}
-                  </select>
+                <div className="grid gap-2 md:col-span-2">
+                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Regiao indicada</label>
+                  <input
+                    value={formRegion}
+                    onChange={(e) => setFormRegion(e.target.value)}
+                    placeholder="Ex: MS / MT"
+                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
+                  />
                 </div>
 
-                <div className="grid gap-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Status</label>
-                  <select
-                    value={formStatus}
-                    onChange={(e) => setFormStatus(e.target.value as Status)}
-                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50"
-                  >
-                    <option value="in_progress" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
-                      Em andamento
-                    </option>
-                    <option value="finished" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
-                      Finalizada
-                    </option>
-                  </select>
+                <div className="grid gap-2 md:col-span-2">
+                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Descricao</label>
+                  <textarea
+                    value={formDesc}
+                    onChange={(e) => setFormDesc(e.target.value)}
+                    placeholder="Observacoes sobre o cultivar..."
+                    rows={4}
+                    className="w-full resize-none rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
+                  />
                 </div>
               </div>
 
@@ -535,3 +477,4 @@ export default function SafraPage() {
     </AuthedAdminShell>
   );
 }
+
