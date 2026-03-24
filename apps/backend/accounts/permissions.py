@@ -1,4 +1,5 @@
 from rest_framework.permissions import BasePermission
+from django.conf import settings
 
 from .models import UserCompany
 
@@ -17,7 +18,13 @@ def has_active_license(user) -> bool:
     company = get_current_company(user)
     if not company:
         return False
-    return company.license_status in {"trialing", "active"}
+
+    # Regra SaaS: acesso ao sistema apenas após confirmação/liberação da licença.
+    # Em DEV, podemos permitir "trialing" via env ALLOW_TRIAL_LICENSES=1.
+    if getattr(settings, "ALLOW_TRIAL_LICENSES", False):
+        return company.license_status in {"trialing", "active"}
+
+    return company.license_status == "active"
 
 
 class HasActiveLicense(BasePermission):

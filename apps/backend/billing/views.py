@@ -51,16 +51,19 @@ class CreateAsaasSubscriptionView(APIView):
             value=float(data["value"]),
             next_due_date=data["next_due_date"].isoformat(),
             cycle=data["cycle"],
-            description=data.get("description") or "Licença GRDados CRM",
+            description=data.get("description")
+            or f"Licenca GR Dados - {data.get('module_code', 'crm').upper()}",
         )
 
         local_subscription = BillingSubscription.objects.create(
             company=company,
             asaas_subscription_id=subscription["id"],
             asaas_customer_id=company.asaas_customer_id,
+            module_code=data["module_code"],
             status="trialing",
             billing_type=data["billing_type"],
             cycle=data["cycle"],
+            auto_renew=data.get("auto_renew", True),
             value=data["value"],
             next_due_date=data["next_due_date"],
             raw_payload=subscription,

@@ -9,8 +9,11 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "5432:5432"
+    # Expor o Postgres na maquina host nao e necessario para rodar o stack.
+    # Mantemos fechado para evitar conflito com um Postgres local na porta 5432.
+    # Se precisar acessar via ferramentas (DBeaver/pgAdmin), troque para "5433:5432".
+    # ports:
+    #   - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

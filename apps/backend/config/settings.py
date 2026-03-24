@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "accounts",
     "crm",
     "billing",
+    "erp",
 ]
 
 MIDDLEWARE = [
@@ -117,3 +118,6 @@ if not DEBUG:
 ASAAS_API_URL = os.getenv("ASAAS_API_URL", "https://api-sandbox.asaas.com/v3")
 ASAAS_API_KEY = os.getenv("ASAAS_API_KEY", "")
 ASAAS_WEBHOOK_TOKEN = os.getenv("ASAAS_WEBHOOK_TOKEN", "")
+
+# DEV helper: permite acessar o app com licenca "trialing". Em producao deixe 0.
+ALLOW_TRIAL_LICENSES = os.getenv("ALLOW_TRIAL_LICENSES", "0") == "1"
