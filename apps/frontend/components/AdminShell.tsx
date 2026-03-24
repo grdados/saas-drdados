@@ -134,7 +134,7 @@ export function AdminShell({
   user
 }: {
   children: ReactNode;
-  user?: { name: string; email: string; company?: string };
+  user?: { name: string; email: string; company?: string; avatarUrl?: string };
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -154,14 +154,16 @@ export function AdminShell({
 
   const navAdvanced: NavItem[] = useMemo(
     () => [
-      { label: "Settings", href: "/dashboard#settings", disabled: true },
-      { label: "Account", href: "/dashboard#account", disabled: true },
+      { label: "Settings", href: "/settings" },
+      { label: "Account", href: "/account" },
       { label: "Help & Support", href: "/dashboard#help", disabled: true }
     ],
     []
   );
 
   const avatar = initialsFrom(user?.name ?? "", user?.email ?? "");
+  const avatarUrl = (user?.avatarUrl || "").trim();
+  const [avatarOk, setAvatarOk] = useState(true);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
@@ -201,8 +203,8 @@ export function AdminShell({
             <div className="mt-6">
               <p className="px-2 text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Advanced</p>
               <nav className="mt-2 space-y-1">
-                <SidebarLink item={navAdvanced[0]} active={false} icon={<Icon name="settings" />} />
-                <SidebarLink item={navAdvanced[1]} active={false} icon={<Icon name="account" />} />
+                <SidebarLink item={navAdvanced[0]} active={pathname === navAdvanced[0].href} icon={<Icon name="settings" />} />
+                <SidebarLink item={navAdvanced[1]} active={pathname === navAdvanced[1].href} icon={<Icon name="account" />} />
                 <SidebarLink item={navAdvanced[2]} active={false} icon={<Icon name="help" />} />
               </nav>
             </div>
@@ -217,8 +219,19 @@ export function AdminShell({
               </div>
 
               <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
-                <div className="grid h-10 w-10 place-items-center rounded-2xl bg-zinc-950/60 ring-1 ring-white/10">
-                  <span className="text-xs font-black text-accent-200">{avatar}</span>
+                <div className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-2xl bg-zinc-950/60 ring-1 ring-white/10">
+                  {avatarUrl && avatarOk ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={avatarUrl}
+                      alt="Avatar"
+                      className="h-full w-full object-cover"
+                      referrerPolicy="no-referrer"
+                      onError={() => setAvatarOk(false)}
+                    />
+                  ) : (
+                    <span className="text-xs font-black text-accent-200">{avatar}</span>
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-black text-white">{user?.name || "Usuario"}</p>
@@ -263,8 +276,19 @@ export function AdminShell({
                     onClick={() => setProfileOpen((v) => !v)}
                     className="flex items-center gap-3 rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 hover:bg-zinc-950/60"
                   >
-                    <span className="grid h-9 w-9 place-items-center rounded-2xl bg-zinc-950 ring-1 ring-white/10">
-                      <span className="text-xs font-black text-accent-200">{avatar}</span>
+                    <span className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-2xl bg-zinc-950 ring-1 ring-white/10">
+                      {avatarUrl && avatarOk ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={avatarUrl}
+                          alt="Avatar"
+                          className="h-full w-full object-cover"
+                          referrerPolicy="no-referrer"
+                          onError={() => setAvatarOk(false)}
+                        />
+                      ) : (
+                        <span className="text-xs font-black text-accent-200">{avatar}</span>
+                      )}
                     </span>
                     <div className="hidden text-left sm:block">
                       <p className="text-sm font-black text-white">{user?.name || "Usuario"}</p>
@@ -278,13 +302,27 @@ export function AdminShell({
                   {profileOpen ? (
                     <div className="absolute right-0 top-14 z-20 w-56 overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/95 shadow-xl backdrop-blur-xl">
                       <div className="p-2">
+                        <Link
+                          onClick={() => setProfileOpen(false)}
+                          href="/account"
+                          className="block w-full rounded-xl px-3 py-2 text-left text-sm font-bold text-zinc-200 hover:bg-white/5"
+                        >
+                          Minha conta
+                        </Link>
+                        <Link
+                          onClick={() => setProfileOpen(false)}
+                          href="/settings"
+                          className="mt-1 block w-full rounded-xl px-3 py-2 text-left text-sm font-bold text-zinc-200 hover:bg-white/5"
+                        >
+                          Configurações
+                        </Link>
                         <button
                           onClick={() => {
                             setProfileOpen(false);
                             clearTokens();
                             router.push("/login");
                           }}
-                          className="w-full rounded-xl px-3 py-2 text-left text-sm font-bold text-zinc-200 hover:bg-white/5"
+                          className="mt-1 w-full rounded-xl px-3 py-2 text-left text-sm font-bold text-zinc-200 hover:bg-white/5"
                         >
                           Sair
                         </button>
@@ -302,4 +340,3 @@ export function AdminShell({
     </div>
   );
 }
-

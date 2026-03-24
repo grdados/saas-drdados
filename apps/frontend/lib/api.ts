@@ -80,9 +80,20 @@ export function register(payload: { name: string; email: string; password: strin
 }
 
 export function getMe(token: string) {
-  return request<{ id: number; name: string; email: string; company: JsonValue | null }>(
+  return request<{ id: number; name: string; email: string; company: JsonValue | null; profile?: JsonValue }>(
     "/api/accounts/me/",
     { method: "GET" },
+    token
+  );
+}
+
+export function updateMe(token: string, payload: { avatar_url?: string }) {
+  return request<JsonValue>(
+    "/api/accounts/me/",
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    },
     token
   );
 }

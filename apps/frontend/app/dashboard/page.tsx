@@ -12,6 +12,7 @@ export default function DashboardPage() {
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [leadCount, setLeadCount] = useState(0);
   const [taskCount, setTaskCount] = useState(0);
   const [licenseStatus, setLicenseStatus] = useState("trialing");
@@ -32,6 +33,7 @@ export default function DashboardPage() {
         setName(me.name);
         setEmail(me.email);
         setCompany((me.company?.name as string) ?? "");
+        setAvatarUrl(((me as unknown as { profile?: { avatar_url?: string } }).profile?.avatar_url as string) ?? "");
         setLicenseStatus((me.company?.license_status as string) ?? "trialing");
 
         const subscription = await getMySubscription(token).catch(() => null);
@@ -68,7 +70,7 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <AdminShell user={{ name: name || "Usuario", email: email || "", company }}>
+    <AdminShell user={{ name: name || "Usuario", email: email || "", company, avatarUrl }}>
       <div className="space-y-6">
         {loading ? <p className="text-sm font-semibold text-zinc-300">Carregando dados...</p> : null}
 
@@ -135,4 +137,3 @@ export default function DashboardPage() {
     </AdminShell>
   );
 }
-

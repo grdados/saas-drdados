@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.contrib.auth import get_user_model
 
 
 class Company(models.Model):
@@ -42,3 +43,16 @@ class UserCompany(models.Model):
 
     def __str__(self) -> str:
         return f"{self.user_id}:{self.company_id}:{self.role}"
+
+
+class UserProfile(models.Model):
+    """
+    Perfil estendido do usuario sem trocar o AUTH_USER_MODEL.
+    """
+
+    user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name="profile")
+    avatar_url = models.URLField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self) -> str:
+        return f"profile:{self.user_id}"

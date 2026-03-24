@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from rest_framework import serializers
 
-from .models import Company, UserCompany
+from .models import Company, UserCompany, UserProfile
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -26,6 +26,7 @@ class RegisterSerializer(serializers.Serializer):
                 first_name=validated_data["name"],
                 password=validated_data["password"],
             )
+            UserProfile.objects.create(user=user)
             company = Company.objects.create(name=validated_data["company_name"])
             UserCompany.objects.create(user=user, company=company, role=UserCompany.Role.OWNER)
             return user
@@ -44,3 +45,13 @@ class CompanySerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserProfile
+        fields = ["avatar_url", "updated_at"]
+
+
+class MeUpdateSerializer(serializers.Serializer):
+    avatar_url = serializers.URLField(required=False, allow_blank=True)

@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 
 from accounts.models import Company, UserCompany
+from accounts.models import UserProfile
 from billing.models import BillingSubscription
 
 
@@ -46,6 +47,7 @@ class Command(BaseCommand):
         # Always reset the password when running bootstrap (so it's deterministic for demos).
         user.set_password(demo_password)
         user.save()
+        UserProfile.objects.get_or_create(user=user)
 
         UserCompany.objects.get_or_create(
             user=user,
@@ -72,4 +74,3 @@ class Command(BaseCommand):
         action = "created" if created else "updated"
         self.stdout.write(self.style.SUCCESS(f"bootstrap_demo: {action} demo user '{demo_email}'"))
         self.stdout.write(self.style.SUCCESS(f"bootstrap_demo: company '{demo_company_name}' ready"))
-
