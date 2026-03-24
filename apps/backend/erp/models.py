@@ -67,7 +67,12 @@ class CentroCusto(CompanyNamedModel):
 
 
 class Operacao(CompanyNamedModel):
-    pass
+    class Kind(models.TextChoices):
+        CREDIT = "credit", "Credito"
+        DEBIT = "debit", "Debito"
+        TRANSFER = "transfer", "Transferencia"
+
+    kind = models.CharField(max_length=16, choices=Kind.choices, default=Kind.CREDIT)
 
 
 # Financeiro
@@ -76,7 +81,11 @@ class Banco(CompanyNamedModel):
 
 
 class Conta(CompanyNamedModel):
-    pass
+    banco = models.ForeignKey("erp.Banco", null=True, blank=True, on_delete=models.PROTECT)
+    produtor = models.ForeignKey("erp.Produtor", null=True, blank=True, on_delete=models.PROTECT)
+    agencia = models.CharField(max_length=32, blank=True, default="")
+    saldo_inicial = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    limite = models.DecimalField(max_digits=14, decimal_places=2, default=0)
 
 
 class Moeda(CompanyNamedModel):
@@ -88,7 +97,8 @@ class Caixa(CompanyNamedModel):
 
 
 class CondicaoFinanceira(CompanyNamedModel):
-    pass
+    dias = models.IntegerField(default=0)
+    parcelas = models.IntegerField(default=1)
 
 
 # Estoque

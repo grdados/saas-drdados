@@ -100,7 +100,7 @@ class BancoViewSet(CompanyScopedViewSet):
 
 
 class ContaViewSet(CompanyScopedViewSet):
-    queryset = models.Conta.objects.select_related("company")
+    queryset = models.Conta.objects.select_related("company", "banco", "produtor")
     serializer_class = serializers.ContaSerializer
 
 

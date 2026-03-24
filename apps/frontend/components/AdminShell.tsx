@@ -311,6 +311,7 @@ export function AdminShell({
               children: [
                 { label: "Bancos", href: "/cadastros/financeiro/bancos" },
                 { label: "Caixas", href: "/cadastros/financeiro/caixas" },
+                { label: "Contas", href: "/cadastros/financeiro/contas" },
                 { label: "Moedas", href: "/cadastros/financeiro/moedas" },
                 { label: "Condicao Financeira", href: "/cadastros/financeiro/condicao-financeira" }
               ]

@@ -60,13 +60,60 @@ ClienteSerializer = _mk_serializer(models.Cliente)
 FornecedorSerializer = _mk_serializer(models.Fornecedor)
 TransportadorSerializer = _mk_serializer(models.Transportador)
 CentroCustoSerializer = _mk_serializer(models.CentroCusto)
-OperacaoSerializer = _mk_serializer(models.Operacao)
+class OperacaoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Operacao
+        fields = ["id", "name", "kind", "is_active", "created_at", "updated_at"]
 
 BancoSerializer = _mk_serializer(models.Banco)
-ContaSerializer = _mk_serializer(models.Conta)
+class ContaSerializer(serializers.ModelSerializer):
+    banco_id = serializers.PrimaryKeyRelatedField(
+        source="banco",
+        queryset=models.Banco.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    produtor_id = serializers.PrimaryKeyRelatedField(
+        source="produtor",
+        queryset=models.Produtor.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+    banco = serializers.SerializerMethodField()
+    produtor = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.Conta
+        fields = [
+            "id",
+            "name",
+            "agencia",
+            "banco",
+            "banco_id",
+            "produtor",
+            "produtor_id",
+            "saldo_inicial",
+            "limite",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_banco(self, obj):
+        if not getattr(obj, "banco_id", None):
+            return None
+        return {"id": obj.banco_id, "name": obj.banco.name}
+
+    def get_produtor(self, obj):
+        if not getattr(obj, "produtor_id", None):
+            return None
+        return {"id": obj.produtor_id, "name": obj.produtor.name}
 MoedaSerializer = _mk_serializer(models.Moeda)
 CaixaSerializer = _mk_serializer(models.Caixa)
-CondicaoFinanceiraSerializer = _mk_serializer(models.CondicaoFinanceira)
+class CondicaoFinanceiraSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.CondicaoFinanceira
+        fields = ["id", "name", "dias", "parcelas", "is_active", "created_at", "updated_at"]
 
 InsumoSerializer = _mk_serializer(models.Insumo)
 ProdutoSerializer = _mk_serializer(models.Produto)

@@ -308,3 +308,230 @@ export function updateCultivar(
     token
   );
 }
+
+export type CentroCusto = {
+  id: number;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export function listCentrosCusto(token: string) {
+  return request<CentroCusto[]>("/api/erp/centros-custo/", { method: "GET" }, token);
+}
+export function createCentroCusto(token: string, payload: { name: string; is_active?: boolean }) {
+  return request<CentroCusto>(
+    "/api/erp/centros-custo/",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  );
+}
+export function updateCentroCusto(token: string, id: number, payload: { name?: string; is_active?: boolean }) {
+  return request<CentroCusto>(
+    `/api/erp/centros-custo/${id}/`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  );
+}
+
+export type Fabricante = {
+  id: number;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export function listFabricantes(token: string) {
+  return request<Fabricante[]>("/api/erp/estoque/fabricantes/", { method: "GET" }, token);
+}
+export function createFabricante(token: string, payload: { name: string; is_active?: boolean }) {
+  return request<Fabricante>(
+    "/api/erp/estoque/fabricantes/",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  );
+}
+export function updateFabricante(token: string, id: number, payload: { name?: string; is_active?: boolean }) {
+  return request<Fabricante>(
+    `/api/erp/estoque/fabricantes/${id}/`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  );
+}
+
+export type Banco = {
+  id: number;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export function listBancos(token: string) {
+  return request<Banco[]>("/api/erp/financeiro/bancos/", { method: "GET" }, token);
+}
+export function createBanco(token: string, payload: { name: string; is_active?: boolean }) {
+  return request<Banco>("/api/erp/financeiro/bancos/", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+export function updateBanco(token: string, id: number, payload: { name?: string; is_active?: boolean }) {
+  return request<Banco>(`/api/erp/financeiro/bancos/${id}/`, { method: "PATCH", body: JSON.stringify(payload) }, token);
+}
+
+export type Caixa = {
+  id: number;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export function listCaixas(token: string) {
+  return request<Caixa[]>("/api/erp/financeiro/caixas/", { method: "GET" }, token);
+}
+export function createCaixa(token: string, payload: { name: string; is_active?: boolean }) {
+  return request<Caixa>("/api/erp/financeiro/caixas/", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+export function updateCaixa(token: string, id: number, payload: { name?: string; is_active?: boolean }) {
+  return request<Caixa>(`/api/erp/financeiro/caixas/${id}/`, { method: "PATCH", body: JSON.stringify(payload) }, token);
+}
+
+export type Moeda = {
+  id: number;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export function listMoedas(token: string) {
+  return request<Moeda[]>("/api/erp/financeiro/moedas/", { method: "GET" }, token);
+}
+export function createMoeda(token: string, payload: { name: string; is_active?: boolean }) {
+  return request<Moeda>("/api/erp/financeiro/moedas/", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+export function updateMoeda(token: string, id: number, payload: { name?: string; is_active?: boolean }) {
+  return request<Moeda>(`/api/erp/financeiro/moedas/${id}/`, { method: "PATCH", body: JSON.stringify(payload) }, token);
+}
+
+export type Produtor = {
+  id: number;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export function listProdutores(token: string) {
+  return request<Produtor[]>("/api/erp/produtores/", { method: "GET" }, token);
+}
+
+export type Operacao = {
+  id: number;
+  name: string;
+  kind: "credit" | "debit" | "transfer";
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export function listOperacoes(token: string) {
+  return request<Operacao[]>("/api/erp/operacoes/", { method: "GET" }, token);
+}
+export function createOperacao(
+  token: string,
+  payload: { name: string; kind: Operacao["kind"]; is_active?: boolean }
+) {
+  return request<Operacao>("/api/erp/operacoes/", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+export function updateOperacao(
+  token: string,
+  id: number,
+  payload: Partial<{ name: string; kind: Operacao["kind"]; is_active: boolean }>
+) {
+  return request<Operacao>(`/api/erp/operacoes/${id}/`, { method: "PATCH", body: JSON.stringify(payload) }, token);
+}
+
+export type CondicaoFinanceira = {
+  id: number;
+  name: string;
+  dias: number;
+  parcelas: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export function listCondicoesFinanceiras(token: string) {
+  return request<CondicaoFinanceira[]>("/api/erp/financeiro/condicoes/", { method: "GET" }, token);
+}
+export function createCondicaoFinanceira(
+  token: string,
+  payload: { name: string; dias: number; parcelas: number; is_active?: boolean }
+) {
+  return request<CondicaoFinanceira>(
+    "/api/erp/financeiro/condicoes/",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  );
+}
+export function updateCondicaoFinanceira(
+  token: string,
+  id: number,
+  payload: Partial<{ name: string; dias: number; parcelas: number; is_active: boolean }>
+) {
+  return request<CondicaoFinanceira>(
+    `/api/erp/financeiro/condicoes/${id}/`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  );
+}
+
+export type ContaFinanceira = {
+  id: number;
+  name: string;
+  agencia: string;
+  banco: { id: number; name: string } | null;
+  banco_id?: number | null;
+  produtor: { id: number; name: string } | null;
+  produtor_id?: number | null;
+  saldo_inicial: string;
+  limite: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export function listContas(token: string) {
+  return request<ContaFinanceira[]>("/api/erp/financeiro/contas/", { method: "GET" }, token);
+}
+export function createConta(
+  token: string,
+  payload: {
+    name: string;
+    agencia?: string;
+    banco_id?: number | null;
+    produtor_id?: number | null;
+    saldo_inicial?: string | number;
+    limite?: string | number;
+    is_active?: boolean;
+  }
+) {
+  return request<ContaFinanceira>(
+    "/api/erp/financeiro/contas/",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  );
+}
+export function updateConta(
+  token: string,
+  id: number,
+  payload: Partial<{
+    name: string;
+    agencia: string;
+    banco_id: number | null;
+    produtor_id: number | null;
+    saldo_inicial: string | number;
+    limite: string | number;
+    is_active: boolean;
+  }>
+) {
+  return request<ContaFinanceira>(
+    `/api/erp/financeiro/contas/${id}/`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  );
+}
