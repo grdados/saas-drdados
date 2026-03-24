@@ -1,3 +1,5 @@
+ "use client";
+
 import { SimpleCadastroPage } from "@/components/cadastros/SimpleCadastroPage";
 import { createBanco, listBancos, updateBanco } from "@/lib/api";
 
@@ -16,4 +18,3 @@ export default function BancosPage() {
     />
   );
 }
-

@@ -1,3 +1,5 @@
+ "use client";
+
 import { SimpleCadastroPage } from "@/components/cadastros/SimpleCadastroPage";
 import { createFabricante, listFabricantes, updateFabricante } from "@/lib/api";
 
@@ -16,4 +18,3 @@ export default function FabricantesPage() {
     />
   );
 }
-
