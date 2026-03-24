@@ -2,6 +2,20 @@ export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000
 
 type JsonValue = Record<string, unknown>;
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+export function isApiError(err: unknown): err is ApiError {
+  return err instanceof Error && (err as ApiError).name === "ApiError" && typeof (err as ApiError).status === "number";
+}
+
 function extractErrorMessage(payloadText: string): string {
   const trimmed = (payloadText || "").trim();
   if (!trimmed) return "Erro na requisicao.";
@@ -40,12 +54,12 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
     const hint =
       "Falha de rede/CORS ao chamar a API. Confirme `NEXT_PUBLIC_API_URL` no Vercel e `CORS_ALLOWED_ORIGINS` no Render.";
     const details = err instanceof Error ? err.message : String(err);
-    throw new Error(`${hint} (${details})`);
+    throw new ApiError(`${hint} (${details})`, 0);
   }
 
   if (!response.ok) {
     const errorPayload = await response.text();
-    throw new Error(extractErrorMessage(errorPayload));
+    throw new ApiError(extractErrorMessage(errorPayload), response.status);
   }
 
   return (await response.json()) as T;

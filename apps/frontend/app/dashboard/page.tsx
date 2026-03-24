@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 import { AppNav } from "@/components/AppNav";
 import { getAccessToken } from "@/lib/auth";
-import { createSubscription, getMe, getMySubscription, listLeads, listTasks } from "@/lib/api";
+import { createSubscription, getMe, getMySubscription, isApiError, listLeads, listTasks } from "@/lib/api";
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
@@ -17,6 +17,7 @@ export default function DashboardPage() {
   const [subscriptionInfo, setSubscriptionInfo] = useState("");
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingMessage, setBillingMessage] = useState("");
+  const [accessMessage, setAccessMessage] = useState("");
 
   useEffect(() => {
     const token = getAccessToken();
@@ -25,20 +26,41 @@ export default function DashboardPage() {
       return;
     }
 
-    Promise.all([getMe(token), listLeads(token), listTasks(token), getMySubscription(token).catch(() => null)])
-      .then(([me, leads, tasks, subscription]) => {
+    getMe(token)
+      .then(async (me) => {
         setName(me.name);
         setCompany((me.company?.name as string) ?? "");
         setLicenseStatus((me.company?.license_status as string) ?? "trialing");
-        setLeadCount(leads.length);
-        setTaskCount(tasks.length);
+
+        const subscription = await getMySubscription(token).catch(() => null);
         if (subscription) {
-          const sub = subscription as { status?: string; value?: number };
-          setSubscriptionInfo(`Assinatura: ${sub.status ?? "trialing"} - R$ ${sub.value ?? "-"}`);
+          const sub = subscription as { status?: string; value?: number; module_code?: string };
+          setSubscriptionInfo(
+            `Assinatura: ${sub.status ?? "trialing"}${sub.module_code ? ` (${sub.module_code})` : ""} - R$ ${
+              sub.value ?? "-"
+            }`
+          );
+        }
+
+        // Leads/tarefas sao opcionais; 403 aqui significa modulo/licenca bloqueado e nao deve deslogar o usuario.
+        const [leadsRes, tasksRes] = await Promise.allSettled([listLeads(token), listTasks(token)]);
+        if (leadsRes.status === "fulfilled") setLeadCount((leadsRes.value as unknown[]).length);
+        if (tasksRes.status === "fulfilled") setTaskCount((tasksRes.value as unknown[]).length);
+
+        const denied = [leadsRes, tasksRes].some(
+          (r) => r.status === "rejected" && isApiError(r.reason) && r.reason.status === 403
+        );
+        if (denied) {
+          setAccessMessage("Licenca/modulo nao liberado ainda. Ative a licenca para acessar o CRM completo.");
         }
       })
-      .catch(() => {
-        window.location.href = "/login";
+      .catch((err) => {
+        if (isApiError(err) && err.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        const msg = err instanceof Error ? err.message : "Falha ao carregar dados.";
+        setAccessMessage(msg);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -69,6 +91,7 @@ export default function DashboardPage() {
                 <p className="text-sm text-zinc-400">Ações rápidas e licença</p>
                 <p className="mt-2 text-sm text-zinc-300">Status da licença: <strong className="text-accent-300">{licenseStatus}</strong></p>
                 {subscriptionInfo ? <p className="mt-1 text-xs text-zinc-400">{subscriptionInfo}</p> : null}
+                {accessMessage ? <p className="mt-2 text-xs font-semibold text-amber-200">{accessMessage}</p> : null}
                 <div className="mt-4 flex flex-wrap gap-3">
                   <Link href="/leads" className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-black text-zinc-950 hover:bg-accent-400">
                     Novo lead
