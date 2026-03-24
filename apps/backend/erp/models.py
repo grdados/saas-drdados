@@ -46,8 +46,21 @@ class GrupoCompra(CompanyNamedModel):
     pass
 
 
+class GrupoProdutor(CompanyNamedModel):
+    cpf_cnpj = models.CharField(max_length=20, blank=True, default="")
+
+
 class Produtor(CompanyNamedModel):
-    pass
+    grupo = models.ForeignKey("erp.GrupoProdutor", null=True, blank=True, on_delete=models.PROTECT)
+    registration = models.CharField(max_length=80, blank=True, default="")
+    cpf = models.CharField(max_length=20, blank=True, default="")
+    farm = models.CharField(max_length=180, blank=True, default="")
+    address = models.CharField(max_length=240, blank=True, default="")
+    google_location = models.URLField(blank=True, default="")
+    area_ha = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    matricula = models.CharField(max_length=80, blank=True, default="")
+    city = models.CharField(max_length=120, blank=True, default="")
+    uf = models.CharField(max_length=2, blank=True, default="")
 
 
 class Cliente(CompanyNamedModel):
@@ -136,11 +149,15 @@ class Fabricante(CompanyNamedModel):
 
 # Patrimonio
 class Propriedade(CompanyNamedModel):
-    pass
+    produtor = models.ForeignKey("erp.Produtor", null=True, blank=True, on_delete=models.PROTECT)
+    area_ha = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    sicar = models.CharField(max_length=80, blank=True, default="")
 
 
 class Talhao(CompanyNamedModel):
-    pass
+    propriedade = models.ForeignKey("erp.Propriedade", null=True, blank=True, on_delete=models.PROTECT)
+    area_ha = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    map_location = models.URLField(blank=True, default="")
 
 
 class Maquina(CompanyNamedModel):

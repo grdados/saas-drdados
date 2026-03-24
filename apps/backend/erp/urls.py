@@ -8,6 +8,7 @@ router = DefaultRouter()
 router.register(r"culturas", views.CulturaViewSet, basename="culturas")
 router.register(r"safras", views.SafraViewSet, basename="safras")
 router.register(r"grupos-compra", views.GrupoCompraViewSet, basename="grupos_compra")
+router.register(r"grupos-produtores", views.GrupoProdutorViewSet, basename="grupos_produtores")
 router.register(r"produtores", views.ProdutorViewSet, basename="produtores")
 router.register(r"clientes", views.ClienteViewSet, basename="clientes")
 router.register(r"fornecedores", views.FornecedorViewSet, basename="fornecedores")
@@ -39,4 +40,3 @@ router.register(r"patrimonio/depositos", views.DepositoViewSet, basename="deposi
 urlpatterns = [
     path("", include(router.urls)),
 ]
-

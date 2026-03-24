@@ -55,17 +55,49 @@ class SafraSerializer(serializers.ModelSerializer):
         return {"id": obj.cultura_id, "name": obj.cultura.name}
 
 GrupoCompraSerializer = _mk_serializer(models.GrupoCompra)
-ProdutorSerializer = _mk_serializer(models.Produtor)
+GrupoProdutorSerializer = _mk_serializer(models.GrupoProdutor)
+
+
+class ProdutorSerializer(serializers.ModelSerializer):
+    grupo = GrupoProdutorSerializer(read_only=True)
+    grupo_id = serializers.PrimaryKeyRelatedField(
+        source="grupo", queryset=models.GrupoProdutor.objects.all(), allow_null=True, required=False
+    )
+
+    class Meta:
+        model = models.Produtor
+        fields = [
+            "id",
+            "name",
+            "registration",
+            "cpf",
+            "farm",
+            "address",
+            "google_location",
+            "area_ha",
+            "matricula",
+            "city",
+            "uf",
+            "grupo",
+            "grupo_id",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
 ClienteSerializer = _mk_serializer(models.Cliente)
 FornecedorSerializer = _mk_serializer(models.Fornecedor)
 TransportadorSerializer = _mk_serializer(models.Transportador)
 CentroCustoSerializer = _mk_serializer(models.CentroCusto)
+
+
 class OperacaoSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Operacao
         fields = ["id", "name", "kind", "is_active", "created_at", "updated_at"]
 
 BancoSerializer = _mk_serializer(models.Banco)
+
+
 class ContaSerializer(serializers.ModelSerializer):
     banco_id = serializers.PrimaryKeyRelatedField(
         source="banco",
@@ -110,6 +142,8 @@ class ContaSerializer(serializers.ModelSerializer):
         return {"id": obj.produtor_id, "name": obj.produtor.name}
 MoedaSerializer = _mk_serializer(models.Moeda)
 CaixaSerializer = _mk_serializer(models.Caixa)
+
+
 class CondicaoFinanceiraSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.CondicaoFinanceira
@@ -140,8 +174,47 @@ class CultivarSerializer(serializers.ModelSerializer):
 DiversoSerializer = _mk_serializer(models.Diverso)
 FabricanteSerializer = _mk_serializer(models.Fabricante)
 
-PropriedadeSerializer = _mk_serializer(models.Propriedade)
-TalhaoSerializer = _mk_serializer(models.Talhao)
+
+class PropriedadeSerializer(serializers.ModelSerializer):
+    produtor = ProdutorSerializer(read_only=True)
+    produtor_id = serializers.PrimaryKeyRelatedField(
+        source="produtor", queryset=models.Produtor.objects.all(), allow_null=True, required=False
+    )
+
+    class Meta:
+        model = models.Propriedade
+        fields = [
+            "id",
+            "name",
+            "produtor",
+            "produtor_id",
+            "area_ha",
+            "sicar",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class TalhaoSerializer(serializers.ModelSerializer):
+    propriedade = PropriedadeSerializer(read_only=True)
+    propriedade_id = serializers.PrimaryKeyRelatedField(
+        source="propriedade", queryset=models.Propriedade.objects.all(), allow_null=True, required=False
+    )
+
+    class Meta:
+        model = models.Talhao
+        fields = [
+            "id",
+            "name",
+            "propriedade",
+            "propriedade_id",
+            "area_ha",
+            "map_location",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
 MaquinaSerializer = _mk_serializer(models.Maquina)
 BenfeitoriaSerializer = _mk_serializer(models.Benfeitoria)
 BombaCombustivelSerializer = _mk_serializer(models.BombaCombustivel)

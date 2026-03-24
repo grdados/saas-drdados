@@ -64,8 +64,13 @@ class GrupoCompraViewSet(CompanyScopedViewSet):
     serializer_class = serializers.GrupoCompraSerializer
 
 
+class GrupoProdutorViewSet(CompanyScopedViewSet):
+    queryset = models.GrupoProdutor.objects.select_related("company")
+    serializer_class = serializers.GrupoProdutorSerializer
+
+
 class ProdutorViewSet(CompanyScopedViewSet):
-    queryset = models.Produtor.objects.select_related("company")
+    queryset = models.Produtor.objects.select_related("company", "grupo")
     serializer_class = serializers.ProdutorSerializer
 
 
@@ -155,12 +160,12 @@ class FabricanteViewSet(CompanyScopedViewSet):
 
 
 class PropriedadeViewSet(CompanyScopedViewSet):
-    queryset = models.Propriedade.objects.select_related("company")
+    queryset = models.Propriedade.objects.select_related("company", "produtor")
     serializer_class = serializers.PropriedadeSerializer
 
 
 class TalhaoViewSet(CompanyScopedViewSet):
-    queryset = models.Talhao.objects.select_related("company")
+    queryset = models.Talhao.objects.select_related("company", "propriedade", "propriedade__produtor")
     serializer_class = serializers.TalhaoSerializer
 
 

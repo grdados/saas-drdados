@@ -319,13 +319,10 @@ export function AdminShell({
             {
               label: "Gerencial",
               children: [
-                { label: "Grupo Compra", href: "/cadastros/gerencial/grupo-compra" },
-                { label: "Produtor", href: "/cadastros/gerencial/produtor" },
-                { label: "Propriedade", href: "/cadastros/gerencial/propriedade" },
-                { label: "Talhao", href: "/cadastros/gerencial/talhao" },
-                { label: "Cliente", href: "/cadastros/gerencial/cliente" },
-                { label: "Fornecedor", href: "/cadastros/gerencial/fornecedor" },
-                { label: "Transportadora", href: "/cadastros/gerencial/transportadora" }
+                { label: "Grupo de Produtores", href: "/cadastros/gerencial/grupo-produtores" },
+                { label: "Produtores", href: "/cadastros/gerencial/produtor" },
+                { label: "Propriedades", href: "/cadastros/gerencial/propriedade" },
+                { label: "Talhoes", href: "/cadastros/gerencial/talhao" }
               ]
             },
             {

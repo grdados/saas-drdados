@@ -411,15 +411,171 @@ export function updateMoeda(token: string, id: number, payload: { name?: string;
   return request<Moeda>(`/api/erp/financeiro/moedas/${id}/`, { method: "PATCH", body: JSON.stringify(payload) }, token);
 }
 
+export type GrupoProdutor = {
+  id: number;
+  name: string;
+  cpf_cnpj: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export function listGruposProdutores(token: string) {
+  return request<GrupoProdutor[]>("/api/erp/grupos-produtores/", { method: "GET" }, token);
+}
+export function createGrupoProdutor(token: string, payload: { name: string; cpf_cnpj?: string; is_active?: boolean }) {
+  return request<GrupoProdutor>(
+    "/api/erp/grupos-produtores/",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  );
+}
+export function updateGrupoProdutor(
+  token: string,
+  id: number,
+  payload: Partial<{ name: string; cpf_cnpj: string; is_active: boolean }>
+) {
+  return request<GrupoProdutor>(
+    `/api/erp/grupos-produtores/${id}/`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  );
+}
+
 export type Produtor = {
   id: number;
   name: string;
+  registration: string;
+  cpf: string;
+  farm: string;
+  address: string;
+  google_location: string;
+  area_ha: string;
+  matricula: string;
+  city: string;
+  uf: string;
+  grupo: { id: number; name: string; cpf_cnpj?: string } | null;
+  grupo_id?: number | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
 };
 export function listProdutores(token: string) {
   return request<Produtor[]>("/api/erp/produtores/", { method: "GET" }, token);
+}
+export function createProdutor(
+  token: string,
+  payload: Partial<{
+    name: string;
+    registration: string;
+    cpf: string;
+    farm: string;
+    address: string;
+    google_location: string;
+    area_ha: string | number;
+    matricula: string;
+    city: string;
+    uf: string;
+    grupo_id: number | null;
+    is_active: boolean;
+  }>
+) {
+  return request<Produtor>("/api/erp/produtores/", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+export function updateProdutor(
+  token: string,
+  id: number,
+  payload: Partial<{
+    name: string;
+    registration: string;
+    cpf: string;
+    farm: string;
+    address: string;
+    google_location: string;
+    area_ha: string | number;
+    matricula: string;
+    city: string;
+    uf: string;
+    grupo_id: number | null;
+    is_active: boolean;
+  }>
+) {
+  return request<Produtor>(`/api/erp/produtores/${id}/`, { method: "PATCH", body: JSON.stringify(payload) }, token);
+}
+
+export type Propriedade = {
+  id: number;
+  name: string;
+  produtor: { id: number; name: string } | null;
+  produtor_id?: number | null;
+  area_ha: string;
+  sicar: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export function listPropriedades(token: string) {
+  return request<Propriedade[]>("/api/erp/patrimonio/propriedades/", { method: "GET" }, token);
+}
+export function createPropriedade(
+  token: string,
+  payload: Partial<{ name: string; produtor_id: number | null; area_ha: string | number; sicar: string; is_active: boolean }>
+) {
+  return request<Propriedade>(
+    "/api/erp/patrimonio/propriedades/",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  );
+}
+export function updatePropriedade(
+  token: string,
+  id: number,
+  payload: Partial<{ name: string; produtor_id: number | null; area_ha: string | number; sicar: string; is_active: boolean }>
+) {
+  return request<Propriedade>(
+    `/api/erp/patrimonio/propriedades/${id}/`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  );
+}
+
+export type Talhao = {
+  id: number;
+  name: string;
+  propriedade: { id: number; name: string; produtor?: { id: number; name: string } | null } | null;
+  propriedade_id?: number | null;
+  area_ha: string;
+  map_location: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export function listTalhoes(token: string) {
+  return request<Talhao[]>("/api/erp/patrimonio/talhoes/", { method: "GET" }, token);
+}
+export function createTalhao(
+  token: string,
+  payload: Partial<{
+    name: string;
+    propriedade_id: number | null;
+    area_ha: string | number;
+    map_location: string;
+    is_active: boolean;
+  }>
+) {
+  return request<Talhao>("/api/erp/patrimonio/talhoes/", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+export function updateTalhao(
+  token: string,
+  id: number,
+  payload: Partial<{
+    name: string;
+    propriedade_id: number | null;
+    area_ha: string | number;
+    map_location: string;
+    is_active: boolean;
+  }>
+) {
+  return request<Talhao>(`/api/erp/patrimonio/talhoes/${id}/`, { method: "PATCH", body: JSON.stringify(payload) }, token);
 }
 
 export type Operacao = {
