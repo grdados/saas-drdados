@@ -1,4 +1,6 @@
-from rest_framework import permissions, viewsets
+from django.db.utils import IntegrityError, OperationalError, ProgrammingError
+from rest_framework import permissions, status, viewsets
+from rest_framework.response import Response
 
 from accounts.permissions import get_current_company
 from billing.permissions import HasModuleAccess
@@ -25,6 +27,25 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(company=self.get_company())
+
+    def handle_exception(self, exc):
+        """
+        Evita retornar HTML de erro 500 para o frontend (que nao ajuda no debug/UX).
+        Converte alguns erros comuns de banco para JSON amigavel.
+        """
+        if isinstance(exc, (ProgrammingError, OperationalError)):
+            return Response(
+                {
+                    "detail": "Erro de banco ao acessar o ERP. Verifique se as migracoes foram aplicadas e se a base esta acessivel."
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        if isinstance(exc, IntegrityError):
+            return Response(
+                {"detail": "Erro de integridade ao salvar. Verifique os campos e tente novamente."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().handle_exception(exc)
 
 
 class CulturaViewSet(CompanyScopedViewSet):
@@ -160,4 +181,3 @@ class BombaCombustivelViewSet(CompanyScopedViewSet):
 class DepositoViewSet(CompanyScopedViewSet):
     queryset = models.Deposito.objects.select_related("company")
     serializer_class = serializers.DepositoSerializer
-

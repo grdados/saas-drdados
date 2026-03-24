@@ -182,7 +182,7 @@ export default function CulturaPage() {
             </button>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-[440px_1fr]">
+          <div className="grid items-start gap-6 lg:grid-cols-[440px_1fr]">
             {/* Left: filters */}
             <section className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl lg:col-span-2">
               <div className="flex items-start justify-between gap-3">
@@ -224,14 +224,14 @@ export default function CulturaPage() {
             </section>
 
             {/* Left: list + filters */}
-            <section className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl">
+            <section className="h-fit rounded-3xl border border-white/10 bg-white/5 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-black text-white">Lista</p>
                 <div className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : "Ordenado A-Z"}</div>
               </div>
 
               {/* List */}
-              <div className="mt-4 max-h-[520px] overflow-auto pr-1">
+              <div className={`mt-4 pr-1 ${filtered.length > 8 ? "max-h-[520px] overflow-auto" : ""}`}>
                 <div className="space-y-2">
                   {filtered.map((c) => {
                     const isSelected = c.id === selectedId && mode !== "create";
