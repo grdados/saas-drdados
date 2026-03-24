@@ -107,6 +107,8 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ],
+    # Retorna JSON mesmo para erros 500 nao tratados (evita pagina HTML no frontend).
+    "EXCEPTION_HANDLER": "core.exceptions.exception_handler",
 }
 
 if not DEBUG:

@@ -8,10 +8,14 @@ import { createCultura, Cultura, isApiError, listCulturas, updateCultura } from 
 
 function prettyError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
+  const status =
+    typeof err === "object" && err && "status" in err && typeof (err as { status?: unknown }).status === "number"
+      ? String((err as { status: number }).status)
+      : "";
   const trimmed = (msg || "").trim();
   if (!trimmed) return "Falha inesperada.";
   if (trimmed.toLowerCase().includes("<!doctype html") || trimmed.toLowerCase().includes("<html")) {
-    return "Erro interno no servidor (500). Verifique os logs do backend e se as migracoes foram aplicadas.";
+    return `Erro interno no servidor${status ? ` (${status})` : ""}. Verifique os logs do backend e se as migracoes foram aplicadas.`;
   }
   return trimmed;
 }
