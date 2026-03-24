@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ReactNode, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 
 import { clearTokens } from "@/lib/auth";
 
@@ -11,6 +11,15 @@ type NavItem = {
   href: string;
   badge?: number;
   disabled?: boolean;
+};
+
+type NavNode = {
+  label: string;
+  href?: string;
+  badge?: number;
+  disabled?: boolean;
+  icon?: ReactNode;
+  children?: NavNode[];
 };
 
 function initialsFrom(name: string, email: string) {
@@ -92,6 +101,20 @@ function Icon({ name }: { name: "overview" | "orders" | "products" | "notif" | "
   }
 }
 
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={`h-4 w-4 text-zinc-500 transition-transform duration-300 ${open ? "rotate-180" : ""}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
 function SidebarLink({
   item,
   active,
@@ -129,6 +152,95 @@ function SidebarLink({
   );
 }
 
+function isNodeActive(node: NavNode, pathname: string): boolean {
+  if (node.href && (pathname === node.href || pathname.startsWith(node.href + "/"))) return true;
+  return (node.children || []).some((child) => isNodeActive(child, pathname));
+}
+
+function SidebarTree({
+  nodes,
+  pathname,
+  depth = 0
+}: {
+  nodes: NavNode[];
+  pathname: string;
+  depth?: number;
+}) {
+  const pad = depth === 0 ? "pl-0" : depth === 1 ? "pl-4" : "pl-8";
+
+  return (
+    <div className={`space-y-1 ${pad}`}>
+      {nodes.map((node) => (
+        <SidebarTreeNode key={`${node.label}-${node.href || "group"}`} node={node} pathname={pathname} depth={depth} />
+      ))}
+    </div>
+  );
+}
+
+function SidebarTreeNode({
+  node,
+  pathname,
+  depth
+}: {
+  node: NavNode;
+  pathname: string;
+  depth: number;
+}) {
+  const active = isNodeActive(node, pathname);
+  const hasChildren = Boolean(node.children?.length);
+  const [open, setOpen] = useState<boolean>(() => (hasChildren ? active : false));
+
+  // If route changes to something inside this group, keep it expanded.
+  useEffect(() => {
+    if (hasChildren && active) setOpen(true);
+  }, [active, hasChildren]);
+
+  const base =
+    "group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-semibold transition-colors";
+  const activeCls = "bg-white/5 text-white ring-1 ring-white/10";
+  const idleCls = "text-zinc-300 hover:bg-white/5 hover:text-white";
+
+  if (!hasChildren) {
+    const item: NavItem = { label: node.label, href: node.href || "#", badge: node.badge, disabled: node.disabled };
+    return (
+      <SidebarLink
+        item={item}
+        active={active && Boolean(node.href)}
+        icon={
+          <span className={active ? "text-accent-300" : "text-zinc-400 group-hover:text-accent-300"}>
+            {node.icon || <span className="h-4 w-4" />}
+          </span>
+        }
+      />
+    );
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`${base} ${active ? activeCls : idleCls}`}
+        aria-expanded={open}
+      >
+        <span className={active ? "text-accent-300" : "text-zinc-400 group-hover:text-accent-300"}>
+          {node.icon || <span className="h-4 w-4" />}
+        </span>
+        <span className="flex-1">{node.label}</span>
+        <Chevron open={open} />
+      </button>
+
+      <div
+        className={`grid transition-[grid-template-rows] duration-300 ease-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+      >
+        <div className="min-h-0 overflow-hidden pt-1">
+          <SidebarTree nodes={node.children || []} pathname={pathname} depth={Math.min(depth + 1, 2)} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AdminShell({
   children,
   user
@@ -140,24 +252,104 @@ export function AdminShell({
   const router = useRouter();
   const [profileOpen, setProfileOpen] = useState(false);
 
-  const navDashboard: NavItem[] = useMemo(
-    () => [
-      { label: "Overview", href: "/dashboard" },
-      { label: "Leads", href: "/leads" },
-      { label: "Tarefas", href: "/tasks", badge: 2 },
-      { label: "Notificacoes", href: "/dashboard#notificacoes", disabled: true },
-      { label: "Analytics", href: "/dashboard#analytics", disabled: true },
-      { label: "Mensagens", href: "/dashboard#mensagens", badge: 24, disabled: true }
-    ],
-    []
-  );
-
-  const navAdvanced: NavItem[] = useMemo(
-    () => [
-      { label: "Settings", href: "/settings" },
-      { label: "Account", href: "/account" },
-      { label: "Help & Support", href: "/dashboard#help", disabled: true }
-    ],
+  const navTree = useMemo(
+    () => ({
+      dashboard: [
+        { label: "Overview", href: "/dashboard", icon: <Icon name="overview" /> },
+        {
+          label: "Producao",
+          icon: <Icon name="products" />,
+          children: [
+            { label: "Contrato", href: "/producao/contrato" },
+            { label: "Romaneio", href: "/producao/romaneio" },
+            { label: "Talhao", href: "/producao/talhao" }
+          ]
+        },
+        {
+          label: "Compra",
+          icon: <Icon name="orders" />,
+          children: [
+            { label: "Pedido", href: "/compra/pedido" },
+            { label: "Faturamento", href: "/compra/faturamento" }
+          ]
+        },
+        {
+          label: "Venda",
+          icon: <Icon name="orders" />,
+          children: [{ label: "Vendas", href: "/venda/vendas" }]
+        },
+        {
+          label: "Estoque",
+          icon: <Icon name="products" />,
+          children: [
+            { label: "Produtos", href: "/estoque/produtos" },
+            { label: "Defensivos", href: "/estoque/defensivos" }
+          ]
+        },
+        { label: "Contas a Pagar", href: "/financeiro/contas-a-pagar", icon: <Icon name="analytics" /> },
+        { label: "Contas a Receber", href: "/financeiro/contas-a-receber", icon: <Icon name="analytics" /> },
+        { label: "Fluxo de Caixa", href: "/financeiro/fluxo-de-caixa", icon: <Icon name="analytics" /> }
+      ] satisfies NavNode[],
+      advanced: [
+        {
+          label: "Cadastros",
+          icon: <Icon name="settings" />,
+          children: [
+            {
+              label: "Gerais",
+              children: [
+                { label: "Cultura", href: "/cadastros/gerais/cultura" },
+                { label: "Safra", href: "/cadastros/gerais/safra" },
+                { label: "Cultivares", href: "/cadastros/gerais/cultivares" },
+                { label: "Centro Custos", href: "/cadastros/gerais/centro-custos" },
+                { label: "Operacoes", href: "/cadastros/gerais/operacoes" },
+                { label: "Fabricantes", href: "/cadastros/gerais/fabricantes" }
+              ]
+            },
+            {
+              label: "Financeiro",
+              children: [
+                { label: "Bancos", href: "/cadastros/financeiro/bancos" },
+                { label: "Caixas", href: "/cadastros/financeiro/caixas" },
+                { label: "Moedas", href: "/cadastros/financeiro/moedas" },
+                { label: "Condicao Financeira", href: "/cadastros/financeiro/condicao-financeira" }
+              ]
+            },
+            {
+              label: "Gerencial",
+              children: [
+                { label: "Grupo Compra", href: "/cadastros/gerencial/grupo-compra" },
+                { label: "Produtor", href: "/cadastros/gerencial/produtor" },
+                { label: "Propriedade", href: "/cadastros/gerencial/propriedade" },
+                { label: "Talhao", href: "/cadastros/gerencial/talhao" },
+                { label: "Cliente", href: "/cadastros/gerencial/cliente" },
+                { label: "Fornecedor", href: "/cadastros/gerencial/fornecedor" },
+                { label: "Transportadora", href: "/cadastros/gerencial/transportadora" }
+              ]
+            },
+            {
+              label: "Produtos",
+              children: [
+                { label: "Insumos", href: "/cadastros/produtos/insumos" },
+                { label: "Pecas", href: "/cadastros/produtos/pecas" },
+                { label: "Produtos", href: "/cadastros/produtos/produtos" }
+              ]
+            },
+            {
+              label: "Patrimonial",
+              children: [
+                { label: "Maquinas", href: "/cadastros/patrimonial/maquinas" },
+                { label: "Depositos", href: "/cadastros/patrimonial/depositos" },
+                { label: "Bombas Combustivel", href: "/cadastros/patrimonial/bombas-combustivel" },
+                { label: "Benfeitorias", href: "/cadastros/patrimonial/benfeitorias" }
+              ]
+            }
+          ]
+        },
+        { label: "Settings", href: "/settings", icon: <Icon name="settings" /> },
+        { label: "Account", href: "/account", icon: <Icon name="account" /> }
+      ] satisfies NavNode[]
+    }),
     []
   );
 
@@ -175,37 +367,31 @@ export function AdminShell({
           <div className="absolute bottom-0 left-1/3 h-[420px] w-[420px] rounded-full bg-sky-500/8 blur-3xl" />
         </div>
 
-        <div className="relative mx-auto grid w-full max-w-[1280px] grid-cols-1 gap-6 px-4 py-6 md:grid-cols-[280px_1fr] md:px-6">
+        <div className="relative grid w-full grid-cols-1 gap-0 md:grid-cols-[320px_1fr]">
           {/* Sidebar */}
-          <aside className="sticky top-6 hidden h-[calc(100vh-48px)] flex-col rounded-3xl border border-white/10 bg-white/5 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl md:flex">
-            <div className="flex items-center gap-3 px-2 py-2">
-              <div className="grid h-10 w-10 place-items-center rounded-2xl bg-accent-500/15 ring-1 ring-accent-500/25">
-                <div className="h-3 w-3 rounded-full bg-accent-400 shadow-[0_0_0_4px_rgba(223,152,48,0.15)]" />
+          <aside className="sticky top-0 hidden h-screen flex-col border-r border-white/10 bg-zinc-950/40 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl md:flex">
+            <div className="flex items-center gap-3 px-1 py-2">
+              <div className="relative grid h-11 w-11 place-items-center overflow-hidden rounded-2xl bg-white/5 ring-1 ring-white/10">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo-2.svg" alt="GR Dados" className="h-full w-full object-contain p-2" />
               </div>
               <div className="leading-tight">
                 <p className="text-sm font-black tracking-tight">GR Dados</p>
-                <p className="text-xs text-zinc-400">Admin Panel</p>
+                <p className="text-xs text-zinc-400">ERP</p>
               </div>
             </div>
 
             <div className="mt-4">
               <p className="px-2 text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Dashboard</p>
-              <nav className="mt-2 space-y-1">
-                <SidebarLink item={navDashboard[0]} active={pathname === navDashboard[0].href} icon={<Icon name="overview" />} />
-                <SidebarLink item={navDashboard[1]} active={pathname === navDashboard[1].href} icon={<Icon name="orders" />} />
-                <SidebarLink item={navDashboard[2]} active={pathname === navDashboard[2].href} icon={<Icon name="messages" />} />
-                <SidebarLink item={navDashboard[3]} active={false} icon={<Icon name="notif" />} />
-                <SidebarLink item={navDashboard[4]} active={false} icon={<Icon name="analytics" />} />
-                <SidebarLink item={navDashboard[5]} active={false} icon={<Icon name="messages" />} />
+              <nav className="mt-2">
+                <SidebarTree nodes={navTree.dashboard} pathname={pathname} />
               </nav>
             </div>
 
             <div className="mt-6">
               <p className="px-2 text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Advanced</p>
-              <nav className="mt-2 space-y-1">
-                <SidebarLink item={navAdvanced[0]} active={pathname === navAdvanced[0].href} icon={<Icon name="settings" />} />
-                <SidebarLink item={navAdvanced[1]} active={pathname === navAdvanced[1].href} icon={<Icon name="account" />} />
-                <SidebarLink item={navAdvanced[2]} active={false} icon={<Icon name="help" />} />
+              <nav className="mt-2">
+                <SidebarTree nodes={navTree.advanced} pathname={pathname} />
               </nav>
             </div>
 
@@ -242,7 +428,7 @@ export function AdminShell({
           </aside>
 
           {/* Main */}
-          <div className="min-w-0">
+          <div className="min-w-0 px-4 py-6 md:px-6">
             {/* Topbar */}
             <header className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-white/5 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
