@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { AppNav } from "@/components/AppNav";
+import { AdminShell } from "@/components/AdminShell";
+import { KeyMetrics, RevenueAndSales, TransactionHistory } from "@/components/DashboardWidgets";
 import { getAccessToken } from "@/lib/auth";
 import { createSubscription, getMe, getMySubscription, isApiError, listLeads, listTasks } from "@/lib/api";
 
@@ -11,6 +11,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
+  const [email, setEmail] = useState("");
   const [leadCount, setLeadCount] = useState(0);
   const [taskCount, setTaskCount] = useState(0);
   const [licenseStatus, setLicenseStatus] = useState("trialing");
@@ -29,6 +30,7 @@ export default function DashboardPage() {
     getMe(token)
       .then(async (me) => {
         setName(me.name);
+        setEmail(me.email);
         setCompany((me.company?.name as string) ?? "");
         setLicenseStatus((me.company?.license_status as string) ?? "trialing");
 
@@ -66,70 +68,71 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-white">
-      <AppNav />
-      <section className="mx-auto w-full max-w-6xl px-6 py-10">
-        <h1 className="text-3xl font-black text-white">Painel GR Dados</h1>
-        {loading ? <p className="mt-4 text-zinc-400">Carregando dados...</p> : null}
+    <AdminShell user={{ name: name || "Usuario", email: email || "", company }}>
+      <div className="space-y-6">
+        {loading ? <p className="text-sm font-semibold text-zinc-300">Carregando dados...</p> : null}
 
         {!loading ? (
-          <>
-            <p className="mt-2 text-zinc-300">
-              Bem-vindo, <strong>{name}</strong> {company ? `(${company})` : ""}.
-            </p>
+          <div className="space-y-6">
+            <KeyMetrics />
 
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
-              <article className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-                <p className="text-sm text-zinc-400">Leads cadastrados</p>
-                <p className="mt-2 text-4xl font-black text-accent-300">{leadCount}</p>
-              </article>
-              <article className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-                <p className="text-sm text-zinc-400">Tarefas abertas</p>
-                <p className="mt-2 text-4xl font-black text-accent-300">{taskCount}</p>
-              </article>
-              <article className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
-                <p className="text-sm text-zinc-400">Ações rápidas e licença</p>
-                <p className="mt-2 text-sm text-zinc-300">Status da licença: <strong className="text-accent-300">{licenseStatus}</strong></p>
+            <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
+              <div className="space-y-6">
+                <RevenueAndSales />
+                <TransactionHistory />
+              </div>
+
+              <section className="h-fit rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl">
+                <p className="text-sm font-black text-white">Licenca e acesso</p>
+                <p className="mt-2 text-sm text-zinc-300">
+                  Status: <strong className="text-accent-300">{licenseStatus}</strong>
+                </p>
                 {subscriptionInfo ? <p className="mt-1 text-xs text-zinc-400">{subscriptionInfo}</p> : null}
                 {accessMessage ? <p className="mt-2 text-xs font-semibold text-amber-200">{accessMessage}</p> : null}
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <Link href="/leads" className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-black text-zinc-950 hover:bg-accent-400">
-                    Novo lead
-                  </Link>
-                  <Link href="/tasks" className="rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2 text-sm font-bold text-zinc-200 hover:bg-zinc-800">
-                    Nova tarefa
-                  </Link>
-                  <button
-                    onClick={async () => {
-                      const token = getAccessToken();
-                      if (!token) return;
-                      setBillingLoading(true);
-                      setBillingMessage("");
-                      try {
-                        await createSubscription(token, {
-                          value: 99.9,
-                          cycle: "MONTHLY",
-                          billing_type: "BOLETO",
-                          description: "Licença GR Dados CRM - Plano Base"
-                        });
-                        setBillingMessage("Assinatura criada no Asaas com sucesso.");
-                      } catch {
-                        setBillingMessage("Falha ao criar assinatura. Verifique credenciais Asaas.");
-                      } finally {
-                        setBillingLoading(false);
-                      }
-                    }}
-                    className="rounded-lg border border-accent-500/40 bg-zinc-950 px-4 py-2 text-sm font-black text-accent-300 hover:bg-zinc-800"
-                  >
-                    {billingLoading ? "Criando..." : "Ativar licença"}
-                  </button>
+
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl border border-white/10 bg-zinc-950/40 p-4">
+                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Leads</p>
+                    <p className="mt-2 text-3xl font-black text-accent-200">{leadCount}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-zinc-950/40 p-4">
+                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Tarefas</p>
+                    <p className="mt-2 text-3xl font-black text-accent-200">{taskCount}</p>
+                  </div>
                 </div>
+
+                <button
+                  disabled={billingLoading}
+                  onClick={async () => {
+                    const token = getAccessToken();
+                    if (!token) return;
+                    setBillingLoading(true);
+                    setBillingMessage("");
+                    try {
+                      await createSubscription(token, {
+                        value: 99.9,
+                        cycle: "MONTHLY",
+                        billing_type: "BOLETO",
+                        description: "Licenca GR Dados CRM - Plano Base"
+                      });
+                      setBillingMessage("Assinatura criada no Asaas com sucesso.");
+                    } catch {
+                      setBillingMessage("Falha ao criar assinatura. Verifique credenciais Asaas.");
+                    } finally {
+                      setBillingLoading(false);
+                    }
+                  }}
+                  className="mt-4 w-full rounded-2xl bg-accent-500 px-4 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:opacity-60"
+                >
+                  {billingLoading ? "Criando..." : "Ativar licenca"}
+                </button>
                 {billingMessage ? <p className="mt-3 text-xs font-semibold text-zinc-300">{billingMessage}</p> : null}
-              </article>
+              </section>
             </div>
-          </>
+          </div>
         ) : null}
-      </section>
-    </main>
+      </div>
+    </AdminShell>
   );
 }
+

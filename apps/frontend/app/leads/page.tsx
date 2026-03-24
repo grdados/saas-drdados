@@ -2,9 +2,9 @@
 
 import { FormEvent, useEffect, useState } from "react";
 
-import { AppNav } from "@/components/AppNav";
+import { AdminShell } from "@/components/AdminShell";
 import { getAccessToken } from "@/lib/auth";
-import { createLead, isApiError, listLeads } from "@/lib/api";
+import { createLead, getMe, isApiError, listLeads } from "@/lib/api";
 
 type Lead = {
   id: number;
@@ -15,6 +15,7 @@ type Lead = {
 };
 
 export default function LeadsPage() {
+  const [me, setMe] = useState<{ name: string; email: string; company?: string }>({ name: "Usuario", email: "" });
   const [items, setItems] = useState<Lead[]>([]);
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
   const [loading, setLoading] = useState(true);
@@ -32,14 +33,24 @@ export default function LeadsPage() {
       window.location.href = "/login";
       return;
     }
-    loadData(token).catch((err) => {
-      if (isApiError(err) && err.status === 401) {
-        window.location.href = "/login";
-        return;
-      }
-      setAccessMessage(err instanceof Error ? err.message : "Sem acesso ao modulo CRM.");
-      setLoading(false);
-    });
+
+    getMe(token)
+      .then((u) => {
+        setMe({
+          name: u.name,
+          email: u.email,
+          company: (u.company?.name as string) ?? ""
+        });
+        return loadData(token);
+      })
+      .catch((err) => {
+        if (isApiError(err) && err.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        setAccessMessage(err instanceof Error ? err.message : "Sem acesso ao modulo CRM.");
+        setLoading(false);
+      });
   }, []);
 
   async function onSubmit(event: FormEvent) {
@@ -54,10 +65,12 @@ export default function LeadsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-white">
-      <AppNav />
-      <section className="mx-auto w-full max-w-6xl px-6 py-10">
-        <h1 className="text-3xl font-black text-white">Leads</h1>
+    <AdminShell user={me}>
+      <section className="space-y-4">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-zinc-400">CRM</p>
+          <h1 className="mt-1 text-3xl font-black text-white">Leads</h1>
+        </div>
         {accessMessage ? (
           <p className="mt-3 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-200">
             {accessMessage}
@@ -65,7 +78,7 @@ export default function LeadsPage() {
         ) : null}
 
         <form
-          className="mt-6 grid gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 md:grid-cols-4"
+          className="grid gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl md:grid-cols-4"
           onSubmit={onSubmit}
         >
           <input
@@ -74,33 +87,33 @@ export default function LeadsPage() {
             value={form.name}
             onChange={(e) => setForm((old) => ({ ...old, name: e.target.value }))}
             disabled={!!accessMessage}
-            className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-500 focus:outline-none disabled:opacity-60"
+            className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-500/50 focus:outline-none disabled:opacity-60"
           />
           <input
             placeholder="E-mail"
             value={form.email}
             onChange={(e) => setForm((old) => ({ ...old, email: e.target.value }))}
             disabled={!!accessMessage}
-            className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-500 focus:outline-none disabled:opacity-60"
+            className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-500/50 focus:outline-none disabled:opacity-60"
           />
           <input
             placeholder="Telefone"
             value={form.phone}
             onChange={(e) => setForm((old) => ({ ...old, phone: e.target.value }))}
             disabled={!!accessMessage}
-            className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-500 focus:outline-none disabled:opacity-60"
+            className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-500/50 focus:outline-none disabled:opacity-60"
           />
           <button
             disabled={!!accessMessage}
-            className="rounded-lg bg-accent-500 px-4 py-2 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:opacity-60"
+            className="rounded-xl bg-accent-500 px-4 py-2 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:opacity-60"
           >
             Adicionar lead
           </button>
         </form>
 
-        <div className="mt-6 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+        <div className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/40">
           <table className="w-full text-left text-sm">
-            <thead className="bg-zinc-950 text-zinc-200">
+            <thead className="bg-zinc-950/60 text-zinc-200">
               <tr>
                 <th className="px-4 py-3">Nome</th>
                 <th className="px-4 py-3">E-mail</th>
@@ -123,7 +136,7 @@ export default function LeadsPage() {
                 </tr>
               ) : (
                 items.map((lead) => (
-                  <tr key={lead.id} className="border-t border-zinc-800">
+                  <tr key={lead.id} className="border-t border-white/10">
                     <td className="px-4 py-3 font-semibold">{lead.name}</td>
                     <td className="px-4 py-3 text-zinc-300">{lead.email || "-"}</td>
                     <td className="px-4 py-3 text-zinc-300">{lead.phone || "-"}</td>
@@ -135,6 +148,6 @@ export default function LeadsPage() {
           </table>
         </div>
       </section>
-    </main>
+    </AdminShell>
   );
 }
