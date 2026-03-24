@@ -6,6 +6,59 @@ import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
 import { createCultura, Cultura, isApiError, listCulturas, updateCultura } from "@/lib/api";
 
+function Modal({
+  open,
+  title,
+  children,
+  onClose
+}: {
+  open: boolean;
+  title: string;
+  children: React.ReactNode;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center px-4">
+      <button
+        aria-label="Fechar"
+        onClick={onClose}
+        className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm"
+      />
+      <div className="relative w-full max-w-[680px] overflow-hidden rounded-3xl border border-white/10 bg-zinc-950/90 shadow-2xl">
+        <div className="flex items-start justify-between gap-3 border-b border-white/10 p-5">
+          <div>
+            <p className="text-sm font-black text-white">{title}</p>
+            <p className="mt-1 text-xs text-zinc-400">Preencha os dados e clique em salvar.</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10"
+            aria-label="Fechar modal"
+            title="Fechar"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6 6 18" />
+              <path d="M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="p-5">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 function prettyError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
   const status =
@@ -50,6 +103,7 @@ export default function CulturaPage() {
 
   const [mode, setMode] = useState<Mode>("idle");
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const selected = useMemo(() => items.find((i) => i.id === selectedId) ?? null, [items, selectedId]);
 
@@ -112,6 +166,7 @@ export default function CulturaPage() {
   function openCreate() {
     setSelectedId(null);
     setMode("create");
+    setCreateOpen(true);
   }
 
   function openView(id: number) {
@@ -135,6 +190,7 @@ export default function CulturaPage() {
         setItems((prev) => [...prev, created]);
         setSelectedId(created.id);
         setMode("view");
+        setCreateOpen(false);
         setSaveMessage("Cultura criada com sucesso.");
         return;
       }
@@ -157,15 +213,6 @@ export default function CulturaPage() {
     }
   }
 
-  const rightTitle =
-    mode === "create"
-      ? "Nova cultura"
-      : selected
-        ? mode === "edit"
-          ? "Editar cultura"
-          : "Detalhes da cultura"
-        : "Selecione uma cultura";
-
   return (
     <AuthedAdminShell>
       {() => (
@@ -186,9 +233,9 @@ export default function CulturaPage() {
             </button>
           </div>
 
-          <div className="grid items-start gap-6 lg:grid-cols-[440px_1fr]">
+          <div className="grid items-start gap-6">
             {/* Left: filters */}
-            <section className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl lg:col-span-2">
+            <section className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-black text-white">Filtros</p>
@@ -227,7 +274,7 @@ export default function CulturaPage() {
               ) : null}
             </section>
 
-            {/* Left: list + filters */}
+            {/* List (full width) */}
             <section className="h-fit rounded-3xl border border-white/10 bg-white/5 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-black text-white">Lista</p>
@@ -235,37 +282,29 @@ export default function CulturaPage() {
               </div>
 
               {/* List */}
-              <div className={`mt-4 pr-1 ${filtered.length > 8 ? "max-h-[520px] overflow-auto" : ""}`}>
+              <div className={`mt-4 pr-1 ${filtered.length > 10 ? "max-h-[560px] overflow-auto" : ""}`}>
                 <div className="space-y-2">
                   {filtered.map((c) => {
                     const isSelected = c.id === selectedId && mode !== "create";
                     return (
-                      <button
+                      <div
                         key={c.id}
-                        onClick={() => openView(c.id)}
-                        className={`group flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-colors ${
+                        className={`group flex w-full items-center gap-3 rounded-2xl border px-3 py-3 transition-colors ${
                           isSelected
                             ? "border-accent-500/35 bg-accent-500/10"
                             : "border-white/10 bg-zinc-950/35 hover:bg-white/5"
                         }`}
                       >
-                        <div className="min-w-0 flex-1">
+                        <button onClick={() => openView(c.id)} className="min-w-0 flex-1 text-left">
                           <p className="truncate text-sm font-black text-white">{c.name}</p>
                           <p className="mt-0.5 text-xs font-semibold text-zinc-400">
-                            {c.is_active ? (
-                              <span className="text-emerald-200">Ativo</span>
-                            ) : (
-                              <span className="text-zinc-400">Inativo</span>
-                            )}
+                            {c.is_active ? <span className="text-emerald-200">Ativo</span> : <span className="text-zinc-400">Inativo</span>}
                           </p>
-                        </div>
+                        </button>
 
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openEdit(c.id);
-                          }}
+                          onClick={() => openEdit(c.id)}
                           className={`grid h-9 w-9 place-items-center rounded-xl border transition-colors ${
                             isSelected
                               ? "border-accent-500/25 bg-accent-500/10 text-accent-200"
@@ -276,7 +315,7 @@ export default function CulturaPage() {
                         >
                           <IconPencil />
                         </button>
-                      </button>
+                      </div>
                     );
                   })}
 
@@ -288,122 +327,77 @@ export default function CulturaPage() {
                 </div>
               </div>
             </section>
-
-            {/* Right: panel */}
-            <section className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-black text-white">{rightTitle}</p>
-                  {selected && mode !== "create" ? (
-                    <p className="mt-1 text-xs text-zinc-400">
-                      Criado em {new Date(selected.created_at).toLocaleDateString("pt-BR")} · Atualizado em{" "}
-                      {new Date(selected.updated_at).toLocaleDateString("pt-BR")}
-                    </p>
-                  ) : null}
-                </div>
-
-                {mode === "view" && selected ? (
-                  <button
-                    onClick={() => openEdit(selected.id)}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm font-black text-zinc-100 hover:bg-zinc-950/60"
-                  >
-                    <IconPencil />
-                    Editar
-                  </button>
-                ) : null}
-              </div>
-
-              <div className="mt-5 grid gap-4">
-                {(mode === "idle" || (!selected && mode !== "create")) && (
-                  <div className="rounded-2xl border border-white/10 bg-zinc-950/30 p-4 text-sm text-zinc-300">
-                    Clique em uma cultura na lista para abrir o painel.
-                  </div>
-                )}
-
-                {(mode === "create" || mode === "edit") && (
-                  <div className="grid gap-4">
-                    <div className="grid gap-2">
-                      <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Nome</label>
-                      <input
-                        value={formName}
-                        onChange={(e) => setFormName(e.target.value)}
-                        placeholder="Ex: Soja"
-                        className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
-                      />
-                    </div>
-
-                    <label className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-zinc-950/35 px-4 py-3">
-                      <div>
-                        <p className="text-sm font-black text-white">Ativo</p>
-                        <p className="text-xs text-zinc-400">Se desativado, nao aparece em novas operacoes.</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setFormActive((v) => !v)}
-                        className={`relative h-7 w-12 rounded-full border transition-colors ${
-                          formActive ? "border-emerald-400/40 bg-emerald-500/25" : "border-white/10 bg-zinc-950/40"
-                        }`}
-                        aria-label="Alternar ativo"
-                      >
-                        <span
-                          className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full transition-all ${
-                            formActive ? "left-6 bg-emerald-200" : "left-1 bg-zinc-300"
-                          }`}
-                        />
-                      </button>
-                    </label>
-
-                    {saveMessage ? (
-                      <div className="rounded-2xl border border-white/10 bg-zinc-950/35 p-3 text-sm font-semibold text-zinc-200">
-                        {saveMessage}
-                      </div>
-                    ) : null}
-
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                      <button
-                        disabled={saving || formName.trim().length < 2}
-                        onClick={onSave}
-                        className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-5 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {saving ? "Salvando..." : "Salvar"}
-                      </button>
-                      <button
-                        disabled={saving}
-                        onClick={() => {
-                          setSaveMessage("");
-                          if (mode === "create") setMode("idle");
-                          else setMode("view");
-                        }}
-                        className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-zinc-950/40 px-5 py-3 text-sm font-black text-zinc-100 hover:bg-zinc-950/60 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        Cancelar
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {mode === "view" && selected ? (
-                  <div className="grid gap-4">
-                    <div className="rounded-2xl border border-white/10 bg-zinc-950/35 p-4">
-                      <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Nome</p>
-                      <p className="mt-1 text-lg font-black text-white">{selected.name}</p>
-                      <p className="mt-1 text-sm text-zinc-300">
-                        Status:{" "}
-                        <span className={selected.is_active ? "font-black text-emerald-200" : "font-black text-zinc-300"}>
-                          {selected.is_active ? "Ativo" : "Inativo"}
-                        </span>
-                      </p>
-                    </div>
-
-                    <div className="rounded-2xl border border-white/10 bg-zinc-950/30 p-4 text-sm text-zinc-300">
-                      Proximo passo: vamos incluir relacionamentos e campos extras conforme a operacao (ex: apelido, codigo,
-                      observacoes).
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            </section>
           </div>
+
+          <Modal
+            open={createOpen}
+            title="Nova cultura"
+            onClose={() => {
+              setCreateOpen(false);
+              setMode("idle");
+              setSaveMessage("");
+            }}
+          >
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Nome</label>
+                <input
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  placeholder="Ex: Soja"
+                  className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
+                />
+              </div>
+
+              <label className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-zinc-950/35 px-4 py-3">
+                <div>
+                  <p className="text-sm font-black text-white">Ativo</p>
+                  <p className="text-xs text-zinc-400">Se desativado, nao aparece em novas operacoes.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormActive((v) => !v)}
+                  className={`relative h-7 w-12 rounded-full border transition-colors ${
+                    formActive ? "border-emerald-400/40 bg-emerald-500/25" : "border-white/10 bg-zinc-950/40"
+                  }`}
+                  aria-label="Alternar ativo"
+                >
+                  <span
+                    className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full transition-all ${
+                      formActive ? "left-6 bg-emerald-200" : "left-1 bg-zinc-300"
+                    }`}
+                  />
+                </button>
+              </label>
+
+              {saveMessage ? (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm font-semibold text-zinc-200">
+                  {saveMessage}
+                </div>
+              ) : null}
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                <button
+                  disabled={saving || formName.trim().length < 2}
+                  onClick={onSave}
+                  className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-5 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {saving ? "Salvando..." : "Salvar"}
+                </button>
+                <button
+                  disabled={saving}
+                  onClick={() => {
+                    setCreateOpen(false);
+                    setMode("idle");
+                    setSaveMessage("");
+                  }}
+                  className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-zinc-100 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </Modal>
         </div>
       )}
     </AuthedAdminShell>
