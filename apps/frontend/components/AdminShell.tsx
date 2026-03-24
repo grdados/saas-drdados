@@ -328,6 +328,7 @@ export function AdminShell({
             {
               label: "Produtos",
               children: [
+                { label: "Categorias", href: "/cadastros/produtos/categorias" },
                 { label: "Insumos", href: "/cadastros/produtos/insumos" },
                 { label: "Pecas", href: "/cadastros/produtos/pecas" },
                 { label: "Produtos", href: "/cadastros/produtos/produtos" }

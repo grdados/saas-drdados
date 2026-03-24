@@ -4,6 +4,8 @@ from django.db.models import Sum
 from django.db.models.functions import Coalesce
 from rest_framework import serializers
 
+from accounts.permissions import get_current_company
+
 from . import models
 
 
@@ -153,9 +155,6 @@ class CondicaoFinanceiraSerializer(serializers.ModelSerializer):
         model = models.CondicaoFinanceira
         fields = ["id", "name", "dias", "parcelas", "is_active", "created_at", "updated_at"]
 
-InsumoSerializer = _mk_serializer(models.Insumo)
-ProdutoSerializer = _mk_serializer(models.Produto)
-PecaSerializer = _mk_serializer(models.Peca)
 CombustivelSerializer = _mk_serializer(models.Combustivel)
 
 
@@ -178,11 +177,200 @@ class CultivarSerializer(serializers.ModelSerializer):
 DiversoSerializer = _mk_serializer(models.Diverso)
 FabricanteSerializer = _mk_serializer(models.Fabricante)
 
+CategoriaSerializer = _mk_serializer(models.Categoria)
+
+
+def _validate_fk_company(fk_obj, company, label: str):
+    if fk_obj is None or company is None:
+        return
+    if getattr(fk_obj, "company_id", None) != getattr(company, "id", None):
+        raise serializers.ValidationError({label: "Registro de outra empresa."})
+
+
+class InsumoSerializer(serializers.ModelSerializer):
+    categoria = CategoriaSerializer(read_only=True)
+    categoria_id = serializers.PrimaryKeyRelatedField(
+        source="categoria", queryset=models.Categoria.objects.all(), allow_null=True, required=False
+    )
+    cultura = serializers.SerializerMethodField()
+    cultura_id = serializers.PrimaryKeyRelatedField(
+        source="cultura", queryset=models.Cultura.objects.all(), allow_null=True, required=False
+    )
+    fabricante = serializers.SerializerMethodField()
+    fabricante_id = serializers.PrimaryKeyRelatedField(
+        source="fabricante", queryset=models.Fabricante.objects.all(), allow_null=True, required=False
+    )
+    centro_custo = serializers.SerializerMethodField()
+    centro_custo_id = serializers.PrimaryKeyRelatedField(
+        source="centro_custo", queryset=models.CentroCusto.objects.all(), allow_null=True, required=False
+    )
+
+    class Meta:
+        model = models.Insumo
+        fields = [
+            "id",
+            "name",
+            "short_description",
+            "unit",
+            "categoria",
+            "categoria_id",
+            "cultura",
+            "cultura_id",
+            "fabricante",
+            "fabricante_id",
+            "centro_custo",
+            "centro_custo_id",
+            "has_seed_treatment",
+            "tox_class",
+            "active_ingredient",
+            "dose",
+            "density",
+            "mapa_registry",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_cultura(self, obj):
+        if not getattr(obj, "cultura_id", None):
+            return None
+        return {"id": obj.cultura_id, "name": obj.cultura.name}
+
+    def get_fabricante(self, obj):
+        if not getattr(obj, "fabricante_id", None):
+            return None
+        return {"id": obj.fabricante_id, "name": obj.fabricante.name}
+
+    def get_centro_custo(self, obj):
+        if not getattr(obj, "centro_custo_id", None):
+            return None
+        return {"id": obj.centro_custo_id, "name": obj.centro_custo.name}
+
+    def validate(self, attrs):
+        company = get_current_company(self.context["request"].user) if self.context.get("request") else None
+        _validate_fk_company(attrs.get("categoria"), company, "categoria_id")
+        _validate_fk_company(attrs.get("cultura"), company, "cultura_id")
+        _validate_fk_company(attrs.get("fabricante"), company, "fabricante_id")
+        _validate_fk_company(attrs.get("centro_custo"), company, "centro_custo_id")
+        return attrs
+
+
+class ProdutoSerializer(serializers.ModelSerializer):
+    categoria = CategoriaSerializer(read_only=True)
+    categoria_id = serializers.PrimaryKeyRelatedField(
+        source="categoria", queryset=models.Categoria.objects.all(), allow_null=True, required=False
+    )
+    cultura = serializers.SerializerMethodField()
+    cultura_id = serializers.PrimaryKeyRelatedField(
+        source="cultura", queryset=models.Cultura.objects.all(), allow_null=True, required=False
+    )
+    centro_custo = serializers.SerializerMethodField()
+    centro_custo_id = serializers.PrimaryKeyRelatedField(
+        source="centro_custo", queryset=models.CentroCusto.objects.all(), allow_null=True, required=False
+    )
+
+    class Meta:
+        model = models.Produto
+        fields = [
+            "id",
+            "name",
+            "short_description",
+            "unit",
+            "categoria",
+            "categoria_id",
+            "cultura",
+            "cultura_id",
+            "centro_custo",
+            "centro_custo_id",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_cultura(self, obj):
+        if not getattr(obj, "cultura_id", None):
+            return None
+        return {"id": obj.cultura_id, "name": obj.cultura.name}
+
+    def get_centro_custo(self, obj):
+        if not getattr(obj, "centro_custo_id", None):
+            return None
+        return {"id": obj.centro_custo_id, "name": obj.centro_custo.name}
+
+    def validate(self, attrs):
+        company = get_current_company(self.context["request"].user) if self.context.get("request") else None
+        _validate_fk_company(attrs.get("categoria"), company, "categoria_id")
+        _validate_fk_company(attrs.get("cultura"), company, "cultura_id")
+        _validate_fk_company(attrs.get("centro_custo"), company, "centro_custo_id")
+        return attrs
+
+
+class PecaSerializer(serializers.ModelSerializer):
+    categoria = CategoriaSerializer(read_only=True)
+    categoria_id = serializers.PrimaryKeyRelatedField(
+        source="categoria", queryset=models.Categoria.objects.all(), allow_null=True, required=False
+    )
+    cultura = serializers.SerializerMethodField()
+    cultura_id = serializers.PrimaryKeyRelatedField(
+        source="cultura", queryset=models.Cultura.objects.all(), allow_null=True, required=False
+    )
+    fabricante = serializers.SerializerMethodField()
+    fabricante_id = serializers.PrimaryKeyRelatedField(
+        source="fabricante", queryset=models.Fabricante.objects.all(), allow_null=True, required=False
+    )
+    centro_custo = serializers.SerializerMethodField()
+    centro_custo_id = serializers.PrimaryKeyRelatedField(
+        source="centro_custo", queryset=models.CentroCusto.objects.all(), allow_null=True, required=False
+    )
+
+    class Meta:
+        model = models.Peca
+        fields = [
+            "id",
+            "name",
+            "short_description",
+            "unit",
+            "categoria",
+            "categoria_id",
+            "cultura",
+            "cultura_id",
+            "fabricante",
+            "fabricante_id",
+            "centro_custo",
+            "centro_custo_id",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_cultura(self, obj):
+        if not getattr(obj, "cultura_id", None):
+            return None
+        return {"id": obj.cultura_id, "name": obj.cultura.name}
+
+    def get_fabricante(self, obj):
+        if not getattr(obj, "fabricante_id", None):
+            return None
+        return {"id": obj.fabricante_id, "name": obj.fabricante.name}
+
+    def get_centro_custo(self, obj):
+        if not getattr(obj, "centro_custo_id", None):
+            return None
+        return {"id": obj.centro_custo_id, "name": obj.centro_custo.name}
+
+    def validate(self, attrs):
+        company = get_current_company(self.context["request"].user) if self.context.get("request") else None
+        _validate_fk_company(attrs.get("categoria"), company, "categoria_id")
+        _validate_fk_company(attrs.get("cultura"), company, "cultura_id")
+        _validate_fk_company(attrs.get("fabricante"), company, "fabricante_id")
+        _validate_fk_company(attrs.get("centro_custo"), company, "centro_custo_id")
+        return attrs
+
 
 class PropriedadeSerializer(serializers.ModelSerializer):
     produtor = ProdutorSerializer(read_only=True)
     produtor_id = serializers.PrimaryKeyRelatedField(
-        source="produtor", queryset=models.Produtor.objects.all(), allow_null=True, required=False
+      source="produtor", queryset=models.Produtor.objects.all(), allow_null=True, required=False
     )
 
     class Meta:

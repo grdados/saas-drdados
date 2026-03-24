@@ -115,16 +115,41 @@ class CondicaoFinanceira(CompanyNamedModel):
 
 
 # Estoque
-class Insumo(CompanyNamedModel):
+class Categoria(CompanyNamedModel):
     pass
+
+
+class Insumo(CompanyNamedModel):
+    short_description = models.CharField(max_length=120, blank=True, default="")
+    unit = models.CharField(max_length=24, blank=True, default="")
+    categoria = models.ForeignKey("erp.Categoria", null=True, blank=True, on_delete=models.PROTECT)
+    cultura = models.ForeignKey("erp.Cultura", null=True, blank=True, on_delete=models.PROTECT)
+    fabricante = models.ForeignKey("erp.Fabricante", null=True, blank=True, on_delete=models.PROTECT)
+    centro_custo = models.ForeignKey("erp.CentroCusto", null=True, blank=True, on_delete=models.PROTECT)
+
+    has_seed_treatment = models.BooleanField(default=False)
+    tox_class = models.CharField(max_length=80, blank=True, default="")
+    active_ingredient = models.CharField(max_length=180, blank=True, default="")
+    dose = models.CharField(max_length=80, blank=True, default="")
+    density = models.CharField(max_length=80, blank=True, default="")
+    mapa_registry = models.CharField(max_length=80, blank=True, default="")
 
 
 class Produto(CompanyNamedModel):
-    pass
+    short_description = models.CharField(max_length=120, blank=True, default="")
+    unit = models.CharField(max_length=24, blank=True, default="")
+    categoria = models.ForeignKey("erp.Categoria", null=True, blank=True, on_delete=models.PROTECT)
+    cultura = models.ForeignKey("erp.Cultura", null=True, blank=True, on_delete=models.PROTECT)
+    centro_custo = models.ForeignKey("erp.CentroCusto", null=True, blank=True, on_delete=models.PROTECT)
 
 
 class Peca(CompanyNamedModel):
-    pass
+    short_description = models.CharField(max_length=120, blank=True, default="")
+    unit = models.CharField(max_length=24, blank=True, default="")
+    categoria = models.ForeignKey("erp.Categoria", null=True, blank=True, on_delete=models.PROTECT)
+    cultura = models.ForeignKey("erp.Cultura", null=True, blank=True, on_delete=models.PROTECT)
+    fabricante = models.ForeignKey("erp.Fabricante", null=True, blank=True, on_delete=models.PROTECT)
+    centro_custo = models.ForeignKey("erp.CentroCusto", null=True, blank=True, on_delete=models.PROTECT)
 
 
 class Combustivel(CompanyNamedModel):

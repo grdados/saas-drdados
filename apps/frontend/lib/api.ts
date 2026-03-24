@@ -411,6 +411,205 @@ export function updateMoeda(token: string, id: number, payload: { name?: string;
   return request<Moeda>(`/api/erp/financeiro/moedas/${id}/`, { method: "PATCH", body: JSON.stringify(payload) }, token);
 }
 
+export type Categoria = {
+  id: number;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export function listCategorias(token: string) {
+  return request<Categoria[]>("/api/erp/estoque/categorias/", { method: "GET" }, token);
+}
+export function createCategoria(token: string, payload: { name: string; is_active?: boolean }) {
+  return request<Categoria>(
+    "/api/erp/estoque/categorias/",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  );
+}
+export function updateCategoria(token: string, id: number, payload: { name?: string; is_active?: boolean }) {
+  return request<Categoria>(
+    `/api/erp/estoque/categorias/${id}/`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  );
+}
+
+export type Insumo = {
+  id: number;
+  name: string;
+  short_description: string;
+  unit: string;
+  categoria: { id: number; name: string } | null;
+  categoria_id?: number | null;
+  cultura: { id: number; name: string } | null;
+  cultura_id?: number | null;
+  fabricante: { id: number; name: string } | null;
+  fabricante_id?: number | null;
+  centro_custo: { id: number; name: string } | null;
+  centro_custo_id?: number | null;
+  has_seed_treatment: boolean;
+  tox_class: string;
+  active_ingredient: string;
+  dose: string;
+  density: string;
+  mapa_registry: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export function listInsumos(token: string) {
+  return request<Insumo[]>("/api/erp/estoque/insumos/", { method: "GET" }, token);
+}
+export function createInsumo(
+  token: string,
+  payload: Partial<{
+    name: string;
+    short_description: string;
+    unit: string;
+    categoria_id: number | null;
+    cultura_id: number | null;
+    fabricante_id: number | null;
+    centro_custo_id: number | null;
+    has_seed_treatment: boolean;
+    tox_class: string;
+    active_ingredient: string;
+    dose: string;
+    density: string;
+    mapa_registry: string;
+    is_active: boolean;
+  }>
+) {
+  return request<Insumo>("/api/erp/estoque/insumos/", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+export function updateInsumo(
+  token: string,
+  id: number,
+  payload: Partial<{
+    name: string;
+    short_description: string;
+    unit: string;
+    categoria_id: number | null;
+    cultura_id: number | null;
+    fabricante_id: number | null;
+    centro_custo_id: number | null;
+    has_seed_treatment: boolean;
+    tox_class: string;
+    active_ingredient: string;
+    dose: string;
+    density: string;
+    mapa_registry: string;
+    is_active: boolean;
+  }>
+) {
+  return request<Insumo>(`/api/erp/estoque/insumos/${id}/`, { method: "PATCH", body: JSON.stringify(payload) }, token);
+}
+
+export type Peca = {
+  id: number;
+  name: string;
+  short_description: string;
+  unit: string;
+  categoria: { id: number; name: string } | null;
+  categoria_id?: number | null;
+  cultura: { id: number; name: string } | null;
+  cultura_id?: number | null;
+  fabricante: { id: number; name: string } | null;
+  fabricante_id?: number | null;
+  centro_custo: { id: number; name: string } | null;
+  centro_custo_id?: number | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export function listPecas(token: string) {
+  return request<Peca[]>("/api/erp/estoque/pecas/", { method: "GET" }, token);
+}
+export function createPeca(
+  token: string,
+  payload: Partial<{
+    name: string;
+    short_description: string;
+    unit: string;
+    categoria_id: number | null;
+    cultura_id: number | null;
+    fabricante_id: number | null;
+    centro_custo_id: number | null;
+    is_active: boolean;
+  }>
+) {
+  return request<Peca>("/api/erp/estoque/pecas/", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+export function updatePeca(
+  token: string,
+  id: number,
+  payload: Partial<{
+    name: string;
+    short_description: string;
+    unit: string;
+    categoria_id: number | null;
+    cultura_id: number | null;
+    fabricante_id: number | null;
+    centro_custo_id: number | null;
+    is_active: boolean;
+  }>
+) {
+  return request<Peca>(`/api/erp/estoque/pecas/${id}/`, { method: "PATCH", body: JSON.stringify(payload) }, token);
+}
+
+export type ProdutoItem = {
+  id: number;
+  name: string;
+  short_description: string;
+  unit: string;
+  categoria: { id: number; name: string } | null;
+  categoria_id?: number | null;
+  cultura: { id: number; name: string } | null;
+  cultura_id?: number | null;
+  centro_custo: { id: number; name: string } | null;
+  centro_custo_id?: number | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export function listProdutosEstoque(token: string) {
+  return request<ProdutoItem[]>("/api/erp/estoque/produtos/", { method: "GET" }, token);
+}
+export function createProdutoEstoque(
+  token: string,
+  payload: Partial<{
+    name: string;
+    short_description: string;
+    unit: string;
+    categoria_id: number | null;
+    cultura_id: number | null;
+    centro_custo_id: number | null;
+    is_active: boolean;
+  }>
+) {
+  return request<ProdutoItem>("/api/erp/estoque/produtos/", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+export function updateProdutoEstoque(
+  token: string,
+  id: number,
+  payload: Partial<{
+    name: string;
+    short_description: string;
+    unit: string;
+    categoria_id: number | null;
+    cultura_id: number | null;
+    centro_custo_id: number | null;
+    is_active: boolean;
+  }>
+) {
+  return request<ProdutoItem>(
+    `/api/erp/estoque/produtos/${id}/`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  );
+}
+
 export type GrupoProdutor = {
   id: number;
   name: string;

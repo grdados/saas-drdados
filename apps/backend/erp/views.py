@@ -124,18 +124,25 @@ class CondicaoFinanceiraViewSet(CompanyScopedViewSet):
     serializer_class = serializers.CondicaoFinanceiraSerializer
 
 
+class CategoriaViewSet(CompanyScopedViewSet):
+    queryset = models.Categoria.objects.select_related("company")
+    serializer_class = serializers.CategoriaSerializer
+
+
 class InsumoViewSet(CompanyScopedViewSet):
-    queryset = models.Insumo.objects.select_related("company")
+    queryset = models.Insumo.objects.select_related(
+        "company", "categoria", "cultura", "fabricante", "centro_custo"
+    )
     serializer_class = serializers.InsumoSerializer
 
 
 class ProdutoViewSet(CompanyScopedViewSet):
-    queryset = models.Produto.objects.select_related("company")
+    queryset = models.Produto.objects.select_related("company", "categoria", "cultura", "centro_custo")
     serializer_class = serializers.ProdutoSerializer
 
 
 class PecaViewSet(CompanyScopedViewSet):
-    queryset = models.Peca.objects.select_related("company")
+    queryset = models.Peca.objects.select_related("company", "categoria", "cultura", "fabricante", "centro_custo")
     serializer_class = serializers.PecaSerializer
 
 
