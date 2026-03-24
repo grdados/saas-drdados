@@ -162,3 +162,38 @@ export function submitProjectIntake(payload: Record<string, unknown>) {
     body: JSON.stringify(payload)
   });
 }
+
+// ERP - Cadastros (base)
+export type Cultura = {
+  id: number;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export function listCulturas(token: string) {
+  return request<Cultura[]>("/api/erp/culturas/", { method: "GET" }, token);
+}
+
+export function createCultura(token: string, payload: { name: string; is_active?: boolean }) {
+  return request<Cultura>(
+    "/api/erp/culturas/",
+    {
+      method: "POST",
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+}
+
+export function updateCultura(token: string, id: number, payload: { name?: string; is_active?: boolean }) {
+  return request<Cultura>(
+    `/api/erp/culturas/${id}/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+}
