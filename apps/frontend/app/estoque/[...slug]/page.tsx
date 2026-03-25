@@ -1,3 +1,5 @@
+"use client";
+
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 
 export default function EstoqueCatchAllPage() {
