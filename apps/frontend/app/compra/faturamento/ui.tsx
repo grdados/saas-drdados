@@ -132,6 +132,7 @@ export default function FaturamentoCompraPage() {
   const [open, setOpen] = useState(false);
   const [formDate, setFormDate] = useState("");
   const [formNF, setFormNF] = useState("");
+  const [formSafraId, setFormSafraId] = useState<number | "">("");
   const [formGrupoId, setFormGrupoId] = useState<number | "">("");
   const [formProdutorId, setFormProdutorId] = useState<number | "">("");
   const [formPedidoId, setFormPedidoId] = useState<number | "">("");
@@ -179,11 +180,17 @@ export default function FaturamentoCompraPage() {
     return produtores.filter((p) => (p.grupo?.id ?? null) === gid);
   }, [produtores, formGrupoId]);
 
+  const pedidosDaSafraFormulario = useMemo(() => {
+    if (formSafraId === "") return pedidos;
+    const sid = Number(formSafraId);
+    return pedidos.filter((p) => p.safra?.id === sid);
+  }, [pedidos, formSafraId]);
+
   const pedidosDoProdutor = useMemo(() => {
-    if (formProdutorId === "") return pedidosDaSafra;
+    if (formProdutorId === "") return pedidosDaSafraFormulario;
     const pid = Number(formProdutorId);
-    return pedidosDaSafra.filter((p) => (p.produtor?.id ?? null) === pid);
-  }, [pedidosDaSafra, formProdutorId]);
+    return pedidosDaSafraFormulario.filter((p) => (p.produtor?.id ?? null) === pid);
+  }, [pedidosDaSafraFormulario, formProdutorId]);
 
   const pedidoSelecionado = useMemo(() => {
     if (formPedidoId === "") return null;
@@ -325,6 +332,7 @@ export default function FaturamentoCompraPage() {
     setFormDueDate(p.due_date ?? "");
     setFormFornecedorId(p.fornecedor?.id ?? "");
     setFormOperacaoId(p.operacao?.id ?? "");
+    setFormSafraId(p.safra?.id ?? "");
     setFormGrupoId(p.grupo?.id ?? "");
     setFormProdutorId(p.produtor?.id ?? "");
     setRows([{ pedido_item_id: null, quantity: "0", price: "0" }]);
@@ -386,7 +394,7 @@ export default function FaturamentoCompraPage() {
                   </option>
                 ))}
               </select>
-              <button onClick={() => { setOpen(true); setRows([{ pedido_item_id: null, quantity: "0", price: "0" }]); }} className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">
+              <button onClick={() => { setOpen(true); setFormSafraId(safraId === "" ? "" : Number(safraId)); setRows([{ pedido_item_id: null, quantity: "0", price: "0" }]); }} className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">
                 Novo faturamento
               </button>
             </div>
@@ -468,9 +476,16 @@ export default function FaturamentoCompraPage() {
                       <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Data</label>
                       <input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50" />
                     </div>
-                    <div className="grid gap-2 lg:col-span-2">
+                    <div className="grid gap-2">
                       <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Nota fiscal</label>
                       <input value={formNF} onChange={(e) => setFormNF(toUpperText(e.target.value))} placeholder="Ex: 000123" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50" />
+                    </div>
+                    <div className="grid gap-2">
+                      <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Safra</label>
+                      <select value={formSafraId} onChange={(e) => { const next = e.target.value === "" ? "" : Number(e.target.value); setFormSafraId(next); setFormPedidoId(""); }} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                        <option value="" style={optionStyle}>Selecione</option>
+                        {safras.map((s) => (<option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>))}
+                      </select>
                     </div>
 
                     <div className="grid gap-2">
