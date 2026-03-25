@@ -1,9 +1,3 @@
-import dynamic from "next/dynamic";
+("use client");
 
-// Admin screen: client-only to avoid SSR runtime issues in Vercel/Node environment.
-const FaturamentoClient = dynamic(() => import("./ui"), { ssr: false });
-
-export default function FaturamentoCompraPage() {
-  return <FaturamentoClient />;
-}
-
+export { default } from "./ui";
