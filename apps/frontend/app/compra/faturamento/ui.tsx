@@ -639,10 +639,11 @@ export default function FaturamentoCompraPage() {
 
   function openResumoReport() {
     const pedidoById = new Map(pedidos.map((p) => [p.id, p]));
+    const insumoById = new Map(insumos.map((i) => [i.id, i]));
     type GroupSummary = {
       safra: string;
-      grupo: string;
-      produtor: string;
+      categoria: string;
+      vencimento: string;
       notas: number;
       totalFaturado: number;
       totalPago: number;
@@ -652,22 +653,38 @@ export default function FaturamentoCompraPage() {
     for (const f of filtered) {
       const pedidoRef = (f.pedido?.id ? pedidoById.get(f.pedido.id) : null) ?? null;
       const safra = pedidoRef?.safra?.name ?? "SEM SAFRA";
-      const grupo = f.grupo?.name ?? "SEM GRUPO";
-      const produtor = f.produtor?.name ?? "SEM PRODUTOR";
-      const key = `${safra}__${grupo}__${produtor}`;
       const totalFaturado = parseNumber(f.total_value);
       const cp = (f as unknown as { conta_pagar?: { paid_amount?: string | number; amount?: string | number } | null }).conta_pagar;
       const paidAmount = parseNumber(cp?.paid_amount ?? 0);
       const saldo = Math.max(0, totalFaturado - paidAmount);
-      const curr = map.get(key) ?? { safra, grupo, produtor, notas: 0, totalFaturado: 0, totalPago: 0, saldoPagar: 0 };
-      curr.notas += 1;
-      curr.totalFaturado += totalFaturado;
-      curr.totalPago += paidAmount;
-      curr.saldoPagar += saldo;
-      map.set(key, curr);
+      const dueDateRaw = f.due_date ?? "";
+      const vencimento = prettyDateBR(dueDateRaw) || "-";
+
+      const categories = new Set<string>();
+      for (const it of f.items || []) {
+        const pid = it.produto?.id ?? null;
+        const found = pid ? insumoById.get(pid) : null;
+        const cat = found?.categoria?.name?.trim();
+        if (cat) categories.add(cat);
+      }
+      if (categories.size === 0) categories.add("SEM CATEGORIA");
+
+      const perCategoryFaturado = totalFaturado / categories.size;
+      const perCategoryPago = paidAmount / categories.size;
+      const perCategorySaldo = saldo / categories.size;
+
+      for (const categoria of categories) {
+        const key = `${safra}__${categoria}__${dueDateRaw || "SEM_VENCIMENTO"}`;
+        const curr = map.get(key) ?? { safra, categoria, vencimento, notas: 0, totalFaturado: 0, totalPago: 0, saldoPagar: 0 };
+        curr.notas += 1;
+        curr.totalFaturado += perCategoryFaturado;
+        curr.totalPago += perCategoryPago;
+        curr.saldoPagar += perCategorySaldo;
+        map.set(key, curr);
+      }
     }
     const groups = [...map.values()].sort((a, b) =>
-      `${a.safra}|${a.grupo}|${a.produtor}`.localeCompare(`${b.safra}|${b.grupo}|${b.produtor}`, "pt-BR")
+      `${a.safra}|${a.categoria}|${a.vencimento}`.localeCompare(`${b.safra}|${b.categoria}|${b.vencimento}`, "pt-BR")
     );
     const totalFat = groups.reduce((acc, g) => acc + g.totalFaturado, 0);
     const totalPago = groups.reduce((acc, g) => acc + g.totalPago, 0);
@@ -677,8 +694,8 @@ export default function FaturamentoCompraPage() {
         (g) => `
           <tr>
             <td>${escapeHtml(g.safra)}</td>
-            <td>${escapeHtml(g.grupo)}</td>
-            <td>${escapeHtml(g.produtor)}</td>
+            <td>${escapeHtml(g.categoria)}</td>
+            <td>${escapeHtml(g.vencimento)}</td>
             <td class="num">${g.notas}</td>
             <td class="num">${money(g.totalFaturado)}</td>
             <td class="num">${money(g.totalPago)}</td>
@@ -692,7 +709,7 @@ export default function FaturamentoCompraPage() {
       "Resumo de Faturamento",
       `
         <h1>Relatório Resumo de Faturamento</h1>
-        <p class="muted">Agrupado por Safra, Grupo e Produtor · Gerado em ${new Date().toLocaleString("pt-BR")}</p>
+        <p class="muted">Agrupado por Safra, Categoria e Vencimento · Gerado em ${new Date().toLocaleString("pt-BR")}</p>
         <div class="kpi" style="margin-top:12px">
           <div class="card"><div class="label">Notas fiscais</div><div class="value">${filtered.length}</div></div>
           <div class="card"><div class="label">Total faturado</div><div class="value">${money(totalFat)}</div></div>
@@ -703,15 +720,15 @@ export default function FaturamentoCompraPage() {
           <thead>
             <tr>
               <th>Safra</th>
-              <th>Grupo</th>
-              <th>Produtor</th>
+              <th>Categoria</th>
+              <th>Vencimento</th>
               <th class="num">NFs</th>
               <th class="num">Total faturado</th>
               <th class="num">Total pago</th>
               <th class="num">Saldo a pagar</th>
             </tr>
           </thead>
-          <tbody>${rows || '<tr><td colspan="7">Sem dados para os filtros selecionados.</td></tr>'}</tbody>
+          <tbody>${rows || '<tr><td colspan="8">Sem dados para os filtros selecionados.</td></tr>'}</tbody>
         </table>
       `,
       "portrait"
@@ -720,6 +737,7 @@ export default function FaturamentoCompraPage() {
 
   function openAnaliticoReport() {
     const pedidoById = new Map(pedidos.map((p) => [p.id, p]));
+    const insumoById = new Map(insumos.map((i) => [i.id, i]));
     type GroupAnalitico = {
       safra: string;
       grupo: string;
@@ -728,9 +746,14 @@ export default function FaturamentoCompraPage() {
         nf: string;
         data: string;
         venc: string;
+        vencSort: string;
         pedido: string;
         fornecedor: string;
         status: string;
+        produto: string;
+        quantidade: number;
+        preco: number;
+        totalItem: number;
         valor: number;
       }>;
     };
@@ -743,15 +766,27 @@ export default function FaturamentoCompraPage() {
       const key = `${safra}__${grupo}__${produtor}`;
       const status = fatStatusMeta(resolveFatStatus(f, cpStatusByFatId[f.id])).label;
       const group = map.get(key) ?? { safra, grupo, produtor, docs: [] };
-      group.docs.push({
-        nf: f.invoice_number || `NF-${f.id}`,
-        data: prettyDateBR(f.date),
-        venc: prettyDateBR(f.due_date),
-        pedido: f.pedido?.code ?? "-",
-        fornecedor: f.fornecedor?.name ?? "-",
-        status,
-        valor: parseNumber(f.total_value)
-      });
+      for (const it of f.items || []) {
+        const prodId = it.produto?.id ?? null;
+        const found = prodId ? insumoById.get(prodId) : null;
+        const quantidade = parseNumber(it.quantity);
+        const preco = parseNumber(it.price);
+        const totalItem = Math.max(0, quantidade * preco);
+        group.docs.push({
+          nf: f.invoice_number || `NF-${f.id}`,
+          data: prettyDateBR(f.date),
+          venc: prettyDateBR(f.due_date),
+          vencSort: f.due_date ?? "",
+          pedido: f.pedido?.code ?? "-",
+          fornecedor: f.fornecedor?.name ?? "-",
+          status,
+          produto: found?.name ?? it.produto?.name ?? "PRODUTO",
+          quantidade,
+          preco,
+          totalItem,
+          valor: parseNumber(f.total_value)
+        });
+      }
       map.set(key, group);
     }
     const groups = [...map.values()].sort((a, b) =>
@@ -760,7 +795,8 @@ export default function FaturamentoCompraPage() {
     const htmlGroups = groups
       .map((g) => {
         const total = g.docs.reduce((acc, d) => acc + d.valor, 0);
-        const rows = g.docs
+        const docsByVenc = [...g.docs].sort((a, b) => a.vencSort.localeCompare(b.vencSort));
+        const rows = docsByVenc
           .map(
             (d) => `
               <tr>
@@ -770,7 +806,10 @@ export default function FaturamentoCompraPage() {
                 <td>${escapeHtml(d.pedido)}</td>
                 <td>${escapeHtml(d.fornecedor)}</td>
                 <td>${escapeHtml(d.status)}</td>
-                <td class="num">${money(d.valor)}</td>
+                <td>${escapeHtml(d.produto)}</td>
+                <td class="num">${d.preco.toLocaleString("pt-BR", { minimumFractionDigits: 5, maximumFractionDigits: 5 })}</td>
+                <td class="num">${d.quantidade.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
+                <td class="num">${money(d.totalItem)}</td>
               </tr>
             `
           )
@@ -793,7 +832,10 @@ export default function FaturamentoCompraPage() {
                   <th>Pedido</th>
                   <th>Fornecedor</th>
                   <th>Status</th>
-                  <th class="num">Valor</th>
+                  <th>Produto</th>
+                  <th class="num">Preço</th>
+                  <th class="num">Quantidade</th>
+                  <th class="num">Total item</th>
                 </tr>
               </thead>
               <tbody>${rows}</tbody>
@@ -806,7 +848,7 @@ export default function FaturamentoCompraPage() {
       "Analítico de Faturamento",
       `
         <h1>Relatório Analítico de Faturamento</h1>
-        <p class="muted">Agrupado por Safra, Grupo e Produtor · Gerado em ${new Date().toLocaleString("pt-BR")}</p>
+        <p class="muted">Agrupado por Safra, Grupo, Produtor e Vencimento · Gerado em ${new Date().toLocaleString("pt-BR")}</p>
         ${htmlGroups || '<p class="muted">Sem dados para os filtros selecionados.</p>'}
       `
     );
