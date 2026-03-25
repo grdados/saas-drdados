@@ -528,6 +528,290 @@ export default function FaturamentoCompraPage() {
 
   const optionStyle = { backgroundColor: "#e5e7eb", color: "#111827" } as const;
 
+  function escapeHtml(value: string) {
+    return value
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+
+  function openPrintHtml(title: string, htmlBody: string, orientation: "portrait" | "landscape" = "landscape") {
+    const generatedAt = new Date().toLocaleString("pt-BR");
+    const logoUrl = `${window.location.origin}/logo_horizontal.png`;
+    const html = `
+      <!doctype html>
+      <html lang="pt-BR">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>${escapeHtml(title)}</title>
+        <style>
+          @page { size: A4 ${orientation}; margin: 12mm 10mm; }
+          body { font-family: Arial, sans-serif; margin: 0; padding: 0; color: #111; background: #fff; }
+          .page { padding: 14px 10px 10px; }
+          .header {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 12px;
+            align-items: center;
+            border: 1px solid #e4e4e7;
+            border-radius: 10px;
+            padding: 8px 10px;
+            margin-bottom: 12px;
+          }
+          .logo-wrap { display: flex; align-items: center; }
+          .logo-wrap img { max-height: 52px; width: auto; object-fit: contain; }
+          .header-info { text-align: right; }
+          .header-title { margin: 0; font-size: 18px; font-weight: 800; }
+          .header-meta { margin-top: 4px; color: #52525b; font-size: 11px; line-height: 1.4; }
+          h1 { margin: 0 0 8px; font-size: 24px; }
+          .muted { color: #555; font-size: 12px; }
+          .group { border: 1px solid #d7d7d7; border-radius: 10px; padding: 10px; margin-top: 12px; }
+          .group h3 { margin: 0 0 8px; font-size: 15px; }
+          .kpi { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+          .card { border: 1px solid #e2e2e2; border-radius: 8px; padding: 8px; }
+          .label { color: #666; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+          .value { margin-top: 4px; font-size: 18px; font-weight: 700; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+          th, td { border: 1px solid #e2e2e2; padding: 6px 8px; text-align: left; vertical-align: top; }
+          th { background: #f7f7f7; }
+          td.num, th.num { text-align: right; }
+          .footer {
+            margin-top: 16px;
+            border-top: 1px solid #e4e4e7;
+            padding-top: 8px;
+            color: #52525b;
+            font-size: 11px;
+            line-height: 1.45;
+          }
+          @media print {
+            .page { padding: 0; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="page">
+          <header class="header">
+            <div class="logo-wrap">
+              <img src="${logoUrl}" alt="GR Dados" />
+            </div>
+            <div class="header-info">
+              <p class="header-title">${escapeHtml(title)}</p>
+              <div class="header-meta">
+                Cliente: GR Dados Demo<br/>
+                Emissão: ${generatedAt}
+              </div>
+            </div>
+          </header>
+          ${htmlBody}
+          <footer class="footer">
+            <strong>GR Dados</strong> · Todos os direitos reservados<br/>
+            AV 22 de Abril, 519 - Centro - Laguna Carapã - MS · CEP 79920-000<br/>
+            Contato: (67) 99869-8159
+          </footer>
+        </div>
+      </body>
+      </html>
+    `;
+    try {
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const w = window.open(url, "_blank", "width=1280,height=900");
+      if (!w) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+      setTimeout(() => {
+        try {
+          w.focus();
+          w.print();
+        } catch {
+          // noop
+        }
+      }, 350);
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch {
+      // noop
+    }
+  }
+
+  function openResumoReport() {
+    const pedidoById = new Map(pedidos.map((p) => [p.id, p]));
+    type GroupSummary = {
+      safra: string;
+      grupo: string;
+      produtor: string;
+      notas: number;
+      totalFaturado: number;
+      totalPago: number;
+      saldoPagar: number;
+    };
+    const map = new Map<string, GroupSummary>();
+    for (const f of filtered) {
+      const pedidoRef = (f.pedido?.id ? pedidoById.get(f.pedido.id) : null) ?? null;
+      const safra = pedidoRef?.safra?.name ?? "SEM SAFRA";
+      const grupo = f.grupo?.name ?? "SEM GRUPO";
+      const produtor = f.produtor?.name ?? "SEM PRODUTOR";
+      const key = `${safra}__${grupo}__${produtor}`;
+      const totalFaturado = parseNumber(f.total_value);
+      const cp = (f as unknown as { conta_pagar?: { paid_amount?: string | number; amount?: string | number } | null }).conta_pagar;
+      const paidAmount = parseNumber(cp?.paid_amount ?? 0);
+      const saldo = Math.max(0, totalFaturado - paidAmount);
+      const curr = map.get(key) ?? { safra, grupo, produtor, notas: 0, totalFaturado: 0, totalPago: 0, saldoPagar: 0 };
+      curr.notas += 1;
+      curr.totalFaturado += totalFaturado;
+      curr.totalPago += paidAmount;
+      curr.saldoPagar += saldo;
+      map.set(key, curr);
+    }
+    const groups = [...map.values()].sort((a, b) =>
+      `${a.safra}|${a.grupo}|${a.produtor}`.localeCompare(`${b.safra}|${b.grupo}|${b.produtor}`, "pt-BR")
+    );
+    const totalFat = groups.reduce((acc, g) => acc + g.totalFaturado, 0);
+    const totalPago = groups.reduce((acc, g) => acc + g.totalPago, 0);
+    const totalSaldo = groups.reduce((acc, g) => acc + g.saldoPagar, 0);
+    const rows = groups
+      .map(
+        (g) => `
+          <tr>
+            <td>${escapeHtml(g.safra)}</td>
+            <td>${escapeHtml(g.grupo)}</td>
+            <td>${escapeHtml(g.produtor)}</td>
+            <td class="num">${g.notas}</td>
+            <td class="num">${money(g.totalFaturado)}</td>
+            <td class="num">${money(g.totalPago)}</td>
+            <td class="num">${money(g.saldoPagar)}</td>
+          </tr>
+        `
+      )
+      .join("");
+
+    openPrintHtml(
+      "Resumo de Faturamento",
+      `
+        <h1>Relatório Resumo de Faturamento</h1>
+        <p class="muted">Agrupado por Safra, Grupo e Produtor · Gerado em ${new Date().toLocaleString("pt-BR")}</p>
+        <div class="kpi" style="margin-top:12px">
+          <div class="card"><div class="label">Notas fiscais</div><div class="value">${filtered.length}</div></div>
+          <div class="card"><div class="label">Total faturado</div><div class="value">${money(totalFat)}</div></div>
+          <div class="card"><div class="label">Total pago</div><div class="value">${money(totalPago)}</div></div>
+          <div class="card"><div class="label">Saldo a pagar</div><div class="value">${money(totalSaldo)}</div></div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Safra</th>
+              <th>Grupo</th>
+              <th>Produtor</th>
+              <th class="num">NFs</th>
+              <th class="num">Total faturado</th>
+              <th class="num">Total pago</th>
+              <th class="num">Saldo a pagar</th>
+            </tr>
+          </thead>
+          <tbody>${rows || '<tr><td colspan="7">Sem dados para os filtros selecionados.</td></tr>'}</tbody>
+        </table>
+      `,
+      "portrait"
+    );
+  }
+
+  function openAnaliticoReport() {
+    const pedidoById = new Map(pedidos.map((p) => [p.id, p]));
+    type GroupAnalitico = {
+      safra: string;
+      grupo: string;
+      produtor: string;
+      docs: Array<{
+        nf: string;
+        data: string;
+        venc: string;
+        pedido: string;
+        fornecedor: string;
+        status: string;
+        valor: number;
+      }>;
+    };
+    const map = new Map<string, GroupAnalitico>();
+    for (const f of filtered) {
+      const pedidoRef = (f.pedido?.id ? pedidoById.get(f.pedido.id) : null) ?? null;
+      const safra = pedidoRef?.safra?.name ?? "SEM SAFRA";
+      const grupo = f.grupo?.name ?? "SEM GRUPO";
+      const produtor = f.produtor?.name ?? "SEM PRODUTOR";
+      const key = `${safra}__${grupo}__${produtor}`;
+      const status = fatStatusMeta(resolveFatStatus(f, cpStatusByFatId[f.id])).label;
+      const group = map.get(key) ?? { safra, grupo, produtor, docs: [] };
+      group.docs.push({
+        nf: f.invoice_number || `NF-${f.id}`,
+        data: prettyDateBR(f.date),
+        venc: prettyDateBR(f.due_date),
+        pedido: f.pedido?.code ?? "-",
+        fornecedor: f.fornecedor?.name ?? "-",
+        status,
+        valor: parseNumber(f.total_value)
+      });
+      map.set(key, group);
+    }
+    const groups = [...map.values()].sort((a, b) =>
+      `${a.safra}|${a.grupo}|${a.produtor}`.localeCompare(`${b.safra}|${b.grupo}|${b.produtor}`, "pt-BR")
+    );
+    const htmlGroups = groups
+      .map((g) => {
+        const total = g.docs.reduce((acc, d) => acc + d.valor, 0);
+        const rows = g.docs
+          .map(
+            (d) => `
+              <tr>
+                <td>${escapeHtml(d.nf)}</td>
+                <td>${escapeHtml(d.data)}</td>
+                <td>${escapeHtml(d.venc)}</td>
+                <td>${escapeHtml(d.pedido)}</td>
+                <td>${escapeHtml(d.fornecedor)}</td>
+                <td>${escapeHtml(d.status)}</td>
+                <td class="num">${money(d.valor)}</td>
+              </tr>
+            `
+          )
+          .join("");
+        return `
+          <section class="group">
+            <h3>${escapeHtml(g.safra)} · ${escapeHtml(g.grupo)} · ${escapeHtml(g.produtor)}</h3>
+            <div class="kpi">
+              <div class="card"><div class="label">NFs</div><div class="value">${g.docs.length}</div></div>
+              <div class="card"><div class="label">Total faturado</div><div class="value">${money(total)}</div></div>
+              <div class="card"><div class="label">Produtor</div><div class="value" style="font-size:16px">${escapeHtml(g.produtor)}</div></div>
+              <div class="card"><div class="label">Grupo</div><div class="value" style="font-size:16px">${escapeHtml(g.grupo)}</div></div>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Nota fiscal</th>
+                  <th>Data</th>
+                  <th>Vencimento</th>
+                  <th>Pedido</th>
+                  <th>Fornecedor</th>
+                  <th>Status</th>
+                  <th class="num">Valor</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </section>
+        `;
+      })
+      .join("");
+    openPrintHtml(
+      "Analítico de Faturamento",
+      `
+        <h1>Relatório Analítico de Faturamento</h1>
+        <p class="muted">Agrupado por Safra, Grupo e Produtor · Gerado em ${new Date().toLocaleString("pt-BR")}</p>
+        ${htmlGroups || '<p class="muted">Sem dados para os filtros selecionados.</p>'}
+      `
+    );
+  }
+
   return (
     <AuthedAdminShell>
       {() => (
@@ -553,6 +837,12 @@ export default function FaturamentoCompraPage() {
                 ))}
                 </select>
               </div>
+              <button onClick={openResumoReport} className="inline-flex items-center justify-center whitespace-nowrap rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-xs font-black text-white hover:bg-white/10">
+                Relatório resumo
+              </button>
+              <button onClick={openAnaliticoReport} className="inline-flex items-center justify-center whitespace-nowrap rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-xs font-black text-white hover:bg-white/10">
+                Relatório analítico
+              </button>
               <button onClick={openCreate} className="inline-flex items-center justify-center whitespace-nowrap rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">
                 Novo faturamento
               </button>
