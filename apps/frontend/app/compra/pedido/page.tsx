@@ -411,8 +411,6 @@ export default function PedidoCompraPage() {
   }
 
   function openPrintHtml(title: string, htmlBody: string) {
-    const w = window.open("", "_blank", "noopener,noreferrer,width=1280,height=900");
-    if (!w) return;
     const html = `
       <!doctype html>
       <html lang="pt-BR">
@@ -442,17 +440,26 @@ export default function PedidoCompraPage() {
       </body>
       </html>
     `;
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    setTimeout(() => {
-      try {
-        w.focus();
-        w.print();
-      } catch {
-        // noop
+    try {
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const w = window.open(url, "_blank", "width=1280,height=900");
+      if (!w) {
+        URL.revokeObjectURL(url);
+        return;
       }
-    }, 300);
+      setTimeout(() => {
+        try {
+          w.focus();
+          w.print();
+        } catch {
+          // noop
+        }
+      }, 350);
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    } catch {
+      // noop
+    }
   }
 
   function openResumoReport() {
