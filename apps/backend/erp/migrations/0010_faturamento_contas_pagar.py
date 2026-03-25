@@ -5,6 +5,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
     dependencies = [
         ("erp", "0009_pedido_compra_grupo_produtor_status_pending"),
+        ("accounts", "0001_initial"),
     ]
 
     operations = [
@@ -32,7 +33,7 @@ class Migration(migrations.Migration):
                 ("total_value", models.DecimalField(decimal_places=2, default=0, max_digits=14)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
-                ("company", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="billing.company")),
+                ("company", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="accounts.company")),
                 ("fornecedor", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, to="erp.fornecedor")),
                 ("grupo", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, to="erp.grupoprodutor")),
                 ("operacao", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, to="erp.operacao")),
@@ -52,7 +53,7 @@ class Migration(migrations.Migration):
                 ("total_item", models.DecimalField(decimal_places=2, default=0, max_digits=14)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
-                ("company", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="billing.company")),
+                ("company", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="accounts.company")),
                 ("faturamento", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="items", to="erp.faturamentocompra")),
                 ("pedido_item", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, to="erp.pedidocompraitem")),
                 ("produto", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, to="erp.insumo")),
@@ -72,7 +73,7 @@ class Migration(migrations.Migration):
                 ("status", models.CharField(choices=[("open", "Em aberto"), ("paid", "Pago"), ("canceled", "Cancelado")], default="open", max_length=20)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
-                ("company", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="billing.company")),
+                ("company", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to="accounts.company")),
                 ("faturamento", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, to="erp.faturamentocompra")),
                 ("fornecedor", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, to="erp.fornecedor")),
                 ("grupo", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, to="erp.grupoprodutor")),
@@ -109,4 +110,3 @@ class Migration(migrations.Migration):
             index=models.Index(fields=["company", "status"], name="erp_contap_company_e4660b_idx"),
         ),
     ]
-
