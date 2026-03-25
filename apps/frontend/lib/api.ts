@@ -823,6 +823,10 @@ export function updatePedidoCompra(
   );
 }
 
+export function deletePedidoCompra(token: string, id: number) {
+  return request<void>(`/api/erp/compras/pedidos/${id}/`, { method: "DELETE" }, token);
+}
+
 export type FaturamentoCompraItem = {
   id: number;
   pedido_item_id?: number | null;
@@ -850,8 +854,9 @@ export type FaturamentoCompra = {
   deposito_id?: number | null;
   operacao: { id: number; name: string; kind: string } | null;
   operacao_id?: number | null;
+  payment_method?: "pix" | "boleto" | "transfer" | "card" | "cash" | "other";
   due_date: string | null;
-  status: "pending" | "overdue" | "partial" | "paid";
+  status: "pending" | "overdue" | "partial" | "paid" | "canceled";
   total_value: string;
   items: FaturamentoCompraItem[];
   created_at: string;
@@ -873,6 +878,7 @@ export function createFaturamentoCompra(
     fornecedor_id: number | null;
     deposito_id: number | null;
     operacao_id: number | null;
+    payment_method: "pix" | "boleto" | "transfer" | "card" | "cash" | "other";
     due_date: string | null;
     items: Array<{
       pedido_item_id: number | null;
@@ -900,6 +906,7 @@ export function updateFaturamentoCompra(
     fornecedor_id: number | null;
     deposito_id: number | null;
     operacao_id: number | null;
+    payment_method: "pix" | "boleto" | "transfer" | "card" | "cash" | "other";
     due_date: string | null;
     items: Array<{
       pedido_item_id: number | null;
@@ -913,6 +920,10 @@ export function updateFaturamentoCompra(
     { method: "PATCH", body: JSON.stringify(payload) },
     token
   );
+}
+
+export function deleteFaturamentoCompra(token: string, id: number) {
+  return request<void>(`/api/erp/compras/faturamentos/${id}/`, { method: "DELETE" }, token);
 }
 
 export type ContaPagar = {
@@ -929,6 +940,11 @@ export type ContaPagar = {
   total_value: string;
   paid_value: string;
   balance_value: string;
+  discount_value: string;
+  addition_value: string;
+  payment_date: string | null;
+  payment_method: "pix" | "boleto" | "transfer" | "card" | "cash" | "other";
+  conta: { id: number; name: string } | null;
   status: string;
   created_at: string;
   updated_at: string;
@@ -941,7 +957,16 @@ export function listContasAPagar(token: string) {
 export function updateContaPagarStatus(
   token: string,
   id: number,
-  payload: { status?: "open" | "partial" | "paid" | "canceled"; paid_value?: number | string }
+  payload: {
+    status?: "open" | "overdue" | "partial" | "paid" | "canceled";
+    paid_value?: number | string;
+    payment_increment?: number | string;
+    payment_date?: string | null;
+    discount_value?: number | string;
+    addition_value?: number | string;
+    payment_method?: "pix" | "boleto" | "transfer" | "card" | "cash" | "other";
+    conta_id?: number | null;
+  }
 ) {
   return request<ContaPagar>(
     `/api/erp/financeiro/contas-a-pagar/${id}/`,

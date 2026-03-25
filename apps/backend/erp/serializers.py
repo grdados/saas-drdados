@@ -390,6 +390,10 @@ class ContaPagarSerializer(serializers.ModelSerializer):
     operacao_id = serializers.PrimaryKeyRelatedField(
         source="operacao", queryset=models.Operacao.objects.all(), allow_null=True, required=False
     )
+    conta = serializers.SerializerMethodField()
+    conta_id = serializers.PrimaryKeyRelatedField(
+        source="conta", queryset=models.Conta.objects.all(), allow_null=True, required=False
+    )
 
     pedido = serializers.SerializerMethodField()
     pedido_id = serializers.PrimaryKeyRelatedField(
@@ -399,6 +403,7 @@ class ContaPagarSerializer(serializers.ModelSerializer):
     faturamento_id = serializers.PrimaryKeyRelatedField(
         source="faturamento", queryset=models.FaturamentoCompra.objects.all(), allow_null=True, required=False
     )
+    payment_increment = serializers.DecimalField(max_digits=14, decimal_places=2, required=False, write_only=True, min_value=0)
 
     class Meta:
         model = models.ContaPagar
@@ -422,6 +427,13 @@ class ContaPagarSerializer(serializers.ModelSerializer):
             "total_value",
             "paid_value",
             "balance_value",
+            "discount_value",
+            "addition_value",
+            "payment_date",
+            "payment_method",
+            "conta",
+            "conta_id",
+            "payment_increment",
             "status",
             "created_at",
             "updated_at",
@@ -457,48 +469,88 @@ class ContaPagarSerializer(serializers.ModelSerializer):
             return None
         return {"id": obj.faturamento_id, "invoice_number": obj.faturamento.invoice_number}
 
+    def get_conta(self, obj):
+        if not getattr(obj, "conta_id", None):
+            return None
+        return {"id": obj.conta_id, "name": obj.conta.name}
+
     def _map_faturamento_status(self, conta_status: str, due_date):
         if conta_status == models.ContaPagar.Status.PAID:
             return models.FaturamentoCompra.Status.PAID
         if conta_status == models.ContaPagar.Status.PARTIAL:
             return models.FaturamentoCompra.Status.PARTIAL
+        if conta_status == models.ContaPagar.Status.OVERDUE:
+            return models.FaturamentoCompra.Status.OVERDUE
         if conta_status == models.ContaPagar.Status.CANCELED:
-            return models.FaturamentoCompra.Status.PENDING
+            return models.FaturamentoCompra.Status.CANCELED
         if due_date and due_date < date.today():
             return models.FaturamentoCompra.Status.OVERDUE
         return models.FaturamentoCompra.Status.PENDING
 
     def validate(self, attrs):
+        company = get_current_company(self.context["request"].user) if self.context.get("request") else None
+        _validate_fk_company(attrs.get("conta"), company, "conta_id")
+
         current_total = getattr(self.instance, "total_value", Decimal("0")) if self.instance else Decimal("0")
         current_paid = getattr(self.instance, "paid_value", Decimal("0")) if self.instance else Decimal("0")
+        current_discount = getattr(self.instance, "discount_value", Decimal("0")) if self.instance else Decimal("0")
+        current_addition = getattr(self.instance, "addition_value", Decimal("0")) if self.instance else Decimal("0")
         total = attrs.get("total_value", current_total) or Decimal("0")
         paid = attrs.get("paid_value", current_paid) or Decimal("0")
+        discount = attrs.get("discount_value", current_discount) or Decimal("0")
+        addition = attrs.get("addition_value", current_addition) or Decimal("0")
+        increment = attrs.get("payment_increment")
 
         if paid < 0:
             raise serializers.ValidationError({"paid_value": "Valor pago nao pode ser negativo."})
-        if paid > total:
-            raise serializers.ValidationError({"paid_value": "Valor pago nao pode ser maior que o valor total."})
+        if discount < 0:
+            raise serializers.ValidationError({"discount_value": "Desconto nao pode ser negativo."})
+        if addition < 0:
+            raise serializers.ValidationError({"addition_value": "Acrescimo nao pode ser negativo."})
+        if increment is not None and increment < 0:
+            raise serializers.ValidationError({"payment_increment": "Valor de pagamento nao pode ser negativo."})
+
+        effective_total = total + addition - discount
+        if effective_total < 0:
+            effective_total = Decimal("0")
+        if paid > effective_total:
+            raise serializers.ValidationError({"paid_value": "Valor pago nao pode ser maior que o valor total ajustado."})
         return attrs
 
     def update(self, instance, validated_data):
+        increment = validated_data.pop("payment_increment", None)
         obj = super().update(instance, validated_data)
         total = obj.total_value or Decimal("0")
+        discount = obj.discount_value or Decimal("0")
+        addition = obj.addition_value or Decimal("0")
         paid = obj.paid_value or Decimal("0")
+        if increment is not None:
+            paid += increment
         if paid < 0:
             paid = Decimal("0")
-        if paid > total:
-            paid = total
+        effective_total = total + addition - discount
+        if effective_total < 0:
+            effective_total = Decimal("0")
+        if paid > effective_total:
+            paid = effective_total
 
-        if total > 0 and paid >= total:
+        if obj.status == models.ContaPagar.Status.CANCELED:
+            # keep canceled status untouched
+            pass
+        elif effective_total > 0 and paid >= effective_total:
             obj.status = models.ContaPagar.Status.PAID
         elif paid > 0:
             obj.status = models.ContaPagar.Status.PARTIAL
-        elif obj.status not in {models.ContaPagar.Status.CANCELED}:
+        elif obj.due_date and obj.due_date < date.today():
+            obj.status = models.ContaPagar.Status.OVERDUE
+        else:
             obj.status = models.ContaPagar.Status.OPEN
 
         obj.paid_value = paid
-        obj.balance_value = max(Decimal("0"), total - paid)
-        obj.save(update_fields=["status", "paid_value", "balance_value", "updated_at"])
+        obj.balance_value = max(Decimal("0"), effective_total - paid)
+        if paid > 0 and not obj.payment_date:
+            obj.payment_date = date.today()
+        obj.save(update_fields=["status", "paid_value", "balance_value", "payment_date", "updated_at"])
 
         if obj.faturamento_id:
             fat = obj.faturamento
@@ -591,6 +643,7 @@ class FaturamentoCompraSerializer(serializers.ModelSerializer):
             "deposito_id",
             "operacao",
             "operacao_id",
+            "payment_method",
             "due_date",
             "status",
             "total_value",
@@ -715,6 +768,7 @@ class FaturamentoCompraSerializer(serializers.ModelSerializer):
                 "produtor": fat.produtor,
                 "fornecedor": fat.fornecedor,
                 "operacao": fat.operacao,
+                "payment_method": fat.payment_method,
                 "pedido": fat.pedido,
                 "total_value": fat.total_value,
                 "paid_value": Decimal("0"),

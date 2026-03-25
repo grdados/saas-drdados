@@ -6,6 +6,7 @@ import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
 import {
   createPedidoCompra,
+  deletePedidoCompra,
   FornecedorGerencial,
   GrupoProdutor,
   Insumo,
@@ -305,6 +306,24 @@ export default function PedidoCompraPage() {
     }
   }
 
+  async function onDelete(id: number) {
+    const token = getAccessToken();
+    if (!token) return;
+    const ok = window.confirm("Excluir este pedido?");
+    if (!ok) return;
+    try {
+      await deletePedidoCompra(token, id);
+      setPedidos((prev) => prev.filter((p) => p.id !== id));
+      if (editingId === id) {
+        setOpen(false);
+        setEditingId(null);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError((msg || "").trim() || "Falha ao excluir pedido.");
+    }
+  }
+
   const optionStyle = { backgroundColor: "#e5e7eb", color: "#111827" } as const;
 
   return (
@@ -374,9 +393,10 @@ export default function PedidoCompraPage() {
               <div className="col-span-2">Pedido</div>
               <div className="col-span-2">Grupo</div>
               <div className="col-span-2">Produtor</div>
-              <div className="col-span-2">Fornecedor</div>
+              <div className="col-span-1">Fornecedor</div>
               <div className="col-span-1 text-right">Valor</div>
               <div className="col-span-1 text-right">Status</div>
+              <div className="col-span-1 text-right">Ações</div>
             </div>
             <div className="mt-3 space-y-2">
               {filtered.map((p) => (
@@ -388,7 +408,7 @@ export default function PedidoCompraPage() {
                     </div>
                     <div className="md:col-span-2"><p className="truncate text-sm font-semibold text-zinc-100">{p.grupo?.name ?? "-"}</p></div>
                     <div className="md:col-span-2"><p className="truncate text-sm font-semibold text-zinc-100">{p.produtor?.name ?? "-"}</p></div>
-                    <div className="md:col-span-2"><p className="truncate text-sm font-semibold text-zinc-100">{p.fornecedor?.name ?? "-"}</p></div>
+                    <div className="md:col-span-1"><p className="truncate text-sm font-semibold text-zinc-100">{p.fornecedor?.name ?? "-"}</p></div>
                     <div className="md:col-span-1 md:text-right">
                       <p className="text-sm font-black text-zinc-100">R$ {Number(p.total_value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                     </div>
@@ -397,6 +417,34 @@ export default function PedidoCompraPage() {
                         const meta = statusBadge(p.status);
                         return <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>;
                       })()}
+                    </div>
+                    <div className="md:col-span-1">
+                      <div className="flex justify-end gap-1.5">
+                        <button
+                          onClick={() => openEdit(p.id)}
+                          className="rounded-xl border border-sky-400/25 bg-sky-500/10 p-2 text-sky-200 hover:bg-sky-500/20"
+                          title="Editar"
+                          aria-label="Editar"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => onDelete(p.id)}
+                          className="rounded-xl border border-rose-400/25 bg-rose-500/10 p-2 text-rose-200 hover:bg-rose-500/20"
+                          title="Excluir"
+                          aria-label="Excluir"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 6h18" />
+                            <path d="M8 6V4h8v2" />
+                            <path d="M19 6l-1 14H6L5 6" />
+                            <path d="M10 11v6M14 11v6" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div className="mt-2 flex justify-end">

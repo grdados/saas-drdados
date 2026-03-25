@@ -458,6 +458,34 @@ export function AdminShell({
                   </div>
                 </div>
 
+                <a
+                  href="https://wa.me/5567998698159"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group relative inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-emerald-400/25 bg-emerald-500/15 text-emerald-100 hover:bg-emerald-500/25"
+                  title="WhatsApp"
+                  aria-label="WhatsApp"
+                >
+                  <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none">
+                    <path
+                      d="M20.52 3.48A11.86 11.86 0 0 0 12.02 0C5.4 0 .02 5.38.02 12a11.93 11.93 0 0 0 1.58 5.95L0 24l6.2-1.63A12 12 0 0 0 12.02 24C18.64 24 24 18.62 24 12c0-3.2-1.25-6.2-3.48-8.52Z"
+                      fill="currentColor"
+                      opacity="0.24"
+                    />
+                    <path
+                      d="M17.42 14.45c-.3-.15-1.77-.87-2.05-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.88-.79-1.48-1.77-1.65-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.48-.5-.67-.5h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.5s1.06 2.9 1.21 3.1c.15.2 2.08 3.18 5.04 4.46.7.3 1.24.48 1.66.61.7.22 1.33.19 1.83.12.56-.08 1.77-.72 2.02-1.42.25-.7.25-1.3.17-1.42-.07-.12-.27-.2-.57-.35Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                  <span className="absolute -right-0.5 -top-0.5 inline-flex h-3.5 w-3.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
+                    <span className="relative inline-flex h-3.5 w-3.5 rounded-full border border-zinc-950 bg-emerald-400" />
+                  </span>
+                  <span className="pointer-events-none absolute right-0 top-12 z-20 whitespace-nowrap rounded-lg border border-emerald-400/30 bg-zinc-950/95 px-2.5 py-1 text-xs font-bold text-emerald-200 opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
+                    WhatsApp: (67) 99869-8159
+                  </span>
+                </a>
+
                 <div className="relative">
                   <button
                     onClick={() => setProfileOpen((v) => !v)}

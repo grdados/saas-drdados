@@ -245,8 +245,18 @@ class FaturamentoCompra(models.Model):
         OVERDUE = "overdue", "Vencido"
         PARTIAL = "partial", "Parcial"
         PAID = "paid", "Pago"
+        CANCELED = "canceled", "Cancelado"
+
+    class PaymentMethod(models.TextChoices):
+        PIX = "pix", "PIX"
+        BOLETO = "boleto", "Boleto"
+        TRANSFER = "transfer", "Transferencia"
+        CARD = "card", "Cartao"
+        CASH = "cash", "Dinheiro"
+        OTHER = "other", "Outro"
 
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices, default=PaymentMethod.PIX)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -290,6 +300,7 @@ class FaturamentoCompraItem(models.Model):
 class ContaPagar(models.Model):
     class Status(models.TextChoices):
         OPEN = "open", "Em aberto"
+        OVERDUE = "overdue", "Vencido"
         PARTIAL = "partial", "Parcial"
         PAID = "paid", "Pago"
         CANCELED = "canceled", "Cancelado"
@@ -311,6 +322,11 @@ class ContaPagar(models.Model):
     total_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     paid_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     balance_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    discount_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    addition_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    payment_date = models.DateField(null=True, blank=True)
+    payment_method = models.CharField(max_length=20, choices=FaturamentoCompra.PaymentMethod.choices, default=FaturamentoCompra.PaymentMethod.PIX)
+    conta = models.ForeignKey("erp.Conta", null=True, blank=True, on_delete=models.PROTECT)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN)
 
     created_at = models.DateTimeField(auto_now_add=True)

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { usePathname } from "next/navigation";
 
 function formatWhatsAppLink(message: string) {
   const phone = "5567998698159";
@@ -9,7 +10,25 @@ function formatWhatsAppLink(message: string) {
 }
 
 export function FloatingWhatsAppButton() {
-  const href = useMemo(() => formatWhatsAppLink("Olá! Quero falar sobre um projeto com a GR Dados."), []);
+  const pathname = usePathname();
+  const href = useMemo(() => formatWhatsAppLink("Ola! Quero falar sobre um projeto com a GR Dados."), []);
+  const isPanelRoute = useMemo(
+    () =>
+      [
+        "/dashboard",
+        "/cadastros",
+        "/compra",
+        "/financeiro",
+        "/producao",
+        "/venda",
+        "/estoque",
+        "/settings",
+        "/account"
+      ].some((prefix) => pathname === prefix || pathname.startsWith(prefix + "/")),
+    [pathname]
+  );
+
+  if (isPanelRoute) return null;
 
   return (
     <a

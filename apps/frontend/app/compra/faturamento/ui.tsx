@@ -6,6 +6,7 @@ import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
 import {
   createFaturamentoCompra,
+  deleteFaturamentoCompra,
   Deposito,
   FaturamentoCompra,
   isApiError,
@@ -22,7 +23,8 @@ import {
   Operacao,
   PedidoCompra,
   Produtor,
-  Safra
+  Safra,
+  updateFaturamentoCompra
 } from "@/lib/api";
 import { toUpperText } from "@/lib/text";
 
@@ -46,7 +48,7 @@ function money(n: number) {
   return `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-type FatStatus = "pending" | "overdue" | "partial" | "paid";
+type FatStatus = "pending" | "overdue" | "partial" | "paid" | "canceled";
 
 function monthLabel(date: Date) {
   return date.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(".", "");
@@ -55,6 +57,7 @@ function monthLabel(date: Date) {
 function resolveFatStatus(fat: FaturamentoCompra, cpStatus?: "open" | "partial" | "paid" | "canceled"): FatStatus {
   if (cpStatus === "paid") return "paid";
   if (cpStatus === "partial") return "partial";
+  if (cpStatus === "canceled") return "canceled";
   const s = fat.status as string | undefined;
   if (s === "paid" || s === "partial" || s === "overdue" || s === "pending") return s;
   if (fat.due_date && new Date(fat.due_date) < new Date(new Date().toDateString())) return "overdue";
@@ -65,6 +68,7 @@ function fatStatusMeta(status: FatStatus) {
   if (status === "paid") return { label: "Pago", cls: "border-emerald-400/30 bg-emerald-500/15 text-emerald-200" };
   if (status === "partial") return { label: "Parcial", cls: "border-sky-400/30 bg-sky-500/15 text-sky-200" };
   if (status === "overdue") return { label: "Vencido", cls: "border-rose-400/30 bg-rose-500/15 text-rose-200" };
+  if (status === "canceled") return { label: "Cancelado", cls: "border-zinc-400/30 bg-zinc-500/15 text-zinc-200" };
   return { label: "Pendente", cls: "border-amber-400/30 bg-amber-500/15 text-amber-200" };
 }
 
@@ -150,6 +154,7 @@ export default function FaturamentoCompraPage() {
   const [reportTo, setReportTo] = useState("");
 
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [formDate, setFormDate] = useState("");
   const [formNF, setFormNF] = useState("");
   const [formSafraId, setFormSafraId] = useState<number | "">("");
@@ -160,6 +165,7 @@ export default function FaturamentoCompraPage() {
   const [formFornecedorId, setFormFornecedorId] = useState<number | "">("");
   const [formDepositoId, setFormDepositoId] = useState<number | "">("");
   const [formOperacaoId, setFormOperacaoId] = useState<number | "">("");
+  const [formPaymentMethod, setFormPaymentMethod] = useState<"pix" | "boleto" | "transfer" | "card" | "cash" | "other">("pix");
   const [rows, setRows] = useState<Array<{ pedido_item_id: number | null; quantity: string; price: string }>>([]);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
@@ -273,7 +279,7 @@ export default function FaturamentoCompraPage() {
   }, [insumos]);
 
   const statusCounts = useMemo(() => {
-    const acc: Record<FatStatus, number> = { pending: 0, overdue: 0, partial: 0, paid: 0 };
+    const acc: Record<FatStatus, number> = { pending: 0, overdue: 0, partial: 0, paid: 0, canceled: 0 };
     for (const f of filtered) {
       acc[resolveFatStatus(f, cpStatusByFatId[f.id])] += 1;
     }
@@ -416,12 +422,17 @@ export default function FaturamentoCompraPage() {
         fornecedor_id: formFornecedorId === "" ? null : Number(formFornecedorId),
         deposito_id: formDepositoId === "" ? null : Number(formDepositoId),
         operacao_id: formOperacaoId === "" ? null : Number(formOperacaoId),
+        payment_method: formPaymentMethod,
         due_date: formDueDate || null,
         items: rows.map((r) => ({ pedido_item_id: r.pedido_item_id, quantity: toApiDecimal(r.quantity), price: toApiDecimal(r.price) }))
       };
-      const res = await createFaturamentoCompra(token, payload);
-      setFats((prev) => [res, ...prev]);
+      const res = editingId
+        ? await updateFaturamentoCompra(token, editingId, payload)
+        : await createFaturamentoCompra(token, payload);
+      if (editingId) setFats((prev) => prev.map((x) => (x.id === editingId ? res : x)));
+      else setFats((prev) => [res, ...prev]);
       setOpen(false);
+      setEditingId(null);
       await refresh();
     } catch (err) {
       if (isApiError(err) && err.status === 401) {
@@ -431,6 +442,60 @@ export default function FaturamentoCompraPage() {
       setSaveMessage(err instanceof Error ? err.message : "Falha ao salvar faturamento.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  function openCreate() {
+    setEditingId(null);
+    setOpen(true);
+    setFormDate("");
+    setFormNF("");
+    setFormSafraId(safraId === "" ? "" : Number(safraId));
+    setFormGrupoId("");
+    setFormProdutorId("");
+    setFormPedidoId("");
+    setFormDueDate("");
+    setFormFornecedorId("");
+    setFormDepositoId("");
+    setFormOperacaoId("");
+    setFormPaymentMethod("pix");
+    setRows([{ pedido_item_id: null, quantity: "0", price: "0" }]);
+  }
+
+  function openEdit(f: FaturamentoCompra) {
+    setEditingId(f.id);
+    setOpen(true);
+    setFormDate(f.date ?? "");
+    setFormNF(f.invoice_number ?? "");
+    setFormSafraId(f.pedido?.id ? (pedidos.find((p) => p.id === f.pedido?.id)?.safra?.id ?? "") : "");
+    setFormGrupoId(f.grupo?.id ?? "");
+    setFormProdutorId(f.produtor?.id ?? "");
+    setFormPedidoId(f.pedido?.id ?? "");
+    setFormDueDate(f.due_date ?? "");
+    setFormFornecedorId(f.fornecedor?.id ?? "");
+    setFormDepositoId(f.deposito?.id ?? "");
+    setFormOperacaoId(f.operacao?.id ?? "");
+    setFormPaymentMethod((f.payment_method as typeof formPaymentMethod) ?? "pix");
+    setRows(
+      (f.items || []).map((it) => ({
+        pedido_item_id: (it as unknown as { pedido_item_id?: number | null }).pedido_item_id ?? null,
+        quantity: String(it.quantity ?? "0"),
+        price: String(it.price ?? "0")
+      }))
+    );
+    if ((f.items || []).length === 0) setRows([{ pedido_item_id: null, quantity: "0", price: "0" }]);
+  }
+
+  async function onDelete(id: number) {
+    const token = getAccessToken();
+    if (!token) return;
+    const ok = window.confirm("Excluir este faturamento?");
+    if (!ok) return;
+    try {
+      await deleteFaturamentoCompra(token, id);
+      setFats((prev) => prev.filter((x) => x.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao excluir faturamento.");
     }
   }
 
@@ -458,7 +523,7 @@ export default function FaturamentoCompraPage() {
                   </option>
                 ))}
               </select>
-              <button onClick={() => { setOpen(true); setFormSafraId(safraId === "" ? "" : Number(safraId)); setFormDepositoId(""); setRows([{ pedido_item_id: null, quantity: "0", price: "0" }]); }} className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">
+              <button onClick={openCreate} className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">
                 Novo faturamento
               </button>
             </div>
@@ -548,9 +613,10 @@ export default function FaturamentoCompraPage() {
               <div className="col-span-2">Nota Fiscal</div>
               <div className="col-span-2">Grupo</div>
               <div className="col-span-2">Produtor</div>
-              <div className="col-span-2">Fornecedor</div>
+              <div className="col-span-1">Fornecedor</div>
               <div className="col-span-1">Pedido</div>
               <div className="col-span-1 text-right">Status/Valor</div>
+              <div className="col-span-1 text-right">Ações</div>
             </div>
             <div className="mt-3 space-y-2">
               {filtered.map((f) => (
@@ -560,7 +626,7 @@ export default function FaturamentoCompraPage() {
                     <div className="md:col-span-2"><p className="truncate text-sm font-black text-white">{f.invoice_number || `#${f.id}`}</p></div>
                     <div className="md:col-span-2"><p className="truncate text-sm font-semibold text-zinc-100">{f.grupo?.name ?? "-"}</p></div>
                     <div className="md:col-span-2"><p className="truncate text-sm font-semibold text-zinc-100">{f.produtor?.name ?? "-"}</p></div>
-                    <div className="md:col-span-2"><p className="truncate text-sm font-semibold text-zinc-100">{f.fornecedor?.name ?? "-"}</p></div>
+                    <div className="md:col-span-1"><p className="truncate text-sm font-semibold text-zinc-100">{f.fornecedor?.name ?? "-"}</p></div>
                     <div className="md:col-span-1"><p className="text-sm font-semibold text-zinc-100">{f.pedido?.code ?? "-"}</p></div>
                     <div className="md:col-span-1 md:text-right">
                       <p className="text-sm font-black text-zinc-100">{money(parseNumber(f.total_value))}</p>
@@ -568,6 +634,34 @@ export default function FaturamentoCompraPage() {
                         const meta = fatStatusMeta(resolveFatStatus(f, cpStatusByFatId[f.id]));
                         return <span className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>;
                       })()}
+                    </div>
+                    <div className="md:col-span-1">
+                      <div className="flex justify-end gap-1.5">
+                        <button
+                          onClick={() => openEdit(f)}
+                          className="rounded-xl border border-sky-400/25 bg-sky-500/10 p-2 text-sky-200 hover:bg-sky-500/20"
+                          title="Editar"
+                          aria-label="Editar"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => onDelete(f.id)}
+                          className="rounded-xl border border-rose-400/25 bg-rose-500/10 p-2 text-rose-200 hover:bg-rose-500/20"
+                          title="Excluir"
+                          aria-label="Excluir"
+                        >
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M3 6h18" />
+                            <path d="M8 6V4h8v2" />
+                            <path d="M19 6l-1 14H6L5 6" />
+                            <path d="M10 11v6M14 11v6" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -582,7 +676,7 @@ export default function FaturamentoCompraPage() {
               <div className="relative w-full max-w-[1100px] overflow-hidden rounded-3xl border border-white/15 bg-zinc-900/85 shadow-2xl">
                 <div className="flex items-start justify-between gap-3 border-b border-white/10 p-5">
                   <div>
-                    <p className="text-sm font-black text-white">Novo faturamento</p>
+                    <p className="text-sm font-black text-white">{editingId ? "Editar faturamento" : "Novo faturamento"}</p>
                     <p className="mt-1 text-xs text-zinc-400">Formulario Pai e Itens (Filho).</p>
                   </div>
                   <button onClick={() => setOpen(false)} className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10" aria-label="Fechar modal" title="Fechar">
@@ -659,6 +753,18 @@ export default function FaturamentoCompraPage() {
                         {operacoesDespesa.map((o) => (<option key={o.id} value={o.id} style={optionStyle}>{o.name}</option>))}
                       </select>
                     </div>
+
+                    <div className="grid gap-2">
+                      <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Forma pagamento</label>
+                      <select value={formPaymentMethod} onChange={(e) => setFormPaymentMethod(e.target.value as typeof formPaymentMethod)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                        <option value="pix" style={optionStyle}>PIX</option>
+                        <option value="boleto" style={optionStyle}>Boleto</option>
+                        <option value="transfer" style={optionStyle}>Transferencia</option>
+                        <option value="card" style={optionStyle}>Cartao</option>
+                        <option value="cash" style={optionStyle}>Dinheiro</option>
+                        <option value="other" style={optionStyle}>Outro</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div className="mt-5 rounded-3xl border border-white/10 bg-white/5 p-4">
@@ -671,6 +777,18 @@ export default function FaturamentoCompraPage() {
                     <div className="mt-3 space-y-2">
                       {rows.map((r, idx) => {
                         const pi = itensPendentes.find((x) => x.id === r.pedido_item_id) ?? null;
+                        const allPedidoItems = pedidoSelecionado?.items || [];
+                        const selectedFromPedido = allPedidoItems.find((x) => x.id === r.pedido_item_id);
+                        const optionsItems = [...itensPendentes];
+                        if (selectedFromPedido && !optionsItems.some((x) => x.id === selectedFromPedido.id)) {
+                          optionsItems.push({
+                            ...selectedFromPedido,
+                            remaining: Math.max(
+                              0,
+                              parseNumber(selectedFromPedido.quantity) - parseNumber(selectedFromPedido.received_quantity ?? "0")
+                            )
+                          });
+                        }
                         const remaining = pi?.remaining ?? 0;
                         const defaultPrice = pi ? String(pi.price ?? "0") : "0";
                         return (
@@ -679,7 +797,7 @@ export default function FaturamentoCompraPage() {
                               <label className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">Produto</label>
                               <select value={r.pedido_item_id ?? ""} onChange={(e) => { const next = e.target.value === "" ? null : Number(e.target.value); if (next) { const found = itensPendentes.find((x) => x.id === next); setRows((prev) => prev.map((row, i) => i === idx ? { ...row, pedido_item_id: next, price: String(found?.price ?? defaultPrice) } : row)); } else { setRows((prev) => prev.map((row, i) => i === idx ? { ...row, pedido_item_id: null } : row)); } }} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                                 <option value="" style={optionStyle}>Produto pendente...</option>
-                                {itensPendentes.map((it) => (<option key={it.id} value={it.id} style={optionStyle}>{it.produto?.name ?? "PRODUTO"} · Saldo {it.remaining}</option>))}
+                                {optionsItems.map((it) => (<option key={it.id} value={it.id} style={optionStyle}>{it.produto?.name ?? "PRODUTO"} · Saldo {it.remaining}</option>))}
                               </select>
                             </div>
                             <div className="grid gap-1">
