@@ -747,7 +747,21 @@ class FaturamentoCompraSerializer(serializers.ModelSerializer):
             if not getattr(fat, "pedido_id", None) or pedido_item.pedido_id != fat.pedido_id:
                 raise serializers.ValidationError({"items": "Item não pertence ao pedido selecionado."})
 
-            remaining = (pedido_item.quantity or Decimal("0")) - (pedido_item.received_quantity or Decimal("0"))
+            billed = (
+                models.FaturamentoCompraItem.objects.filter(
+                    pedido_item=pedido_item,
+                    faturamento__status__in=[
+                        models.FaturamentoCompra.Status.PENDING,
+                        models.FaturamentoCompra.Status.OVERDUE,
+                        models.FaturamentoCompra.Status.PARTIAL,
+                        models.FaturamentoCompra.Status.PAID,
+                    ],
+                )
+                .exclude(faturamento_id=fat.id)
+                .aggregate(v=Coalesce(Sum("quantity"), Decimal("0")))["v"]
+                or Decimal("0")
+            )
+            remaining = (pedido_item.quantity or Decimal("0")) - billed
             if qty > remaining:
                 raise serializers.ValidationError({"items": f"Quantidade acima do saldo a faturar para '{pedido_item.produto.name if pedido_item.produto_id else 'PRODUTO'}'."})
 
@@ -763,15 +777,7 @@ class FaturamentoCompraSerializer(serializers.ModelSerializer):
             )
             total += obj.total_item
 
-            # atualiza recebido/status do item do pedido
-            pedido_item.received_quantity = (pedido_item.received_quantity or Decimal("0")) + qty
-            if pedido_item.received_quantity >= pedido_item.quantity:
-                pedido_item.status = models.PedidoCompraItem.ItemStatus.DELIVERED
-            elif pedido_item.received_quantity > 0:
-                pedido_item.status = models.PedidoCompraItem.ItemStatus.PARTIAL
-            else:
-                pedido_item.status = models.PedidoCompraItem.ItemStatus.PENDING
-            pedido_item.save(update_fields=["received_quantity", "status", "updated_at"])
+            # recebido/status é recalculado ao final por _recalc_pedido_status()
 
         fat.total_value = total
         fat.save(update_fields=["total_value", "updated_at"])

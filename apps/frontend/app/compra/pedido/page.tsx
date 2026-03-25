@@ -508,8 +508,8 @@ export default function PedidoCompraPage() {
                     <div className="text-right">
                       <p className="text-sm font-black text-zinc-100">R$ {Number(p.total_value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                     </div>
-                    <div>
-                      <div className="flex flex-nowrap justify-end gap-1.5">
+                    <div className="min-w-[120px] whitespace-nowrap">
+                      <div className="flex w-full flex-nowrap justify-end gap-1.5 whitespace-nowrap">
                         <button
                           onClick={() => openEdit(p.id)}
                           className="rounded-xl border border-sky-400/25 bg-sky-500/10 p-2 text-sky-200 hover:bg-sky-500/20"

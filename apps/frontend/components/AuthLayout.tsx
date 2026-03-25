@@ -7,10 +7,12 @@ import { SiteHeader } from "@/components/SiteHeader";
 export function AuthLayout({
   title,
   subtitle,
+  hideHeading = false,
   children
 }: {
   title: string;
   subtitle: string;
+  hideHeading?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -37,15 +39,14 @@ export function AuthLayout({
                 />
               </div>
 
-              <div className="text-center">
-                <span className="inline-flex rounded-full border border-accent-500/30 bg-accent-500/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.2em] text-accent-200">
-                  Portal GR Dados
-                </span>
-                <h1 className="mt-4 text-3xl font-black leading-tight text-white sm:text-[2rem]">{title}</h1>
-                <p className="mt-2 text-sm text-zinc-300">{subtitle}</p>
-              </div>
+              {!hideHeading ? (
+                <div className="text-center">
+                  <h1 className="mt-2 text-3xl font-black leading-tight text-white sm:text-[2rem]">{title}</h1>
+                  <p className="mt-2 text-sm text-zinc-300">{subtitle}</p>
+                </div>
+              ) : null}
 
-              <div className="mt-7">{children}</div>
+              <div className={hideHeading ? "mt-2" : "mt-7"}>{children}</div>
             </div>
           </div>
         </div>

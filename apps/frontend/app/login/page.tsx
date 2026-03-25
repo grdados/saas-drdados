@@ -35,7 +35,7 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthLayout title="Entrar no GR Dados" subtitle="Acesse seu ERP.">
+    <AuthLayout title="Entrar no GR Dados" subtitle="Acesse seu ERP." hideHeading>
       <form className="space-y-4" onSubmit={onSubmit}>
         <input
           value={username}

@@ -638,7 +638,7 @@ export default function FaturamentoCompraPage() {
               <p className="text-sm font-black text-white">Notas fiscais</p>
               <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
             </div>
-            <div className="mt-3 hidden grid-cols-[120px_96px_130px_130px_140px_90px_90px_130px_130px_100px_120px_96px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 md:grid">
+            <div className="mt-3 hidden grid-cols-[120px_96px_130px_130px_140px_90px_90px_130px_130px_100px_120px_96px_120px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 md:grid">
               <div>Status</div>
               <div>Data</div>
               <div>Nota Fiscal</div>
@@ -656,7 +656,7 @@ export default function FaturamentoCompraPage() {
             <div className="mt-3 space-y-2">
               {filtered.map((f) => (
                 <div key={f.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-4 py-3 hover:bg-white/5">
-                  <div className="grid grid-cols-1 gap-2 md:grid-cols-[120px_96px_130px_130px_140px_90px_90px_130px_130px_100px_120px_96px] md:items-center md:gap-3">
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-[120px_96px_130px_130px_140px_90px_90px_130px_130px_100px_120px_96px_120px] md:items-center md:gap-3">
                     <div>
                       {(() => {
                         const meta = fatStatusMeta(resolveFatStatus(f, cpStatusByFatId[f.id]));
@@ -700,8 +700,8 @@ export default function FaturamentoCompraPage() {
                     <div className="text-right">
                       <p className="text-sm font-black text-zinc-100">{money(parseNumber(f.total_value))}</p>
                     </div>
-                    <div className="whitespace-nowrap">
-                      <div className="flex flex-nowrap justify-end gap-1.5 whitespace-nowrap">
+                    <div className="min-w-[120px] whitespace-nowrap">
+                      <div className="flex w-full flex-nowrap justify-end gap-1.5 whitespace-nowrap">
                         <button
                           onClick={() => openEdit(f)}
                           className="rounded-xl border border-sky-400/25 bg-sky-500/10 p-2 text-sky-200 hover:bg-sky-500/20"
@@ -863,10 +863,7 @@ export default function FaturamentoCompraPage() {
                                   .filter((it) => it.remaining > 0 || it.id === r.pedido_item_id)
                                   .map((it) => (
                                     <option key={it.id} value={it.id} style={optionStyle}>
-                                      {`${it.produto?.name ?? "PRODUTO"} · Saldo pendente: ${it.remaining.toLocaleString("pt-BR", {
-                                        minimumFractionDigits: 3,
-                                        maximumFractionDigits: 3
-                                      })}`}
+                                      {it.produto?.name ?? "PRODUTO"}
                                     </option>
                                   ))}
                               </select>
@@ -904,7 +901,17 @@ export default function FaturamentoCompraPage() {
                     </div>
                   </div>
 
-                  {saveMessage ? <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3 text-sm font-semibold text-zinc-200">{saveMessage}</div> : null}
+                  {saveMessage ? (
+                    <div
+                      className={`mt-4 rounded-2xl border p-3 text-sm font-semibold ${
+                        /saldo|quantidade acima/i.test(saveMessage)
+                          ? "border-rose-500/30 bg-rose-500/10 text-rose-200"
+                          : "border-white/10 bg-white/5 text-zinc-200"
+                      }`}
+                    >
+                      {saveMessage}
+                    </div>
+                  ) : null}
 
                   <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
                     <button disabled={saving || formNF.trim().length < 1 || formPedidoId === ""} onClick={onSave} className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-5 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-60">
