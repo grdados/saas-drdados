@@ -610,6 +610,213 @@ export function updateProdutoEstoque(
   );
 }
 
+export type ClienteGerencial = {
+  id: number;
+  name: string;
+  doc: string;
+  ie: string;
+  address: string;
+  cep: string;
+  city: string;
+  uf: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export function listClientesGerencial(token: string) {
+  return request<ClienteGerencial[]>("/api/erp/clientes/", { method: "GET" }, token);
+}
+export function createClienteGerencial(
+  token: string,
+  payload: Partial<{
+    name: string;
+    doc: string;
+    ie: string;
+    address: string;
+    cep: string;
+    city: string;
+    uf: string;
+    is_active: boolean;
+  }>
+) {
+  return request<ClienteGerencial>("/api/erp/clientes/", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+export function updateClienteGerencial(
+  token: string,
+  id: number,
+  payload: Partial<{
+    name: string;
+    doc: string;
+    ie: string;
+    address: string;
+    cep: string;
+    city: string;
+    uf: string;
+    is_active: boolean;
+  }>
+) {
+  return request<ClienteGerencial>(`/api/erp/clientes/${id}/`, { method: "PATCH", body: JSON.stringify(payload) }, token);
+}
+
+export type FornecedorGerencial = {
+  id: number;
+  name: string;
+  doc: string;
+  ie: string;
+  address: string;
+  cep: string;
+  city: string;
+  uf: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export function listFornecedoresGerencial(token: string) {
+  return request<FornecedorGerencial[]>("/api/erp/fornecedores/", { method: "GET" }, token);
+}
+export function createFornecedorGerencial(
+  token: string,
+  payload: Partial<{
+    name: string;
+    doc: string;
+    ie: string;
+    address: string;
+    cep: string;
+    city: string;
+    uf: string;
+    is_active: boolean;
+  }>
+) {
+  return request<FornecedorGerencial>(
+    "/api/erp/fornecedores/",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  );
+}
+export function updateFornecedorGerencial(
+  token: string,
+  id: number,
+  payload: Partial<{
+    name: string;
+    doc: string;
+    ie: string;
+    address: string;
+    cep: string;
+    city: string;
+    uf: string;
+    is_active: boolean;
+  }>
+) {
+  return request<FornecedorGerencial>(
+    `/api/erp/fornecedores/${id}/`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  );
+}
+
+export type GrupoCompra = {
+  id: number;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export function listGruposCompra(token: string) {
+  return request<GrupoCompra[]>("/api/erp/grupos-compra/", { method: "GET" }, token);
+}
+
+export type PedidoCompraItem = {
+  id: number;
+  produto: { id: number; name: string } | null;
+  produto_id?: number | null;
+  unit: string;
+  quantity: string; // DRF Decimal -> string
+  price: string; // DRF Decimal -> string
+  discount: string; // DRF Decimal -> string
+  total_item: string; // DRF Decimal -> string
+  created_at: string;
+  updated_at: string;
+};
+
+export type PedidoCompra = {
+  id: number;
+  date: string | null;
+  code: string;
+  grupo: { id: number; name: string } | null;
+  grupo_id?: number | null;
+  produtor: { id: number; name: string } | null;
+  produtor_id?: number | null;
+  fornecedor: { id: number; name: string } | null;
+  fornecedor_id?: number | null;
+  safra: { id: number; name: string } | null;
+  safra_id?: number | null;
+  due_date: string | null;
+  operacao: { id: number; name: string; kind: string } | null;
+  operacao_id?: number | null;
+  total_value: string;
+  status: string;
+  items: PedidoCompraItem[];
+  created_at: string;
+  updated_at: string;
+};
+
+export function listPedidosCompra(token: string) {
+  return request<PedidoCompra[]>("/api/erp/compras/pedidos/", { method: "GET" }, token);
+}
+
+export function createPedidoCompra(
+  token: string,
+  payload: Partial<{
+    date: string | null;
+    code: string;
+    grupo_id: number | null;
+    produtor_id: number | null;
+    fornecedor_id: number | null;
+    safra_id: number | null;
+    due_date: string | null;
+    operacao_id: number | null;
+    status: string;
+    items: Array<{
+      produto_id: number | null;
+      unit: string;
+      quantity: string | number;
+      price: string | number;
+      discount: string | number;
+    }>;
+  }>
+) {
+  return request<PedidoCompra>("/api/erp/compras/pedidos/", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+
+export function updatePedidoCompra(
+  token: string,
+  id: number,
+  payload: Partial<{
+    date: string | null;
+    code: string;
+    grupo_id: number | null;
+    produtor_id: number | null;
+    fornecedor_id: number | null;
+    safra_id: number | null;
+    due_date: string | null;
+    operacao_id: number | null;
+    status: string;
+    items: Array<{
+      produto_id: number | null;
+      unit: string;
+      quantity: string | number;
+      price: string | number;
+      discount: string | number;
+    }>;
+  }>
+) {
+  return request<PedidoCompra>(
+    `/api/erp/compras/pedidos/${id}/`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  );
+}
+
 export type GrupoProdutor = {
   id: number;
   name: string;

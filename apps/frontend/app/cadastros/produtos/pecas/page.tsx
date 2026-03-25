@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
+import { toUpperText } from "@/lib/text";
 import {
   Categoria,
   CentroCusto,
@@ -396,7 +397,7 @@ export default function PecasPage() {
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Descricao completa</label>
                   <input
                     value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
+                    onChange={(e) => setFormName(toUpperText(e.target.value))}
                     placeholder="Descricao completa..."
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
@@ -406,7 +407,7 @@ export default function PecasPage() {
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Descricao abreviada</label>
                   <input
                     value={formShort}
-                    onChange={(e) => setFormShort(e.target.value)}
+                    onChange={(e) => setFormShort(toUpperText(e.target.value))}
                     placeholder="Abreviada..."
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
@@ -416,7 +417,7 @@ export default function PecasPage() {
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Unidade</label>
                   <input
                     value={formUnit}
-                    onChange={(e) => setFormUnit(e.target.value)}
+                    onChange={(e) => setFormUnit(toUpperText(e.target.value))}
                     placeholder="Ex: un"
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
@@ -546,4 +547,3 @@ export default function PecasPage() {
     </AuthedAdminShell>
   );
 }
-

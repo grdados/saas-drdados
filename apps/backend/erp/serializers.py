@@ -90,8 +90,40 @@ class ProdutorSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-ClienteSerializer = _mk_serializer(models.Cliente)
-FornecedorSerializer = _mk_serializer(models.Fornecedor)
+class ClienteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Cliente
+        fields = [
+            "id",
+            "name",
+            "doc",
+            "ie",
+            "address",
+            "cep",
+            "city",
+            "uf",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class FornecedorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Fornecedor
+        fields = [
+            "id",
+            "name",
+            "doc",
+            "ie",
+            "address",
+            "cep",
+            "city",
+            "uf",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
 TransportadorSerializer = _mk_serializer(models.Transportador)
 CentroCustoSerializer = _mk_serializer(models.CentroCusto)
 
@@ -154,6 +186,174 @@ class CondicaoFinanceiraSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.CondicaoFinanceira
         fields = ["id", "name", "dias", "parcelas", "is_active", "created_at", "updated_at"]
+
+
+class PedidoCompraItemSerializer(serializers.ModelSerializer):
+    produto = serializers.SerializerMethodField()
+    produto_id = serializers.PrimaryKeyRelatedField(
+        source="produto", queryset=models.Insumo.objects.all(), allow_null=True, required=False
+    )
+    total_item = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = models.PedidoCompraItem
+        fields = [
+            "id",
+            "produto",
+            "produto_id",
+            "unit",
+            "quantity",
+            "price",
+            "discount",
+            "total_item",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_produto(self, obj):
+        if not getattr(obj, "produto_id", None):
+            return None
+        return {"id": obj.produto_id, "name": obj.produto.name}
+
+    def validate(self, attrs):
+        company = get_current_company(self.context["request"].user) if self.context.get("request") else None
+        _validate_fk_company(attrs.get("produto"), company, "produto_id")
+
+        qty = attrs.get("quantity")
+        price = attrs.get("price")
+        discount = attrs.get("discount") or Decimal("0")
+        # total_item sempre calculado (na create/update do PedidoCompra)
+        if qty is not None and qty < 0:
+            raise serializers.ValidationError({"quantity": "Quantidade nao pode ser negativa."})
+        if price is not None and price < 0:
+            raise serializers.ValidationError({"price": "Preco nao pode ser negativo."})
+        if discount < 0:
+            raise serializers.ValidationError({"discount": "Desconto nao pode ser negativo."})
+        return attrs
+
+
+class PedidoCompraSerializer(serializers.ModelSerializer):
+    grupo = serializers.SerializerMethodField()
+    grupo_id = serializers.PrimaryKeyRelatedField(
+        source="grupo", queryset=models.GrupoCompra.objects.all(), allow_null=True, required=False
+    )
+    produtor = serializers.SerializerMethodField()
+    produtor_id = serializers.PrimaryKeyRelatedField(
+        source="produtor", queryset=models.Produtor.objects.all(), allow_null=True, required=False
+    )
+    fornecedor = serializers.SerializerMethodField()
+    fornecedor_id = serializers.PrimaryKeyRelatedField(
+        source="fornecedor", queryset=models.Fornecedor.objects.all(), allow_null=True, required=False
+    )
+    safra = serializers.SerializerMethodField()
+    safra_id = serializers.PrimaryKeyRelatedField(
+        source="safra", queryset=models.Safra.objects.all(), allow_null=True, required=False
+    )
+    operacao = serializers.SerializerMethodField()
+    operacao_id = serializers.PrimaryKeyRelatedField(
+        source="operacao", queryset=models.Operacao.objects.all(), allow_null=True, required=False
+    )
+
+    items = PedidoCompraItemSerializer(many=True, required=False)
+    total_value = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = models.PedidoCompra
+        fields = [
+            "id",
+            "date",
+            "code",
+            "grupo",
+            "grupo_id",
+            "produtor",
+            "produtor_id",
+            "fornecedor",
+            "fornecedor_id",
+            "safra",
+            "safra_id",
+            "due_date",
+            "operacao",
+            "operacao_id",
+            "total_value",
+            "status",
+            "items",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_grupo(self, obj):
+        if not getattr(obj, "grupo_id", None):
+            return None
+        return {"id": obj.grupo_id, "name": obj.grupo.name}
+
+    def get_produtor(self, obj):
+        if not getattr(obj, "produtor_id", None):
+            return None
+        return {"id": obj.produtor_id, "name": obj.produtor.name}
+
+    def get_fornecedor(self, obj):
+        if not getattr(obj, "fornecedor_id", None):
+            return None
+        return {"id": obj.fornecedor_id, "name": obj.fornecedor.name}
+
+    def get_safra(self, obj):
+        if not getattr(obj, "safra_id", None):
+            return None
+        return {"id": obj.safra_id, "name": obj.safra.name}
+
+    def get_operacao(self, obj):
+        if not getattr(obj, "operacao_id", None):
+            return None
+        return {"id": obj.operacao_id, "name": obj.operacao.name, "kind": obj.operacao.kind}
+
+    def validate(self, attrs):
+        company = get_current_company(self.context["request"].user) if self.context.get("request") else None
+        _validate_fk_company(attrs.get("grupo"), company, "grupo_id")
+        _validate_fk_company(attrs.get("produtor"), company, "produtor_id")
+        _validate_fk_company(attrs.get("fornecedor"), company, "fornecedor_id")
+        _validate_fk_company(attrs.get("safra"), company, "safra_id")
+        _validate_fk_company(attrs.get("operacao"), company, "operacao_id")
+        return attrs
+
+    def _upsert_items(self, pedido: models.PedidoCompra, items_data):
+        # Recria itens quando enviados (MVP simples).
+        models.PedidoCompraItem.objects.filter(pedido=pedido).delete()
+        total = Decimal("0")
+        for it in items_data or []:
+            qty = it.get("quantity") or Decimal("0")
+            price = it.get("price") or Decimal("0")
+            discount = it.get("discount") or Decimal("0")
+            total_item = (qty * price) - discount
+            if total_item < 0:
+                total_item = Decimal("0")
+            obj = models.PedidoCompraItem.objects.create(
+                company=pedido.company,
+                pedido=pedido,
+                produto=it.get("produto"),
+                unit=(it.get("unit") or "").strip(),
+                quantity=qty,
+                price=price,
+                discount=discount,
+                total_item=total_item,
+            )
+            total += obj.total_item
+        pedido.total_value = total
+        pedido.save(update_fields=["total_value", "updated_at"])
+
+    def create(self, validated_data):
+        items_data = validated_data.pop("items", [])
+        pedido = models.PedidoCompra.objects.create(**validated_data)
+        self._upsert_items(pedido, items_data)
+        return pedido
+
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop("items", None)
+        for k, v in validated_data.items():
+            setattr(instance, k, v)
+        instance.save()
+        if items_data is not None:
+            self._upsert_items(instance, items_data)
+        return instance
 
 CombustivelSerializer = _mk_serializer(models.Combustivel)
 

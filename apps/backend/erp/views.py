@@ -124,6 +124,15 @@ class CondicaoFinanceiraViewSet(CompanyScopedViewSet):
     serializer_class = serializers.CondicaoFinanceiraSerializer
 
 
+class PedidoCompraViewSet(CompanyScopedViewSet):
+    queryset = (
+        models.PedidoCompra.objects.select_related(
+            "company", "grupo", "produtor", "fornecedor", "safra", "operacao"
+        ).prefetch_related("items", "items__produto")
+    )
+    serializer_class = serializers.PedidoCompraSerializer
+
+
 class CategoriaViewSet(CompanyScopedViewSet):
     queryset = models.Categoria.objects.select_related("company")
     serializer_class = serializers.CategoriaSerializer

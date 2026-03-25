@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
 import { createGrupoProdutor, GrupoProdutor, isApiError, listGruposProdutores, updateGrupoProdutor } from "@/lib/api";
+import { toUpperText } from "@/lib/text";
 
 function IconPencil({ className = "h-4 w-4" }: { className?: string }) {
   return (
@@ -317,7 +318,7 @@ export default function GrupoProdutoresPage() {
                 <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Grupo</label>
                 <input
                   value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
+                  onChange={(e) => setFormName(toUpperText(e.target.value))}
                   placeholder="Nome do grupo..."
                   className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                 />
@@ -327,7 +328,7 @@ export default function GrupoProdutoresPage() {
                 <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">CPF/CNPJ</label>
                 <input
                   value={formDoc}
-                  onChange={(e) => setFormDoc(e.target.value)}
+                  onChange={(e) => setFormDoc(toUpperText(e.target.value))}
                   placeholder="Ex: 00.000.000/0000-00"
                   className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                 />
@@ -386,4 +387,3 @@ export default function GrupoProdutoresPage() {
     </AuthedAdminShell>
   );
 }
-

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
 import { createCultura, Cultura, isApiError, listCulturas, updateCultura } from "@/lib/api";
+import { toUpperText } from "@/lib/text";
 
 function Modal({
   open,
@@ -368,7 +369,7 @@ export default function CulturaPage() {
                 <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Nome</label>
                 <input
                   value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
+                  onChange={(e) => setFormName(toUpperText(e.target.value))}
                   placeholder="Ex: Soja"
                   className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                 />

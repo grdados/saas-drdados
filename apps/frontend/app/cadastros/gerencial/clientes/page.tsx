@@ -4,16 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
-import { toUpperText } from "@/lib/text";
 import {
-  createPropriedade,
+  ClienteGerencial,
+  createClienteGerencial,
   isApiError,
-  listProdutores,
-  listPropriedades,
-  Produtor,
-  Propriedade,
-  updatePropriedade
+  listClientesGerencial,
+  updateClienteGerencial
 } from "@/lib/api";
+import { toUpperText } from "@/lib/text";
 
 function IconPencil({ className = "h-4 w-4" }: { className?: string }) {
   return (
@@ -58,7 +56,7 @@ function Modal({
   return (
     <div className="fixed inset-0 z-50 grid place-items-center px-4">
       <button aria-label="Fechar" onClick={onClose} className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm" />
-      <div className="relative w-full max-w-[920px] overflow-hidden rounded-3xl border border-white/10 bg-zinc-950/90 shadow-2xl">
+      <div className="relative w-full max-w-[1100px] overflow-hidden rounded-3xl border border-white/10 bg-zinc-950/90 shadow-2xl">
         <div className="flex items-start justify-between gap-3 border-b border-white/10 p-5">
           <div>
             <p className="text-sm font-black text-white">{title}</p>
@@ -87,18 +85,9 @@ function prettyError(err: unknown): string {
   return (msg || "").trim() || "Falha inesperada.";
 }
 
-function formatArea(val: string | number | null | undefined) {
-  const raw = String(val ?? "").trim();
-  if (!raw) return "-";
-  const n = Number(raw.replace(",", "."));
-  if (!Number.isFinite(n)) return raw;
-  return `${n.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} ha`;
-}
-
-export default function PropriedadePage() {
+export default function ClientesPage() {
   const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<Propriedade[]>([]);
-  const [produtores, setProdutores] = useState<Produtor[]>([]);
+  const [items, setItems] = useState<ClienteGerencial[]>([]);
   const [error, setError] = useState("");
 
   const [query, setQuery] = useState("");
@@ -109,9 +98,12 @@ export default function PropriedadePage() {
   const editing = useMemo(() => items.find((i) => i.id === editingId) ?? null, [items, editingId]);
 
   const [formName, setFormName] = useState("");
-  const [formProdutorId, setFormProdutorId] = useState<number | "">("");
-  const [formArea, setFormArea] = useState("0");
-  const [formSicar, setFormSicar] = useState("");
+  const [formDoc, setFormDoc] = useState("");
+  const [formIe, setFormIe] = useState("");
+  const [formAddress, setFormAddress] = useState("");
+  const [formCep, setFormCep] = useState("");
+  const [formCity, setFormCity] = useState("");
+  const [formUf, setFormUf] = useState("");
   const [formActive, setFormActive] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
@@ -125,8 +117,10 @@ export default function PropriedadePage() {
         if (!q) return true;
         return (
           i.name.toLowerCase().includes(q) ||
-          (i.produtor?.name ?? "").toLowerCase().includes(q) ||
-          (i.sicar || "").toLowerCase().includes(q)
+          (i.doc || "").toLowerCase().includes(q) ||
+          (i.ie || "").toLowerCase().includes(q) ||
+          (i.city || "").toLowerCase().includes(q) ||
+          (i.uf || "").toLowerCase().includes(q)
         );
       })
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }));
@@ -138,9 +132,8 @@ export default function PropriedadePage() {
     setError("");
     setLoading(true);
     try {
-      const [props, prod] = await Promise.all([listPropriedades(token), listProdutores(token)]);
-      setItems(props);
-      setProdutores(prod);
+      const data = await listClientesGerencial(token);
+      setItems(data);
     } catch (err) {
       if (isApiError(err) && err.status === 401) {
         window.location.href = "/login";
@@ -160,9 +153,12 @@ export default function PropriedadePage() {
   function openCreate() {
     setEditingId(null);
     setFormName("");
-    setFormProdutorId("");
-    setFormArea("0");
-    setFormSicar("");
+    setFormDoc("");
+    setFormIe("");
+    setFormAddress("");
+    setFormCep("");
+    setFormCity("");
+    setFormUf("");
     setFormActive(true);
     setSaveMessage("");
     setModalOpen(true);
@@ -173,9 +169,12 @@ export default function PropriedadePage() {
     if (!it) return;
     setEditingId(id);
     setFormName(it.name ?? "");
-    setFormProdutorId(it.produtor?.id ?? "");
-    setFormArea(String(it.area_ha ?? "0"));
-    setFormSicar(it.sicar ?? "");
+    setFormDoc(it.doc ?? "");
+    setFormIe(it.ie ?? "");
+    setFormAddress(it.address ?? "");
+    setFormCep(it.cep ?? "");
+    setFormCity(it.city ?? "");
+    setFormUf(it.uf ?? "");
     setFormActive(it.is_active);
     setSaveMessage("");
     setModalOpen(true);
@@ -189,18 +188,21 @@ export default function PropriedadePage() {
     try {
       const payload = {
         name: formName.trim(),
-        produtor_id: formProdutorId === "" ? null : Number(formProdutorId),
-        area_ha: formArea,
-        sicar: formSicar.trim(),
+        doc: formDoc.trim(),
+        ie: formIe.trim(),
+        address: formAddress.trim(),
+        cep: formCep.trim(),
+        city: formCity.trim(),
+        uf: formUf.trim(),
         is_active: formActive
       };
       if (!editingId) {
-        const created = await createPropriedade(token, payload);
+        const created = await createClienteGerencial(token, payload);
         setItems((prev) => [...prev, created]);
         setModalOpen(false);
         return;
       }
-      const updated = await updatePropriedade(token, editingId, payload);
+      const updated = await updateClienteGerencial(token, editingId, payload);
       setItems((prev) => prev.map((i) => (i.id === editingId ? updated : i)));
       setModalOpen(false);
     } catch (err) {
@@ -214,6 +216,8 @@ export default function PropriedadePage() {
     }
   }
 
+  const optionStyle = { backgroundColor: "#e5e7eb", color: "#111827" } as const;
+
   return (
     <AuthedAdminShell>
       {() => (
@@ -221,8 +225,8 @@ export default function PropriedadePage() {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Cadastros · Gerencial</p>
-              <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Propriedades</h1>
-              <p className="mt-1 text-sm text-zinc-300">Cadastre propriedades vinculadas ao produtor.</p>
+              <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Clientes</h1>
+              <p className="mt-1 text-sm text-zinc-300">Cadastre clientes para pedidos e faturamento.</p>
             </div>
 
             <button
@@ -238,16 +242,16 @@ export default function PropriedadePage() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-black text-white">Filtros</p>
-                <p className="mt-1 text-xs text-zinc-400">Refine por propriedade, produtor e status.</p>
+                <p className="mt-1 text-xs text-zinc-400">Refine por nome, documento, cidade e status.</p>
               </div>
               <div className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</div>
             </div>
 
-            <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_180px]">
+            <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_180px]">
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar propriedade, produtor, SICAR..."
+                placeholder="Buscar cliente..."
                 className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
               />
               <select
@@ -255,13 +259,13 @@ export default function PropriedadePage() {
                 onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "inactive")}
                 className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50"
               >
-                <option value="all" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
+                <option value="all" style={optionStyle}>
                   Todos
                 </option>
-                <option value="active" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
+                <option value="active" style={optionStyle}>
                   Ativos
                 </option>
-                <option value="inactive" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
+                <option value="inactive" style={optionStyle}>
                   Inativos
                 </option>
               </select>
@@ -281,62 +285,74 @@ export default function PropriedadePage() {
             </div>
 
             <div className="mt-3 hidden grid-cols-12 gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 lg:grid">
-              <div className="col-span-5">Propriedade</div>
-              <div className="col-span-4">Produtor</div>
-              <div className="col-span-2">SICAR</div>
-              <div className="col-span-1 text-right">Area</div>
+              <div className="col-span-5">Cliente</div>
+              <div className="col-span-3">CPF/CNPJ</div>
+              <div className="col-span-3">Cidade/UF</div>
+              <div className="col-span-1 text-right">Status</div>
             </div>
 
-            <div className={`mt-4 pr-1 ${filtered.length > 10 ? "max-h-[560px] overflow-auto" : ""}`}>
-              <div className="space-y-2">
-                {filtered.map((it) => (
-                  <div
-                    key={it.id}
-                    className="group flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3 transition-colors hover:bg-white/5"
+            <div className="mt-3 space-y-2">
+              {filtered.map((it) => (
+                <div
+                  key={it.id}
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3 hover:bg-white/5"
+                >
+                  <button
+                    type="button"
+                    onClick={() => openEdit(it.id)}
+                    className="grid w-full grid-cols-12 items-center gap-3 text-left"
+                    title="Editar"
                   >
-                    <button
-                      onClick={() => openEdit(it.id)}
-                      className="grid min-w-0 flex-1 grid-cols-12 items-center gap-3 text-left"
-                    >
-                      <div className="col-span-12 min-w-0 lg:col-span-5">
-                        <p className="truncate text-sm font-black text-white">{it.name}</p>
-                        <p className="mt-0.5 text-xs font-semibold text-zinc-400">ID: {it.id}</p>
-                      </div>
-                      <div className="col-span-12 min-w-0 lg:col-span-4">
-                        <p className="truncate text-sm font-semibold text-zinc-100">{it.produtor?.name ?? "-"}</p>
-                      </div>
-                      <div className="col-span-12 min-w-0 lg:col-span-2">
-                        <p className="truncate text-sm font-semibold text-zinc-100">{it.sicar || "-"}</p>
-                      </div>
-                      <div className="col-span-12 text-right lg:col-span-1">
-                        <p className="text-sm font-semibold text-zinc-100">{formatArea(it.area_ha)}</p>
-                      </div>
-                    </button>
+                    <div className="col-span-12 min-w-0 lg:col-span-5">
+                      <p className="truncate text-sm font-black text-white">{it.name}</p>
+                      <p className="mt-0.5 truncate text-xs font-semibold text-zinc-400">{it.address || "-"}</p>
+                    </div>
+                    <div className="col-span-12 min-w-0 lg:col-span-3">
+                      <p className="truncate text-sm font-semibold text-zinc-100">{it.doc || "-"}</p>
+                      <p className="mt-0.5 truncate text-xs text-zinc-400">{it.ie ? `IE: ${it.ie}` : ""}</p>
+                    </div>
+                    <div className="col-span-12 min-w-0 lg:col-span-3">
+                      <p className="truncate text-sm font-semibold text-zinc-100">
+                        {(it.city || "-") + (it.uf ? `/${it.uf}` : "")}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-zinc-400">{it.cep ? `CEP: ${it.cep}` : ""}</p>
+                    </div>
+                    <div className="col-span-12 lg:col-span-1 lg:text-right">
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2 py-1 text-xs font-black ${
+                          it.is_active
+                            ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-200"
+                            : "border-white/10 bg-white/5 text-zinc-200"
+                        }`}
+                      >
+                        {it.is_active ? "Ativo" : "Inativo"}
+                      </span>
+                    </div>
+                  </button>
 
-                    <button
-                      type="button"
-                      onClick={() => openEdit(it.id)}
-                      className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-zinc-950/30 text-zinc-300 hover:bg-white/5"
-                      aria-label="Editar"
-                      title="Editar"
-                    >
-                      <IconPencil />
-                    </button>
-                  </div>
-                ))}
+                  <button
+                    type="button"
+                    onClick={() => openEdit(it.id)}
+                    className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-zinc-950/30 text-zinc-300 hover:bg-white/5"
+                    aria-label="Editar"
+                    title="Editar"
+                  >
+                    <IconPencil />
+                  </button>
+                </div>
+              ))}
 
-                {!loading && filtered.length === 0 ? (
-                  <div className="rounded-2xl border border-white/10 bg-zinc-950/30 p-4 text-sm text-zinc-300">
-                    Nenhuma propriedade encontrada.
-                  </div>
-                ) : null}
-              </div>
+              {!loading && filtered.length === 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-zinc-950/30 p-4 text-sm text-zinc-300">
+                  Nenhum cliente encontrado.
+                </div>
+              ) : null}
             </div>
           </section>
 
           <Modal
             open={modalOpen}
-            title={editing ? "Editar propriedade" : "Nova propriedade"}
+            title={editing ? "Editar cliente" : "Novo cliente"}
             onClose={() => {
               setModalOpen(false);
               setSaveMessage("");
@@ -345,53 +361,72 @@ export default function PropriedadePage() {
             <div className="grid gap-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2 md:col-span-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Propriedade</label>
+                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Cliente</label>
                   <input
                     value={formName}
                     onChange={(e) => setFormName(toUpperText(e.target.value))}
-                    placeholder="Nome da propriedade..."
+                    placeholder="Nome/Razao social..."
+                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">CPF/CNPJ</label>
+                  <input
+                    value={formDoc}
+                    onChange={(e) => setFormDoc(toUpperText(e.target.value))}
+                    placeholder="Documento..."
+                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">IE</label>
+                  <input
+                    value={formIe}
+                    onChange={(e) => setFormIe(toUpperText(e.target.value))}
+                    placeholder="Inscricao estadual..."
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
                 </div>
 
                 <div className="grid gap-2 md:col-span-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Produtor</label>
-                  <select
-                    value={formProdutorId}
-                    onChange={(e) => setFormProdutorId(e.target.value === "" ? "" : Number(e.target.value))}
-                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50"
-                  >
-                    <option value="" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
-                      Selecione
-                    </option>
-                    {produtores
-                      .slice()
-                      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }))
-                      .map((p) => (
-                        <option key={p.id} value={p.id} style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
-                          {p.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-
-                <div className="grid gap-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Area (ha)</label>
+                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Endereco</label>
                   <input
-                    value={formArea}
-                    onChange={(e) => setFormArea(e.target.value)}
-                    inputMode="decimal"
-                    placeholder="0"
+                    value={formAddress}
+                    onChange={(e) => setFormAddress(toUpperText(e.target.value))}
+                    placeholder="Endereco completo..."
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
                 </div>
 
                 <div className="grid gap-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">SICAR</label>
+                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">CEP</label>
                   <input
-                    value={formSicar}
-                    onChange={(e) => setFormSicar(toUpperText(e.target.value))}
-                    placeholder="SICAR..."
+                    value={formCep}
+                    onChange={(e) => setFormCep(e.target.value)}
+                    placeholder="00000-000"
+                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Cidade</label>
+                  <input
+                    value={formCity}
+                    onChange={(e) => setFormCity(toUpperText(e.target.value))}
+                    placeholder="Cidade..."
+                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">UF</label>
+                  <input
+                    value={formUf}
+                    onChange={(e) => setFormUf(toUpperText(e.target.value))}
+                    placeholder="MS"
+                    maxLength={2}
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
                 </div>
@@ -438,7 +473,7 @@ export default function PropriedadePage() {
                     setModalOpen(false);
                     setSaveMessage("");
                   }}
-                  className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-zinc-100 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Cancelar
                 </button>
@@ -450,3 +485,4 @@ export default function PropriedadePage() {
     </AuthedAdminShell>
   );
 }
+

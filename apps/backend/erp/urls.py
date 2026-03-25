@@ -22,6 +22,8 @@ router.register(r"financeiro/moedas", views.MoedaViewSet, basename="moedas")
 router.register(r"financeiro/caixas", views.CaixaViewSet, basename="caixas")
 router.register(r"financeiro/condicoes", views.CondicaoFinanceiraViewSet, basename="condicoes_financeiras")
 
+router.register(r"compras/pedidos", views.PedidoCompraViewSet, basename="pedidos_compra")
+
 router.register(r"estoque/categorias", views.CategoriaViewSet, basename="categorias")
 router.register(r"estoque/insumos", views.InsumoViewSet, basename="insumos")
 router.register(r"estoque/produtos", views.ProdutoViewSet, basename="produtos")

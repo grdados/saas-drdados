@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
 import { createCultivar, Cultivar, isApiError, listCultivares, updateCultivar } from "@/lib/api";
+import { toUpperText } from "@/lib/text";
 
 function prettyError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
@@ -366,7 +367,7 @@ export default function CultivaresPage() {
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Cultivar</label>
                   <input
                     value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
+                    onChange={(e) => setFormName(toUpperText(e.target.value))}
                     placeholder="Ex: BRS 1010"
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
@@ -376,7 +377,7 @@ export default function CultivaresPage() {
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Marca</label>
                   <input
                     value={formBrand}
-                    onChange={(e) => setFormBrand(e.target.value)}
+                    onChange={(e) => setFormBrand(toUpperText(e.target.value))}
                     placeholder="Ex: Bayer"
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
@@ -386,7 +387,7 @@ export default function CultivaresPage() {
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Ciclo</label>
                   <input
                     value={formCycle}
-                    onChange={(e) => setFormCycle(e.target.value)}
+                    onChange={(e) => setFormCycle(toUpperText(e.target.value))}
                     placeholder="Ex: 120 dias"
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
@@ -396,7 +397,7 @@ export default function CultivaresPage() {
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Maturidade</label>
                   <input
                     value={formMaturity}
-                    onChange={(e) => setFormMaturity(e.target.value)}
+                    onChange={(e) => setFormMaturity(toUpperText(e.target.value))}
                     placeholder="Ex: Precoce"
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
@@ -406,7 +407,7 @@ export default function CultivaresPage() {
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Regiao indicada</label>
                   <input
                     value={formRegion}
-                    onChange={(e) => setFormRegion(e.target.value)}
+                    onChange={(e) => setFormRegion(toUpperText(e.target.value))}
                     placeholder="Ex: MS / MT"
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
@@ -416,7 +417,7 @@ export default function CultivaresPage() {
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Descricao</label>
                   <textarea
                     value={formDesc}
-                    onChange={(e) => setFormDesc(e.target.value)}
+                    onChange={(e) => setFormDesc(toUpperText(e.target.value))}
                     placeholder="Observacoes sobre o cultivar..."
                     rows={4}
                     className="w-full resize-none rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
@@ -477,4 +478,3 @@ export default function CultivaresPage() {
     </AuthedAdminShell>
   );
 }
-

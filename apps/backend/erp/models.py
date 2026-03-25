@@ -24,6 +24,23 @@ class CompanyNamedModel(models.Model):
     def __str__(self) -> str:
         return self.name
 
+    def save(self, *args, **kwargs):
+        """
+        Padroniza textos em CAIXA ALTA para evitar dados "misturados" (ex: Soja/soja/SOJA).
+        Aplicamos em todos os CharField/TextField dos cadastros ERP, exceto URL/Email.
+        """
+        for field in self._meta.fields:
+            # EmailField/URLField herdam de CharField: nao devemos modificar.
+            if isinstance(field, (models.EmailField, models.URLField)):
+                continue
+            if isinstance(field, (models.CharField, models.TextField)):
+                attr = field.attname  # ex: "name", "short_description", etc.
+                val = getattr(self, attr, None)
+                if isinstance(val, str) and val:
+                    setattr(self, attr, val.strip().upper())
+
+        return super().save(*args, **kwargs)
+
 
 # Cadastros (base)
 class Cultura(CompanyNamedModel):
@@ -64,11 +81,21 @@ class Produtor(CompanyNamedModel):
 
 
 class Cliente(CompanyNamedModel):
-    pass
+    doc = models.CharField(max_length=20, blank=True, default="")  # CPF/CNPJ
+    ie = models.CharField(max_length=40, blank=True, default="")  # Inscricao estadual
+    address = models.CharField(max_length=240, blank=True, default="")
+    cep = models.CharField(max_length=12, blank=True, default="")
+    city = models.CharField(max_length=120, blank=True, default="")
+    uf = models.CharField(max_length=2, blank=True, default="")
 
 
 class Fornecedor(CompanyNamedModel):
-    pass
+    doc = models.CharField(max_length=20, blank=True, default="")  # CPF/CNPJ
+    ie = models.CharField(max_length=40, blank=True, default="")  # Inscricao estadual
+    address = models.CharField(max_length=240, blank=True, default="")
+    cep = models.CharField(max_length=12, blank=True, default="")
+    city = models.CharField(max_length=120, blank=True, default="")
+    uf = models.CharField(max_length=2, blank=True, default="")
 
 
 class Transportador(CompanyNamedModel):
@@ -112,6 +139,74 @@ class Caixa(CompanyNamedModel):
 class CondicaoFinanceira(CompanyNamedModel):
     dias = models.IntegerField(default=0)
     parcelas = models.IntegerField(default=1)
+
+
+# Compra
+class PedidoCompra(models.Model):
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Rascunho"
+        OPEN = "open", "Em aberto"
+        CONFIRMED = "confirmed", "Confirmado"
+        CANCELED = "canceled", "Cancelado"
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    date = models.DateField(null=True, blank=True)
+    code = models.CharField(max_length=60, blank=True, default="")  # numero/codigo do pedido
+
+    grupo = models.ForeignKey("erp.GrupoCompra", null=True, blank=True, on_delete=models.PROTECT)
+    produtor = models.ForeignKey("erp.Produtor", null=True, blank=True, on_delete=models.PROTECT)
+    fornecedor = models.ForeignKey("erp.Fornecedor", null=True, blank=True, on_delete=models.PROTECT)
+    safra = models.ForeignKey("erp.Safra", null=True, blank=True, on_delete=models.PROTECT)
+    due_date = models.DateField(null=True, blank=True)
+    operacao = models.ForeignKey("erp.Operacao", null=True, blank=True, on_delete=models.PROTECT)
+
+    total_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-date", "-id"]
+        indexes = [
+            models.Index(fields=["company", "date"]),
+            models.Index(fields=["company", "code"]),
+        ]
+
+    def __str__(self) -> str:
+        return self.code or f"PEDIDO {self.id}"
+
+
+class PedidoCompraItem(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    pedido = models.ForeignKey("erp.PedidoCompra", related_name="items", on_delete=models.CASCADE)
+
+    produto = models.ForeignKey("erp.Insumo", null=True, blank=True, on_delete=models.PROTECT)
+    unit = models.CharField(max_length=24, blank=True, default="")
+    quantity = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    price = models.DecimalField(max_digits=14, decimal_places=4, default=0)
+    discount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    total_item = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["id"]
+        indexes = [
+            models.Index(fields=["company", "pedido"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"ITEM {self.id} ({self.pedido_id})"
+
+    def save(self, *args, **kwargs):
+        # Mantem company consistente com o pedido (multi-tenant)
+        if self.pedido_id and not self.company_id:
+            self.company_id = self.pedido.company_id
+        if isinstance(self.unit, str) and self.unit:
+            self.unit = self.unit.strip().upper()
+        return super().save(*args, **kwargs)
 
 
 # Estoque

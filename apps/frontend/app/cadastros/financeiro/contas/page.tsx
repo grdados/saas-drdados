@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
+import { toUpperText } from "@/lib/text";
 import {
   Banco,
   ContaFinanceira,
@@ -369,7 +370,7 @@ export default function ContasPage() {
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Conta</label>
                   <input
                     value={formConta}
-                    onChange={(e) => setFormConta(e.target.value)}
+                    onChange={(e) => setFormConta(toUpperText(e.target.value))}
                     placeholder="Ex: Conta principal"
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50"
                   />
@@ -378,7 +379,7 @@ export default function ContasPage() {
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Agencia</label>
                   <input
                     value={formAgencia}
-                    onChange={(e) => setFormAgencia(e.target.value)}
+                    onChange={(e) => setFormAgencia(toUpperText(e.target.value))}
                     placeholder="Ex: 0001"
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50"
                   />

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
+import { toUpperText } from "@/lib/text";
 import {
   createProdutor,
   GrupoProdutor,
@@ -382,7 +383,7 @@ export default function ProdutorPage() {
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Produtor</label>
                   <input
                     value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
+                    onChange={(e) => setFormName(toUpperText(e.target.value))}
                     placeholder="Nome do produtor..."
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
@@ -413,7 +414,7 @@ export default function ProdutorPage() {
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Inscricao</label>
                   <input
                     value={formInscricao}
-                    onChange={(e) => setFormInscricao(e.target.value)}
+                    onChange={(e) => setFormInscricao(toUpperText(e.target.value))}
                     placeholder="Inscricao..."
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
@@ -423,7 +424,7 @@ export default function ProdutorPage() {
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">CPF</label>
                   <input
                     value={formCpf}
-                    onChange={(e) => setFormCpf(e.target.value)}
+                    onChange={(e) => setFormCpf(toUpperText(e.target.value))}
                     placeholder="CPF..."
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
@@ -433,7 +434,7 @@ export default function ProdutorPage() {
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Fazenda</label>
                   <input
                     value={formFazenda}
-                    onChange={(e) => setFormFazenda(e.target.value)}
+                    onChange={(e) => setFormFazenda(toUpperText(e.target.value))}
                     placeholder="Nome da fazenda..."
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
@@ -443,7 +444,7 @@ export default function ProdutorPage() {
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Endereco</label>
                   <input
                     value={formEndereco}
-                    onChange={(e) => setFormEndereco(e.target.value)}
+                    onChange={(e) => setFormEndereco(toUpperText(e.target.value))}
                     placeholder="Endereco..."
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
@@ -474,7 +475,7 @@ export default function ProdutorPage() {
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Matricula</label>
                   <input
                     value={formMatricula}
-                    onChange={(e) => setFormMatricula(e.target.value)}
+                    onChange={(e) => setFormMatricula(toUpperText(e.target.value))}
                     placeholder="Matricula..."
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
@@ -484,7 +485,7 @@ export default function ProdutorPage() {
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Cidade</label>
                   <input
                     value={formCidade}
-                    onChange={(e) => setFormCidade(e.target.value)}
+                    onChange={(e) => setFormCidade(toUpperText(e.target.value))}
                     placeholder="Cidade..."
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
@@ -494,7 +495,7 @@ export default function ProdutorPage() {
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">UF</label>
                   <input
                     value={formUf}
-                    onChange={(e) => setFormUf(e.target.value)}
+                    onChange={(e) => setFormUf(toUpperText(e.target.value))}
                     placeholder="MS"
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
@@ -554,4 +555,3 @@ export default function ProdutorPage() {
     </AuthedAdminShell>
   );
 }
-
