@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -224,7 +224,7 @@ export default function FaturamentoCompraPage() {
     const pedidosUnicos = new Set(fatsDaSafra.map((f) => f.pedido?.id).filter(Boolean) as number[]);
     return [
       { label: "Total faturado", value: money(totalFat), note: `${notas} NF(s)` },
-      { label: "Ticket médio", value: money(ticket), note: "Por nota" },
+      { label: "Ticket mÃ©dio", value: money(ticket), note: "Por nota" },
       { label: "Pedidos", value: String(pedidosUnicos.size), note: "Com faturamento" }
     ];
   }, [fatsDaSafra]);
@@ -380,11 +380,11 @@ export default function FaturamentoCompraPage() {
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Compra</p>
               <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Faturamento</h1>
-              <p className="mt-1 text-sm text-zinc-300">Nota fiscal de recebimento + geração automática em Contas a Pagar.</p>
+              <p className="mt-1 text-sm text-zinc-300">Nota fiscal de recebimento + geraÃ§Ã£o automÃ¡tica em Contas a Pagar.</p>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <select value={safraId} onChange={(e) => setSafraId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full max-w-[320px] rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+              <select value={safraId} onChange={(e) => setSafraId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full max-w-[320px] rounded-2xl border border-accent-500/40 bg-accent-500/15 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-400">
                 <option value="" style={optionStyle}>
                   Selecione a safra
                 </option>
@@ -415,8 +415,8 @@ export default function FaturamentoCompraPage() {
           <section className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-black text-white">Faturamento no período</p>
-                <p className="mt-1 text-xs text-zinc-400">Linha temporal baseada na safra selecionada (início/fim).</p>
+                <p className="text-sm font-black text-white">Faturamento no perÃ­odo</p>
+                <p className="mt-1 text-xs text-zinc-400">Linha temporal baseada na safra selecionada (inÃ­cio/fim).</p>
               </div>
               <div className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${fatsDaSafra.length} NF(s)`}</div>
             </div>
@@ -443,7 +443,7 @@ export default function FaturamentoCompraPage() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-black text-white">{f.invoice_number || `#${f.id}`}</p>
                       <p className="mt-0.5 truncate text-xs text-zinc-400">
-                        {f.fornecedor?.name ?? "-"} · {f.produtor?.name ?? "-"} · {f.date || "-"} · Pedido {f.pedido?.code ?? "-"}
+                        {f.fornecedor?.name ?? "-"} Â· {f.produtor?.name ?? "-"} Â· {f.date || "-"} Â· Pedido {f.pedido?.code ?? "-"}
                       </p>
                     </div>
                     <div className="text-right">
@@ -467,7 +467,7 @@ export default function FaturamentoCompraPage() {
                     <p className="mt-1 text-xs text-zinc-400">Formulario Pai e Itens (Filho).</p>
                   </div>
                   <button onClick={() => setOpen(false)} className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10" aria-label="Fechar modal" title="Fechar">
-                    ×
+                    Ã—
                   </button>
                 </div>
                 <div className="max-h-[78vh] overflow-auto p-5">
@@ -547,17 +547,26 @@ export default function FaturamentoCompraPage() {
                         const remaining = pi?.remaining ?? 0;
                         const defaultPrice = pi ? String(pi.price ?? "0") : "0";
                         return (
-                          <div key={idx} className="grid grid-cols-1 gap-2 rounded-2xl border border-white/10 bg-zinc-950/35 p-3 lg:grid-cols-[1fr_130px_140px_50px]">
-                            <select value={r.pedido_item_id ?? ""} onChange={(e) => { const next = e.target.value === "" ? null : Number(e.target.value); if (next) { const found = itensPendentes.find((x) => x.id === next); setRows((prev) => prev.map((row, i) => i === idx ? { ...row, pedido_item_id: next, price: String(found?.price ?? defaultPrice) } : row)); } else { setRows((prev) => prev.map((row, i) => i === idx ? { ...row, pedido_item_id: null } : row)); } }} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
-                              <option value="" style={optionStyle}>Produto pendente...</option>
-                              {itensPendentes.map((it) => (<option key={it.id} value={it.id} style={optionStyle}>{it.produto?.name ?? "PRODUTO"} · Saldo {it.remaining}</option>))}
-                            </select>
+                          <div key={idx} className="grid grid-cols-1 gap-2 rounded-2xl border border-white/10 bg-zinc-950/35 p-3 lg:grid-cols-[1.6fr_190px_170px_56px]">
                             <div className="grid gap-1">
-                              <input value={r.quantity} onChange={(e) => { const next = e.target.value; const n = parseNumber(next); if (remaining > 0 && n > remaining) { setRows((prev) => prev.map((row, i) => i === idx ? { ...row, quantity: String(remaining) } : row)); return; } setRows((prev) => prev.map((row, i) => i === idx ? { ...row, quantity: next } : row)); }} inputMode="decimal" placeholder="Qtd" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50" />
-                              <p className="text-[11px] font-semibold text-zinc-400">Saldo: <span className="text-zinc-200">{remaining}</span></p>
+                              <label className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">Produto</label>
+                              <select value={r.pedido_item_id ?? ""} onChange={(e) => { const next = e.target.value === "" ? null : Number(e.target.value); if (next) { const found = itensPendentes.find((x) => x.id === next); setRows((prev) => prev.map((row, i) => i === idx ? { ...row, pedido_item_id: next, price: String(found?.price ?? defaultPrice) } : row)); } else { setRows((prev) => prev.map((row, i) => i === idx ? { ...row, pedido_item_id: null } : row)); } }} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                                <option value="" style={optionStyle}>Produto pendente...</option>
+                                {itensPendentes.map((it) => (<option key={it.id} value={it.id} style={optionStyle}>{it.produto?.name ?? "PRODUTO"} · Saldo {it.remaining}</option>))}
+                              </select>
                             </div>
-                            <input value={r.price} onChange={(e) => setRows((prev) => prev.map((row, i) => i === idx ? { ...row, price: e.target.value } : row))} inputMode="decimal" placeholder="Preco (5 casas)" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50" />
-                            <button onClick={() => setRows((prev) => prev.filter((_, i) => i !== idx))} className="rounded-2xl border border-rose-400/25 bg-rose-500/10 px-3 py-2.5 text-sm font-black text-rose-200 hover:bg-rose-500/15" aria-label="Remover" title="Remover">×</button>
+                            <div className="grid gap-1">
+                              <label className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">Quantidade (saldo: {remaining})</label>
+                              <input value={r.quantity} onChange={(e) => { const next = e.target.value; const n = parseNumber(next); if (remaining > 0 && n > remaining) { setRows((prev) => prev.map((row, i) => i === idx ? { ...row, quantity: String(remaining) } : row)); return; } setRows((prev) => prev.map((row, i) => i === idx ? { ...row, quantity: next } : row)); }} inputMode="decimal" placeholder="Qtd" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50" />
+                            </div>
+                            <div className="grid gap-1">
+                              <label className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">Preco (5 casas)</label>
+                              <input value={r.price} onChange={(e) => setRows((prev) => prev.map((row, i) => i === idx ? { ...row, price: e.target.value } : row))} inputMode="decimal" placeholder="Preco" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50" />
+                            </div>
+                            <div className="grid gap-1">
+                              <label className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">Acao</label>
+                              <button onClick={() => setRows((prev) => prev.filter((_, i) => i !== idx))} className="rounded-2xl border border-rose-400/25 bg-rose-500/10 px-3 py-2.5 text-sm font-black text-rose-200 hover:bg-rose-500/15" aria-label="Remover" title="Remover">×</button>
+                            </div>
                           </div>
                         );
                       })}
