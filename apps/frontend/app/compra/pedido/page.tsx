@@ -27,7 +27,7 @@ import {
 import { toUpperText } from "@/lib/text";
 
 function toApiDecimal(v: unknown) {
-  // DRF DecimalField aceita "5.50" mas nÃ£o "5,50". TambÃ©m lidamos com "1.234,56".
+  // DRF DecimalField aceita "5.50" mas nao "5,50". Tambem lidamos com "1.234,56".
   const raw = String(v ?? "").trim();
   if (!raw) return "0";
   const s = raw.replace(/\s+/g, "");
@@ -361,8 +361,8 @@ export default function PedidoCompraPage() {
                 <option value="canceled" style={optionStyle}>Cancelado</option>
               </select>
               <div className="flex gap-2">
-                <input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
-                <input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
+                <input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
+                <input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
               </div>
             </div>
             <div className="mt-3 flex justify-end">
@@ -419,7 +419,7 @@ export default function PedidoCompraPage() {
                       })()}
                     </div>
                     <div className="md:col-span-1">
-                      <div className="flex justify-end gap-1.5">
+                      <div className="flex flex-nowrap justify-end gap-1.5">
                         <button
                           onClick={() => openEdit(p.id)}
                           className="rounded-xl border border-sky-400/25 bg-sky-500/10 p-2 text-sky-200 hover:bg-sky-500/20"
@@ -444,11 +444,16 @@ export default function PedidoCompraPage() {
                             <path d="M10 11v6M14 11v6" />
                           </svg>
                         </button>
+                        <button
+                          onClick={() => window.open(`/compra/pedido/${p.id}/print`, "_blank", "noopener,noreferrer")}
+                          className="whitespace-nowrap rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-black text-white hover:bg-white/10"
+                          title="Imprimir / PDF"
+                          aria-label="Imprimir / PDF"
+                        >
+                          Imprimir
+                        </button>
                       </div>
                     </div>
-                  </div>
-                  <div className="mt-2 flex justify-end">
-                    <button onClick={() => window.open(`/compra/pedido/${p.id}/print`, "_blank", "noopener,noreferrer")} className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-black text-white hover:bg-white/10" title="Imprimir / PDF">Imprimir</button>
                   </div>
                 </div>
               ))}
@@ -474,7 +479,7 @@ export default function PedidoCompraPage() {
                     aria-label="Fechar modal"
                     title="Fechar"
                   >
-                    âœ•
+                    ×
                   </button>
                 </div>
                 <div className="max-h-[78vh] overflow-auto p-5">
@@ -690,7 +695,7 @@ export default function PedidoCompraPage() {
                             aria-label="Remover"
                             title="Remover"
                           >
-                            âœ•
+                            ×
                           </button>
                         </div>
                       ))}

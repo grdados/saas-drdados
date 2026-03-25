@@ -981,6 +981,7 @@ export function updateContaPagarStatus(
 export type Deposito = {
   id: number;
   name: string;
+  tipo: "insumos" | "graos" | "combustivel";
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -989,14 +990,21 @@ export type Deposito = {
 export function listDepositos(token: string) {
   return request<Deposito[]>("/api/erp/patrimonio/depositos/", { method: "GET" }, token);
 }
-export function createDeposito(token: string, payload: { name: string; is_active?: boolean }) {
+export function createDeposito(
+  token: string,
+  payload: { name: string; tipo?: "insumos" | "graos" | "combustivel"; is_active?: boolean }
+) {
   return request<Deposito>(
     "/api/erp/patrimonio/depositos/",
     { method: "POST", body: JSON.stringify(payload) },
     token
   );
 }
-export function updateDeposito(token: string, id: number, payload: { name?: string; is_active?: boolean }) {
+export function updateDeposito(
+  token: string,
+  id: number,
+  payload: { name?: string; tipo?: "insumos" | "graos" | "combustivel"; is_active?: boolean }
+) {
   return request<Deposito>(
     `/api/erp/patrimonio/depositos/${id}/`,
     { method: "PATCH", body: JSON.stringify(payload) },

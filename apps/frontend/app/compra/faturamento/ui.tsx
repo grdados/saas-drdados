@@ -54,6 +54,15 @@ function monthLabel(date: Date) {
   return date.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(".", "");
 }
 
+function daysUntilDue(dueDate: string | null | undefined) {
+  if (!dueDate) return null;
+  const today = new Date();
+  const base = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const due = new Date(dueDate + "T00:00:00");
+  const diff = Math.ceil((due.getTime() - base.getTime()) / (1000 * 60 * 60 * 24));
+  return diff;
+}
+
 function resolveFatStatus(fat: FaturamentoCompra, cpStatus?: "open" | "partial" | "paid" | "canceled"): FatStatus {
   if (cpStatus === "paid") return "paid";
   if (cpStatus === "partial") return "partial";
@@ -509,11 +518,13 @@ export default function FaturamentoCompraPage() {
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Compra</p>
               <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Faturamento</h1>
-              <p className="mt-1 text-sm text-zinc-300">Nota fiscal de recebimento + geraÃ§Ã£o automÃ¡tica em Contas a Pagar.</p>
+              <p className="mt-1 text-sm text-zinc-300">Nota fiscal de recebimento + geracao automatica em Contas a Pagar.</p>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <select value={safraId} onChange={(e) => setSafraId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full max-w-[320px] rounded-2xl border border-accent-500/40 bg-accent-500/15 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-400">
+              <div className="relative w-full max-w-[320px]">
+                <span className="pointer-events-none absolute left-3 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-emerald-400 shadow-[0_0_0_6px_rgba(16,185,129,0.16)] animate-pulse" />
+                <select value={safraId} onChange={(e) => setSafraId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-accent-500/40 bg-accent-500/15 pl-8 pr-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-400">
                 <option value="" style={optionStyle}>
                   Selecione a safra
                 </option>
@@ -522,8 +533,9 @@ export default function FaturamentoCompraPage() {
                     {s.name}
                   </option>
                 ))}
-              </select>
-              <button onClick={openCreate} className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">
+                </select>
+              </div>
+              <button onClick={openCreate} className="inline-flex items-center justify-center whitespace-nowrap rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">
                 Novo faturamento
               </button>
             </div>
@@ -554,8 +566,8 @@ export default function FaturamentoCompraPage() {
                 <option value="paid" style={optionStyle}>Pago</option>
               </select>
               <div className="flex gap-2">
-                <input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
-                <input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
+                <input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
+                <input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
               </div>
             </div>
           </section>
@@ -609,31 +621,45 @@ export default function FaturamentoCompraPage() {
               <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
             </div>
             <div className="mt-3 hidden grid-cols-12 gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 md:grid">
-              <div className="col-span-2">Data</div>
+              <div className="col-span-1">Status</div>
+              <div className="col-span-1">Data</div>
               <div className="col-span-2">Nota Fiscal</div>
               <div className="col-span-2">Grupo</div>
-              <div className="col-span-2">Produtor</div>
+              <div className="col-span-1">Venc.</div>
+              <div className="col-span-1">Dias</div>
+              <div className="col-span-1">Produtor</div>
               <div className="col-span-1">Fornecedor</div>
               <div className="col-span-1">Pedido</div>
-              <div className="col-span-1 text-right">Status/Valor</div>
+              <div className="col-span-1 text-right">Valor</div>
               <div className="col-span-1 text-right">Ações</div>
             </div>
             <div className="mt-3 space-y-2">
               {filtered.map((f) => (
                 <div key={f.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-4 py-3 hover:bg-white/5">
                   <div className="grid grid-cols-1 gap-2 md:grid-cols-12 md:items-center md:gap-3">
-                    <div className="md:col-span-2"><p className="text-sm font-semibold text-zinc-100">{f.date || "-"}</p></div>
+                    <div className="md:col-span-1">
+                      {(() => {
+                        const meta = fatStatusMeta(resolveFatStatus(f, cpStatusByFatId[f.id]));
+                        return <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>;
+                      })()}
+                    </div>
+                    <div className="md:col-span-1"><p className="text-sm font-semibold text-zinc-100">{f.date || "-"}</p></div>
                     <div className="md:col-span-2"><p className="truncate text-sm font-black text-white">{f.invoice_number || `#${f.id}`}</p></div>
                     <div className="md:col-span-2"><p className="truncate text-sm font-semibold text-zinc-100">{f.grupo?.name ?? "-"}</p></div>
-                    <div className="md:col-span-2"><p className="truncate text-sm font-semibold text-zinc-100">{f.produtor?.name ?? "-"}</p></div>
+                    <div className="md:col-span-1"><p className="truncate text-sm font-semibold text-zinc-100">{f.due_date || "-"}</p></div>
+                    <div className="md:col-span-1">
+                      {(() => {
+                        const d = daysUntilDue(f.due_date);
+                        if (d === null) return <p className="text-sm font-semibold text-zinc-400">-</p>;
+                        const cls = d < 0 ? "text-rose-300" : d <= 5 ? "text-amber-300" : "text-emerald-300";
+                        return <p className={`text-sm font-black ${cls}`}>{d < 0 ? `${Math.abs(d)} atras.` : `${d} dia(s)`}</p>;
+                      })()}
+                    </div>
+                    <div className="md:col-span-1"><p className="truncate text-sm font-semibold text-zinc-100">{f.produtor?.name ?? "-"}</p></div>
                     <div className="md:col-span-1"><p className="truncate text-sm font-semibold text-zinc-100">{f.fornecedor?.name ?? "-"}</p></div>
                     <div className="md:col-span-1"><p className="text-sm font-semibold text-zinc-100">{f.pedido?.code ?? "-"}</p></div>
                     <div className="md:col-span-1 md:text-right">
                       <p className="text-sm font-black text-zinc-100">{money(parseNumber(f.total_value))}</p>
-                      {(() => {
-                        const meta = fatStatusMeta(resolveFatStatus(f, cpStatusByFatId[f.id]));
-                        return <span className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>;
-                      })()}
                     </div>
                     <div className="md:col-span-1">
                       <div className="flex justify-end gap-1.5">
@@ -680,14 +706,14 @@ export default function FaturamentoCompraPage() {
                     <p className="mt-1 text-xs text-zinc-400">Formulario Pai e Itens (Filho).</p>
                   </div>
                   <button onClick={() => setOpen(false)} className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10" aria-label="Fechar modal" title="Fechar">
-                    Ã—
+                    ×
                   </button>
                 </div>
                 <div className="max-h-[78vh] overflow-auto p-5">
                   <div className="grid gap-4 lg:grid-cols-3">
                     <div className="grid gap-2">
                       <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Data</label>
-                      <input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50" />
+                      <input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
                     </div>
                     <div className="grid gap-2">
                       <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Nota fiscal</label>
@@ -727,7 +753,7 @@ export default function FaturamentoCompraPage() {
 
                     <div className="grid gap-2">
                       <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Vencimento</label>
-                      <input type="date" value={formDueDate} onChange={(e) => setFormDueDate(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50" />
+                      <input type="date" value={formDueDate} onChange={(e) => setFormDueDate(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
                     </div>
 
                     <div className="grid gap-2">
@@ -810,7 +836,14 @@ export default function FaturamentoCompraPage() {
                             </div>
                             <div className="grid gap-1">
                               <label className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">Acao</label>
-                              <button onClick={() => setRows((prev) => prev.filter((_, i) => i !== idx))} className="rounded-2xl border border-rose-400/25 bg-rose-500/10 px-3 py-2.5 text-sm font-black text-rose-200 hover:bg-rose-500/15" aria-label="Remover" title="Remover">×</button>
+                              <button onClick={() => setRows((prev) => prev.filter((_, i) => i !== idx))} className="grid place-items-center rounded-2xl border border-rose-400/25 bg-rose-500/10 px-3 py-2.5 text-sm font-black text-rose-200 hover:bg-rose-500/15" aria-label="Remover" title="Remover">
+                                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M3 6h18" />
+                                  <path d="M8 6V4h8v2" />
+                                  <path d="M19 6l-1 14H6L5 6" />
+                                  <path d="M10 11v6M14 11v6" />
+                                </svg>
+                              </button>
                             </div>
                           </div>
                         );

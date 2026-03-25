@@ -16,7 +16,7 @@ export function AuthLayout({
   return (
     <main className="min-h-screen overflow-hidden bg-zinc-950 text-white">
       <SiteHeader />
-      <section className="relative mx-auto grid w-full max-w-7xl items-stretch gap-8 px-6 py-10 md:grid-cols-12">
+      <section className="relative mx-auto grid min-h-[calc(100vh-86px)] w-full max-w-7xl items-center gap-8 px-6 py-10 md:grid-cols-12">
         <div className="pointer-events-none absolute -left-28 top-16 h-72 w-72 rounded-full bg-accent-500/15 blur-3xl" />
         <div className="pointer-events-none absolute -right-20 bottom-4 h-80 w-80 rounded-full bg-emerald-400/10 blur-3xl" />
 

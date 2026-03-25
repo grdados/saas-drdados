@@ -7,9 +7,12 @@ import { getAccessToken } from "@/lib/auth";
 import {
   ContaPagar,
   ContaFinanceira,
+  FaturamentoCompra,
   isApiError,
   listContas,
   listContasAPagar,
+  listFaturamentosCompra,
+  listInsumos,
   listPedidosCompra,
   listSafras,
   updateContaPagarStatus
@@ -57,19 +60,23 @@ function normalizeStatus(it: ContaPagar): ContaStatus {
 type PaymentState = {
   payment_date: string;
   payment_increment: string;
+  paid_value: string;
   discount_value: string;
   addition_value: string;
   payment_method: "pix" | "boleto" | "transfer" | "card" | "cash" | "other";
   conta_id: number | "";
+  status: ContaStatus;
 };
 
 const DEFAULT_PAYMENT: PaymentState = {
   payment_date: "",
   payment_increment: "",
+  paid_value: "",
   discount_value: "0",
   addition_value: "0",
   payment_method: "pix",
-  conta_id: ""
+  conta_id: "",
+  status: "paid"
 };
 
 export default function ContasAPagarPage() {
@@ -79,12 +86,16 @@ export default function ContasAPagarPage() {
   const [pedidosSafraById, setPedidosSafraById] = useState<Record<number, { id: number; name: string } | null>>({});
   const [safras, setSafras] = useState<Array<{ id: number; name: string }>>([]);
   const [contas, setContas] = useState<ContaFinanceira[]>([]);
+  const [faturamentos, setFaturamentos] = useState<FaturamentoCompra[]>([]);
+  const [insumos, setInsumos] = useState<Array<{ id: number; categoria: { id: number; name: string } | null }>>([]);
 
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | ContaStatus>("all");
   const [reportSafraId, setReportSafraId] = useState<number | "">("");
   const [reportGrupoId, setReportGrupoId] = useState<number | "">("");
   const [reportProdutorId, setReportProdutorId] = useState<number | "">("");
+  const [reportFornecedorId, setReportFornecedorId] = useState<number | "">("");
+  const [reportCategoria, setReportCategoria] = useState("");
   const [reportFrom, setReportFrom] = useState("");
   const [reportTo, setReportTo] = useState("");
 
@@ -92,6 +103,18 @@ export default function ContasAPagarPage() {
   const [payOpen, setPayOpen] = useState(false);
   const [payment, setPayment] = useState<PaymentState>(DEFAULT_PAYMENT);
   const [paying, setPaying] = useState(false);
+
+  const faturamentoById = useMemo(() => {
+    const map = new Map<number, FaturamentoCompra>();
+    for (const f of faturamentos) map.set(f.id, f);
+    return map;
+  }, [faturamentos]);
+
+  const categoriaByInsumoId = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const i of insumos) map.set(i.id, i.categoria?.name ?? "SEM CATEGORIA");
+    return map;
+  }, [insumos]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -102,6 +125,16 @@ export default function ContasAPagarPage() {
         if (reportSafraId !== "" && (pedidosSafraById[it.pedido?.id ?? -1]?.id ?? null) !== Number(reportSafraId)) return false;
         if (reportGrupoId !== "" && (it.grupo?.id ?? null) !== Number(reportGrupoId)) return false;
         if (reportProdutorId !== "" && (it.produtor?.id ?? null) !== Number(reportProdutorId)) return false;
+        if (reportFornecedorId !== "" && (it.fornecedor?.id ?? null) !== Number(reportFornecedorId)) return false;
+        if (reportCategoria) {
+          const fat = it.faturamento?.id ? faturamentoById.get(it.faturamento.id) : null;
+          const hasCategory = (fat?.items || []).some((row) => {
+            const pid = row.produto?.id ?? null;
+            if (!pid) return false;
+            return (categoriaByInsumoId.get(pid) ?? "SEM CATEGORIA") === reportCategoria;
+          });
+          if (!hasCategory) return false;
+        }
         if (reportFrom && it.date && it.date < reportFrom) return false;
         if (reportTo && it.date && it.date > reportTo) return false;
         if (!needle) return true;
@@ -113,7 +146,7 @@ export default function ContasAPagarPage() {
         );
       })
       .sort((a, b) => String(a.due_date ?? "").localeCompare(String(b.due_date ?? "")));
-  }, [items, q, status, reportSafraId, reportGrupoId, reportProdutorId, reportFrom, reportTo, pedidosSafraById]);
+  }, [items, q, status, reportSafraId, reportGrupoId, reportProdutorId, reportFornecedorId, reportCategoria, reportFrom, reportTo, pedidosSafraById, faturamentoById, categoriaByInsumoId]);
 
   const grupos = useMemo(() => {
     const m = new Map<number, string>();
@@ -126,6 +159,25 @@ export default function ContasAPagarPage() {
     for (const it of items) if (it.produtor?.id) m.set(it.produtor.id, it.produtor.name);
     return [...m.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
   }, [items]);
+
+  const fornecedores = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const it of items) if (it.fornecedor?.id) m.set(it.fornecedor.id, it.fornecedor.name);
+    return [...m.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  }, [items]);
+
+  const categorias = useMemo(() => {
+    const set = new Set<string>();
+    for (const cp of items) {
+      const fat = cp.faturamento?.id ? faturamentoById.get(cp.faturamento.id) : null;
+      for (const row of fat?.items || []) {
+        const pid = row.produto?.id ?? null;
+        if (!pid) continue;
+        set.add(categoriaByInsumoId.get(pid) ?? "SEM CATEGORIA");
+      }
+    }
+    return [...set].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [items, faturamentoById, categoriaByInsumoId]);
 
   const stats = useMemo(() => {
     const all = filtered;
@@ -159,11 +211,13 @@ export default function ContasAPagarPage() {
     setError("");
     setLoading(true);
     try {
-      const [data, ped, saf, contasData] = await Promise.all([
+      const [data, ped, saf, contasData, fats, ins] = await Promise.all([
         listContasAPagar(token),
         listPedidosCompra(token),
         listSafras(token),
-        listContas(token)
+        listContas(token),
+        listFaturamentosCompra(token),
+        listInsumos(token)
       ]);
       setItems(data);
       const map: Record<number, { id: number; name: string } | null> = {};
@@ -171,6 +225,8 @@ export default function ContasAPagarPage() {
       setPedidosSafraById(map);
       setSafras(saf.map((s) => ({ id: s.id, name: s.name })));
       setContas(contasData);
+      setFaturamentos(fats);
+      setInsumos(ins.map((i) => ({ id: i.id, categoria: i.categoria ?? null })));
     } catch (err) {
       if (isApiError(err) && err.status === 401) {
         window.location.href = "/login";
@@ -196,10 +252,45 @@ export default function ContasAPagarPage() {
     setSelectedIds((prev) => (ids.every((id) => prev.includes(id)) ? prev.filter((id) => !ids.includes(id)) : [...new Set([...prev, ...ids])]));
   }
 
+  function exportCsv() {
+    const header = ["VENCIMENTO", "NF", "FORNECEDOR", "PRODUTOR", "PEDIDO", "TOTAL", "PAGO", "SALDO", "STATUS"];
+    const lines = filtered.map((it) => {
+      const st = statusMeta(normalizeStatus(it)).label.toUpperCase();
+      return [
+        prettyDate(it.due_date),
+        it.invoice_number || "",
+        it.fornecedor?.name ?? "",
+        it.produtor?.name ?? "",
+        it.pedido?.code ?? "",
+        String(it.total_value ?? ""),
+        String(it.paid_value ?? ""),
+        String(it.balance_value ?? ""),
+        st
+      ];
+    });
+    const csv = [header, ...lines]
+      .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(";"))
+      .join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "contas-a-pagar.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function openPayFor(ids: number[]) {
     if (!ids.length) return;
     setSelectedIds(ids);
-    setPayment(DEFAULT_PAYMENT);
+    const first = items.find((x) => x.id === ids[0]);
+    const currentStatus = first ? normalizeStatus(first) : "open";
+    const canReopen = currentStatus === "paid";
+    setPayment({
+      ...DEFAULT_PAYMENT,
+      status: canReopen ? "open" : "paid",
+      paid_value: canReopen ? "0" : ""
+    });
     setPayOpen(true);
   }
 
@@ -212,11 +303,20 @@ export default function ContasAPagarPage() {
       const payload = {
         payment_date: payment.payment_date || null,
         payment_increment: payment.payment_increment ? parseNumber(payment.payment_increment) : undefined,
+        paid_value: payment.paid_value ? parseNumber(payment.paid_value) : undefined,
         discount_value: parseNumber(payment.discount_value || "0"),
         addition_value: parseNumber(payment.addition_value || "0"),
         payment_method: payment.payment_method,
-        conta_id: payment.conta_id === "" ? null : Number(payment.conta_id)
+        conta_id: payment.conta_id === "" ? null : Number(payment.conta_id),
+        status: payment.status
       };
+      const selected = items.filter((x) => selectedIds.includes(x.id));
+      const allPaid = selected.every((x) => normalizeStatus(x) === "paid");
+      if (allPaid && payload.status === "paid" && (payload.payment_increment ?? 0) > 0) {
+        setError("Faturas pagas nao podem receber novo pagamento. Use status/valor para desfazer.");
+        setPaying(false);
+        return;
+      }
       await Promise.all(selectedIds.map((id) => updateContaPagarStatus(token, id, payload)));
       setPayOpen(false);
       await refresh();
@@ -240,7 +340,7 @@ export default function ContasAPagarPage() {
           </div>
 
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-            <div className="grid gap-3 lg:grid-cols-8">
+            <div className="grid gap-3 lg:grid-cols-10">
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
@@ -259,6 +359,14 @@ export default function ContasAPagarPage() {
                 <option value="" style={optionStyle}>Produtor</option>
                 {produtores.map((p) => (<option key={p.id} value={p.id} style={optionStyle}>{p.name}</option>))}
               </select>
+              <select value={reportFornecedorId} onChange={(e) => setReportFornecedorId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                <option value="" style={optionStyle}>Fornecedor</option>
+                {fornecedores.map((f) => (<option key={f.id} value={f.id} style={optionStyle}>{f.name}</option>))}
+              </select>
+              <select value={reportCategoria} onChange={(e) => setReportCategoria(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                <option value="" style={optionStyle}>Categoria</option>
+                {categorias.map((c) => (<option key={c} value={c} style={optionStyle}>{c}</option>))}
+              </select>
               <select value={status} onChange={(e) => setStatus(e.target.value as "all" | ContaStatus)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="all" style={optionStyle}>Todos</option>
                 <option value="open" style={optionStyle}>Pendente</option>
@@ -268,8 +376,8 @@ export default function ContasAPagarPage() {
                 <option value="canceled" style={optionStyle}>Cancelado</option>
               </select>
               <div className="flex gap-2">
-                <input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
-                <input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
+                <input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
+                <input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
               </div>
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -285,6 +393,12 @@ export default function ContasAPagarPage() {
                 className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200 hover:bg-white/10"
               >
                 {filtered.length > 0 && filtered.every((x) => selectedIds.includes(x.id)) ? "Desmarcar lista" : "Selecionar lista"}
+              </button>
+              <button
+                onClick={exportCsv}
+                className="rounded-2xl border border-sky-400/25 bg-sky-500/15 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-500/25"
+              >
+                Exportar CSV
               </button>
             </div>
             {error ? (
@@ -350,16 +464,24 @@ export default function ContasAPagarPage() {
                       <div className="lg:col-span-1 text-sm font-black text-zinc-100">{prettyMoney(it.balance_value)}</div>
                       <div className="lg:col-span-1 lg:text-right">
                         <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>
-                        <div className="mt-1 flex justify-end gap-1">
-                          <button onClick={() => openPayFor([it.id])} className="rounded-xl border border-emerald-400/25 bg-emerald-500/15 px-2 py-1 text-[11px] font-black text-emerald-100 hover:bg-emerald-500/25">
-                            Pagar
+                        <div className="mt-1 flex flex-nowrap items-center justify-end gap-1 whitespace-nowrap">
+                          <button
+                            onClick={() => openPayFor([it.id])}
+                            className="rounded-xl border border-emerald-400/25 bg-emerald-500/15 px-2 py-1 text-[11px] font-black text-emerald-100 hover:bg-emerald-500/25"
+                          >
+                            {st === "paid" ? "Editar" : "Pagar"}
                           </button>
                           <select
                             value={it.status as ContaStatus}
                             onChange={async (e) => {
                               const token = getAccessToken();
                               if (!token) return;
-                              const updated = await updateContaPagarStatus(token, it.id, { status: e.target.value as ContaStatus });
+                              const nextStatus = e.target.value as ContaStatus;
+                              const isPaidNow = normalizeStatus(it) === "paid";
+                              const updated = await updateContaPagarStatus(token, it.id, {
+                                status: nextStatus,
+                                paid_value: isPaidNow && nextStatus === "open" ? 0 : undefined
+                              });
                               setItems((prev) => prev.map((x) => (x.id === it.id ? updated : x)));
                             }}
                             className="rounded-xl border border-white/10 bg-zinc-900/80 px-2 py-1 text-[11px] font-bold text-zinc-100 outline-none focus:border-accent-500/50"
@@ -371,6 +493,9 @@ export default function ContasAPagarPage() {
                             <option value="canceled" style={optionStyle}>Cancelado</option>
                           </select>
                         </div>
+                        {(st === "partial" || st === "open" || st === "overdue") && (
+                          <p className="mt-1 text-[11px] font-semibold text-zinc-400">Saldo: {prettyMoney(it.balance_value)}</p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -392,12 +517,26 @@ export default function ContasAPagarPage() {
                 </div>
                 <div className="grid gap-4 p-5 lg:grid-cols-3">
                   <div className="grid gap-2">
+                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Status</label>
+                    <select value={payment.status} onChange={(e) => setPayment((p) => ({ ...p, status: e.target.value as ContaStatus }))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                      <option value="open" style={optionStyle}>Pendente</option>
+                      <option value="overdue" style={optionStyle}>Vencido</option>
+                      <option value="partial" style={optionStyle}>Parcial</option>
+                      <option value="paid" style={optionStyle}>Pago</option>
+                      <option value="canceled" style={optionStyle}>Cancelado</option>
+                    </select>
+                  </div>
+                  <div className="grid gap-2">
                     <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Data pagamento</label>
-                    <input type="date" value={payment.payment_date} onChange={(e) => setPayment((p) => ({ ...p, payment_date: e.target.value }))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
+                    <input type="date" value={payment.payment_date} onChange={(e) => setPayment((p) => ({ ...p, payment_date: e.target.value }))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
                   </div>
                   <div className="grid gap-2">
                     <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Valor pagamento</label>
                     <input value={payment.payment_increment} onChange={(e) => setPayment((p) => ({ ...p, payment_increment: e.target.value }))} inputMode="decimal" placeholder="0,00" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Valor pago (edicao)</label>
+                    <input value={payment.paid_value} onChange={(e) => setPayment((p) => ({ ...p, paid_value: e.target.value }))} inputMode="decimal" placeholder="Opcional: define valor pago final" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
                   </div>
                   <div className="grid gap-2">
                     <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Forma pagamento</label>
@@ -440,4 +579,3 @@ export default function ContasAPagarPage() {
     </AuthedAdminShell>
   );
 }
-

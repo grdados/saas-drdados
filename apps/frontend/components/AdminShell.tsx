@@ -126,7 +126,7 @@ function SidebarLink({
 }) {
   const base =
     "group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition-colors";
-  const activeCls = "bg-white/5 text-white ring-1 ring-white/10";
+  const activeCls = "bg-accent-500 text-zinc-950 ring-1 ring-accent-300/40";
   const idleCls = "text-zinc-300 hover:bg-white/5 hover:text-white";
 
   if (item.disabled) {
@@ -141,7 +141,7 @@ function SidebarLink({
 
   return (
     <Link href={item.href} className={`${base} ${active ? activeCls : idleCls}`}>
-      <span className={active ? "text-accent-300" : "text-zinc-400 group-hover:text-accent-300"}>{icon}</span>
+      <span className={active ? "text-zinc-950" : "text-zinc-400 group-hover:text-accent-300"}>{icon}</span>
       <span className="flex-1">{item.label}</span>
       {typeof item.badge === "number" ? (
         <span className="rounded-full bg-accent-500/15 px-2 py-0.5 text-xs font-black text-accent-200 ring-1 ring-accent-500/20">
@@ -197,7 +197,7 @@ function SidebarTreeNode({
 
   const base =
     "group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-semibold transition-colors";
-  const activeCls = "bg-white/5 text-white ring-1 ring-white/10";
+  const activeCls = "bg-accent-500 text-zinc-950 ring-1 ring-accent-300/40";
   const idleCls = "text-zinc-300 hover:bg-white/5 hover:text-white";
 
   if (!hasChildren) {
@@ -207,7 +207,7 @@ function SidebarTreeNode({
         item={item}
         active={active && Boolean(node.href)}
         icon={
-          <span className={active ? "text-accent-300" : "text-zinc-400 group-hover:text-accent-300"}>
+          <span className={active ? "text-zinc-950" : "text-zinc-400 group-hover:text-accent-300"}>
             {node.icon || <span className="h-4 w-4" />}
           </span>
         }
@@ -223,7 +223,7 @@ function SidebarTreeNode({
         className={`${base} ${active ? activeCls : idleCls}`}
         aria-expanded={open}
       >
-        <span className={active ? "text-accent-300" : "text-zinc-400 group-hover:text-accent-300"}>
+        <span className={active ? "text-zinc-950" : "text-zinc-400 group-hover:text-accent-300"}>
           {node.icon || <span className="h-4 w-4" />}
         </span>
         <span className="flex-1">{node.label}</span>
@@ -283,7 +283,8 @@ export function AdminShell({
           icon: <Icon name="products" />,
           children: [
             { label: "Produtos", href: "/estoque/produtos" },
-            { label: "Defensivos", href: "/estoque/defensivos" }
+            { label: "Insumos", href: "/estoque/insumos" },
+            { label: "Combustivel", href: "/estoque/combustivel" }
           ]
         },
         { label: "Contas a Pagar", href: "/financeiro/contas-a-pagar", icon: <Icon name="analytics" /> },

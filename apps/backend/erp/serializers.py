@@ -1105,4 +1105,9 @@ class TalhaoSerializer(serializers.ModelSerializer):
 MaquinaSerializer = _mk_serializer(models.Maquina)
 BenfeitoriaSerializer = _mk_serializer(models.Benfeitoria)
 BombaCombustivelSerializer = _mk_serializer(models.BombaCombustivel)
-DepositoSerializer = _mk_serializer(models.Deposito)
+
+
+class DepositoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Deposito
+        fields = ["id", "name", "tipo", "is_active", "created_at", "updated_at"]
