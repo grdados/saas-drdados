@@ -318,6 +318,10 @@ export default function FaturamentoCompraPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  function patchRow(i: number, patch: Partial<(typeof rows)[number]>) {
+    setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  }
+
   function onPickPedido(nextId: number | "") {
     setFormPedidoId(nextId);
     const p = nextId === "" ? null : pedidos.find((x) => x.id === nextId) ?? null;
