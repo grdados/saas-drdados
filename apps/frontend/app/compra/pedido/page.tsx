@@ -25,6 +25,21 @@ import {
 } from "@/lib/api";
 import { toUpperText } from "@/lib/text";
 
+function toApiDecimal(v: unknown) {
+  // DRF DecimalField aceita "5.50" mas não "5,50". Também lidamos com "1.234,56".
+  const raw = String(v ?? "").trim();
+  if (!raw) return "0";
+  const s = raw.replace(/\s+/g, "");
+  const hasComma = s.includes(",");
+  const hasDot = s.includes(".");
+  if (hasComma && hasDot) {
+    // assume "." como milhar e "," como decimal
+    return s.replace(/\./g, "").replace(",", ".");
+  }
+  if (hasComma) return s.replace(",", ".");
+  return s;
+}
+
 export default function PedidoCompraPage() {
   const [loading, setLoading] = useState(true);
   const [pedidos, setPedidos] = useState<PedidoCompra[]>([]);
@@ -195,9 +210,9 @@ export default function PedidoCompraPage() {
         items: rows.map((r) => ({
           produto_id: r.produto_id,
           unit: r.unit,
-          quantity: r.quantity,
-          price: r.price,
-          discount: r.discount
+          quantity: toApiDecimal(r.quantity),
+          price: toApiDecimal(r.price),
+          discount: toApiDecimal(r.discount)
         }))
       };
 
