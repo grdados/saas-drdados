@@ -401,98 +401,266 @@ export default function PedidoCompraPage() {
 
   const optionStyle = { backgroundColor: "#e5e7eb", color: "#111827" } as const;
 
-  function openResumoReport() {
-    const totalPedidos = filtered.length;
-    const totalValor = filtered.reduce((acc, p) => acc + parseNumber(p.total_value), 0);
-    const totalQtd = filtered.reduce(
-      (acc, p) => acc + (p.items || []).reduce((s, it) => s + parseNumber(it.quantity), 0),
-      0
-    );
-    const byStatus = filtered.reduce(
-      (acc, p) => {
-        const st = resolvePedidoStatus(p, billedByPedidoItem);
-        acc[st] += 1;
-        return acc;
-      },
-      { pending: 0, partial: 0, delivered: 0, canceled: 0 }
-    );
-    const html = `
-      <html><head><meta charset="utf-8"/><title>Resumo de Pedidos</title>
-      <style>
-        body{font-family:Arial,sans-serif;padding:24px;color:#111}
-        h1{margin:0 0 8px}
-        .muted{color:#555;font-size:12px}
-        .kpi{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:16px}
-        .card{border:1px solid #ddd;border-radius:10px;padding:12px}
-        .v{font-size:22px;font-weight:700}
-      </style></head><body>
-      <h1>Resumo de Pedidos</h1>
-      <p class="muted">Gerado em ${new Date().toLocaleString("pt-BR")}</p>
-      <div class="kpi">
-        <div class="card"><div class="muted">Quantidade de pedidos</div><div class="v">${totalPedidos}</div></div>
-        <div class="card"><div class="muted">Valor total</div><div class="v">R$ ${totalValor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>
-        <div class="card"><div class="muted">Quantidade total</div><div class="v">${totalQtd.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</div></div>
-        <div class="card"><div class="muted">Status</div><div class="v">${byStatus.delivered} fat. / ${byStatus.partial} parc. / ${byStatus.pending} pend.</div></div>
-      </div>
-      <script>window.print()</script>
-      </body></html>
-    `;
-    const w = window.open("", "_blank", "noopener,noreferrer,width=1200,height=900");
+  function escapeHtml(value: string) {
+    return value
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+
+  function openPrintHtml(title: string, htmlBody: string) {
+    const w = window.open("", "_blank", "noopener,noreferrer,width=1280,height=900");
     if (!w) return;
+    const html = `
+      <!doctype html>
+      <html lang="pt-BR">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>${escapeHtml(title)}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 0; padding: 22px; color: #111; background: #fff; }
+          h1 { margin: 0 0 8px; font-size: 24px; }
+          .muted { color: #555; font-size: 12px; }
+          .group { border: 1px solid #d7d7d7; border-radius: 10px; padding: 10px; margin-top: 12px; }
+          .group h3 { margin: 0 0 8px; font-size: 15px; }
+          .kpi { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+          .card { border: 1px solid #e2e2e2; border-radius: 8px; padding: 8px; }
+          .label { color: #666; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+          .value { margin-top: 4px; font-size: 18px; font-weight: 700; }
+          table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+          th, td { border: 1px solid #e2e2e2; padding: 6px 8px; text-align: left; vertical-align: top; }
+          th { background: #f7f7f7; }
+          td.num, th.num { text-align: right; }
+          @media print { body { padding: 10px; } .no-print { display: none !important; } }
+        </style>
+      </head>
+      <body>
+        ${htmlBody}
+      </body>
+      </html>
+    `;
     w.document.open();
     w.document.write(html);
     w.document.close();
+    setTimeout(() => {
+      try {
+        w.focus();
+        w.print();
+      } catch {
+        // noop
+      }
+    }, 300);
+  }
+
+  function openResumoReport() {
+    const pedidoIds = new Set(filtered.map((p) => p.id));
+    const faturamentosValidos = faturamentos.filter(
+      (f) => (f.pedido?.id ? pedidoIds.has(f.pedido.id) : false) && (f.status || "").toLowerCase() !== "canceled"
+    );
+
+    type GroupSummary = {
+      safra: string;
+      grupo: string;
+      produtor: string;
+      pedidos: number;
+      valorPedido: number;
+      valorFaturado: number;
+      saldoFaturar: number;
+    };
+
+    const map = new Map<string, GroupSummary>();
+    for (const p of filtered) {
+      const safra = p.safra?.name ?? "SEM SAFRA";
+      const grupo = p.grupo?.name ?? "SEM GRUPO";
+      const produtor = p.produtor?.name ?? "SEM PRODUTOR";
+      const key = `${safra}__${grupo}__${produtor}`;
+      const valorPedido = parseNumber(p.total_value);
+      const valorFaturado = faturamentosValidos
+        .filter((f) => (f.pedido?.id ?? null) === p.id)
+        .reduce((acc, f) => acc + parseNumber(f.total_value), 0);
+      const saldoFaturar = Math.max(0, valorPedido - valorFaturado);
+      const curr = map.get(key) ?? { safra, grupo, produtor, pedidos: 0, valorPedido: 0, valorFaturado: 0, saldoFaturar: 0 };
+      curr.pedidos += 1;
+      curr.valorPedido += valorPedido;
+      curr.valorFaturado += valorFaturado;
+      curr.saldoFaturar += saldoFaturar;
+      map.set(key, curr);
+    }
+
+    const groups = [...map.values()].sort((a, b) =>
+      `${a.safra}|${a.grupo}|${a.produtor}`.localeCompare(`${b.safra}|${b.grupo}|${b.produtor}`, "pt-BR")
+    );
+
+    const totalPedido = groups.reduce((acc, g) => acc + g.valorPedido, 0);
+    const totalFaturado = groups.reduce((acc, g) => acc + g.valorFaturado, 0);
+    const totalSaldo = groups.reduce((acc, g) => acc + g.saldoFaturar, 0);
+
+    const rows = groups
+      .map(
+        (g) => `
+          <tr>
+            <td>${escapeHtml(g.safra)}</td>
+            <td>${escapeHtml(g.grupo)}</td>
+            <td>${escapeHtml(g.produtor)}</td>
+            <td class="num">${g.pedidos}</td>
+            <td class="num">R$ ${g.valorPedido.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td class="num">R$ ${g.valorFaturado.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td class="num">R$ ${g.saldoFaturar.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>
+        `
+      )
+      .join("");
+
+    openPrintHtml(
+      "Resumo de Pedidos",
+      `
+        <h1>Relatório Resumo de Pedidos</h1>
+        <p class="muted">Agrupado por Safra, Grupo e Produtor · Gerado em ${new Date().toLocaleString("pt-BR")}</p>
+        <div class="kpi" style="margin-top:12px">
+          <div class="card"><div class="label">Total de pedidos</div><div class="value">${filtered.length}</div></div>
+          <div class="card"><div class="label">Valor dos pedidos</div><div class="value">R$ ${totalPedido.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>
+          <div class="card"><div class="label">Valor faturado</div><div class="value">R$ ${totalFaturado.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>
+          <div class="card"><div class="label">Saldo a faturar</div><div class="value">R$ ${totalSaldo.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Safra</th>
+              <th>Grupo</th>
+              <th>Produtor</th>
+              <th class="num">Pedidos</th>
+              <th class="num">Valor pedido</th>
+              <th class="num">Valor faturado</th>
+              <th class="num">Saldo a faturar</th>
+            </tr>
+          </thead>
+          <tbody>${rows || '<tr><td colspan="7">Sem dados para os filtros selecionados.</td></tr>'}</tbody>
+        </table>
+      `
+    );
   }
 
   function openAnaliticoReport() {
-    const rows = filtered
-      .map((p) => {
-        const qty = (p.items || []).reduce((acc, it) => acc + parseNumber(it.quantity), 0);
-        const total = parseNumber(p.total_value);
-        const price = qty > 0 ? total / qty : 0;
-        const status = statusBadge(resolvePedidoStatus(p, billedByPedidoItem)).label;
+    const pedidoIds = new Set(filtered.map((p) => p.id));
+    const faturamentosValidos = faturamentos.filter(
+      (f) => (f.pedido?.id ? pedidoIds.has(f.pedido.id) : false) && (f.status || "").toLowerCase() !== "canceled"
+    );
+
+    type Analitico = {
+      safra: string;
+      grupo: string;
+      produtor: string;
+      pedidos: Array<{
+        id: number;
+        code: string;
+        valorPedido: number;
+        valorFaturado: number;
+        saldoFaturar: number;
+        notas: Array<{ nf: string; date: string; valor: number }>;
+      }>;
+    };
+
+    const groupMap = new Map<string, Analitico>();
+    for (const p of filtered) {
+      const safra = p.safra?.name ?? "SEM SAFRA";
+      const grupo = p.grupo?.name ?? "SEM GRUPO";
+      const produtor = p.produtor?.name ?? "SEM PRODUTOR";
+      const key = `${safra}__${grupo}__${produtor}`;
+
+      const notas = faturamentosValidos
+        .filter((f) => (f.pedido?.id ?? null) === p.id)
+        .map((f) => ({
+          nf: f.invoice_number || `NF-${f.id}`,
+          date: prettyDateBR(f.date),
+          valor: parseNumber(f.total_value)
+        }));
+      const valorFaturado = notas.reduce((acc, n) => acc + n.valor, 0);
+      const valorPedido = parseNumber(p.total_value);
+      const saldoFaturar = Math.max(0, valorPedido - valorFaturado);
+
+      const group = groupMap.get(key) ?? { safra, grupo, produtor, pedidos: [] };
+      group.pedidos.push({
+        id: p.id,
+        code: p.code || `#${p.id}`,
+        valorPedido,
+        valorFaturado,
+        saldoFaturar,
+        notas
+      });
+      groupMap.set(key, group);
+    }
+
+    const groups = [...groupMap.values()].sort((a, b) =>
+      `${a.safra}|${a.grupo}|${a.produtor}`.localeCompare(`${b.safra}|${b.grupo}|${b.produtor}`, "pt-BR")
+    );
+
+    const htmlGroups = groups
+      .map((g) => {
+        const totalPedido = g.pedidos.reduce((acc, p) => acc + p.valorPedido, 0);
+        const totalFaturado = g.pedidos.reduce((acc, p) => acc + p.valorFaturado, 0);
+        const totalSaldo = g.pedidos.reduce((acc, p) => acc + p.saldoFaturar, 0);
+        const rows = g.pedidos
+          .map((p) => {
+            const nfs = p.notas.length
+              ? p.notas
+                  .map(
+                    (n) =>
+                      `${escapeHtml(n.nf)} (${escapeHtml(n.date)}) - R$ ${n.valor.toLocaleString("pt-BR", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      })}`
+                  )
+                  .join("<br/>")
+              : "Sem faturamento";
+            return `
+              <tr>
+                <td>${escapeHtml(p.code)}</td>
+                <td>${nfs}</td>
+                <td class="num">R$ ${p.valorPedido.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td class="num">R$ ${p.valorFaturado.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td class="num">R$ ${p.saldoFaturar.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              </tr>
+            `;
+          })
+          .join("");
+
         return `
-          <tr>
-            <td>${status}</td>
-            <td>${prettyDateBR(p.date)}</td>
-            <td>${p.code || `#${p.id}`}</td>
-            <td>${prettyDateBR(p.due_date)}</td>
-            <td>${p.grupo?.name ?? "-"}</td>
-            <td>${p.produtor?.name ?? "-"}</td>
-            <td>${p.fornecedor?.name ?? "-"}</td>
-            <td style="text-align:right">${qty.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
-            <td style="text-align:right">${price.toLocaleString("pt-BR", { minimumFractionDigits: 5, maximumFractionDigits: 5 })}</td>
-            <td style="text-align:right">R$ ${total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-          </tr>
+          <section class="group">
+            <h3>${escapeHtml(g.safra)} · ${escapeHtml(g.grupo)} · ${escapeHtml(g.produtor)}</h3>
+            <div class="kpi">
+              <div class="card"><div class="label">Pedidos</div><div class="value">${g.pedidos.length}</div></div>
+              <div class="card"><div class="label">Valor pedido</div><div class="value">R$ ${totalPedido.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>
+              <div class="card"><div class="label">Valor faturado</div><div class="value">R$ ${totalFaturado.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>
+              <div class="card"><div class="label">Saldo a faturar</div><div class="value">R$ ${totalSaldo.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Pedido</th>
+                  <th>Notas fiscais faturadas</th>
+                  <th class="num">Valor pedido</th>
+                  <th class="num">Valor faturado</th>
+                  <th class="num">Saldo a faturar</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </section>
         `;
       })
       .join("");
-    const html = `
-      <html><head><meta charset="utf-8"/><title>Relatório Analítico de Pedidos</title>
-      <style>
-        body{font-family:Arial,sans-serif;padding:20px;color:#111}
-        h1{margin:0 0 8px}
-        .muted{color:#555;font-size:12px}
-        table{width:100%;border-collapse:collapse;margin-top:16px;font-size:12px}
-        th,td{border:1px solid #ddd;padding:6px 8px}
-        th{background:#f5f5f5;text-align:left}
-      </style></head><body>
-      <h1>Relatório Analítico de Pedidos</h1>
-      <p class="muted">Gerado em ${new Date().toLocaleString("pt-BR")} · ${filtered.length} item(ns)</p>
-      <table>
-        <thead>
-          <tr><th>Status</th><th>Data</th><th>Pedido</th><th>Venc.</th><th>Grupo</th><th>Produtor</th><th>Fornecedor</th><th>Qtd.</th><th>Preço</th><th>Valor</th></tr>
-        </thead>
-        <tbody>${rows || '<tr><td colspan="10">Sem dados.</td></tr>'}</tbody>
-      </table>
-      <script>window.print()</script>
-      </body></html>
-    `;
-    const w = window.open("", "_blank", "noopener,noreferrer,width=1280,height=900");
-    if (!w) return;
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
+
+    openPrintHtml(
+      "Relatório Analítico de Pedidos",
+      `
+        <h1>Relatório Analítico de Pedidos</h1>
+        <p class="muted">Agrupado por Safra, Grupo e Produtor · Gerado em ${new Date().toLocaleString("pt-BR")}</p>
+        ${htmlGroups || '<p class="muted">Sem dados para os filtros selecionados.</p>'}
+      `
+    );
   }
 
   return (
