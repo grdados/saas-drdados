@@ -1,7 +1,6 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 import { AuthLayout } from "@/components/AuthLayout";
@@ -9,7 +8,6 @@ import { login } from "@/lib/api";
 import { saveTokens } from "@/lib/auth";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -22,7 +20,7 @@ export default function LoginPage() {
     try {
       const result = await login({ username, password });
       saveTokens(result.access, result.refresh);
-      router.push("/dashboard");
+      window.location.href = "/dashboard";
     } catch (err) {
       const message =
         err instanceof Error

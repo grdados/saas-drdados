@@ -1,3 +1,5 @@
+import { clearTokens, getRefreshToken, saveTokens } from "@/lib/auth";
+
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 type JsonValue = Record<string, unknown>;
@@ -41,7 +43,7 @@ function extractErrorMessage(payloadText: string): string {
   return trimmed;
 }
 
-async function request<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
+async function rawRequest(path: string, options: RequestInit = {}, token?: string): Promise<Response> {
   let response: Response;
   try {
     response = await fetch(`${API_URL}${path}`, {
@@ -58,6 +60,39 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
       "Falha de rede/CORS ao chamar a API. Confirme `NEXT_PUBLIC_API_URL` no Vercel e `CORS_ALLOWED_ORIGINS` no Render.";
     const details = err instanceof Error ? err.message : String(err);
     throw new ApiError(`${hint} (${details})`, 0);
+  }
+
+  return response;
+}
+
+async function tryRefreshToken(): Promise<string | null> {
+  const refresh = getRefreshToken();
+  if (!refresh) return null;
+  try {
+    const resp = await rawRequest("/api/auth/refresh/", {
+      method: "POST",
+      body: JSON.stringify({ refresh })
+    });
+    if (!resp.ok) return null;
+    const data = (await resp.json()) as { access?: string };
+    if (!data?.access) return null;
+    saveTokens(data.access, refresh);
+    return data.access;
+  } catch {
+    return null;
+  }
+}
+
+async function request<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
+  let response = await rawRequest(path, options, token);
+
+  if (response.status === 401 && token) {
+    const newAccess = await tryRefreshToken();
+    if (newAccess) {
+      response = await rawRequest(path, options, newAccess);
+    } else {
+      clearTokens();
+    }
   }
 
   if (!response.ok) {

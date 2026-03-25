@@ -515,7 +515,7 @@ export function AdminShell({
                 <div className="relative">
                   <button
                     onClick={() => setProfileOpen((v) => !v)}
-                    className="flex items-center gap-3 rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 hover:bg-zinc-950/60"
+                    className="flex items-center gap-3 rounded-2xl border border-white/15 bg-white/[0.06] px-3 py-2 hover:bg-white/[0.1]"
                   >
                     <span className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-2xl bg-zinc-950 ring-1 ring-white/10">
                       {avatarUrl && avatarOk ? (
@@ -541,7 +541,7 @@ export function AdminShell({
                   </button>
 
                   {profileOpen ? (
-                    <div className="absolute right-0 top-14 z-20 w-56 overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/95 shadow-xl backdrop-blur-xl">
+                    <div className="absolute right-0 top-14 z-20 w-56 overflow-hidden rounded-2xl border border-white/15 bg-zinc-900/95 shadow-xl shadow-black/50 backdrop-blur-xl">
                       <div className="p-2">
                         <Link
                           onClick={() => setProfileOpen(false)}

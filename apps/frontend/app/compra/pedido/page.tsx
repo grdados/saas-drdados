@@ -401,6 +401,100 @@ export default function PedidoCompraPage() {
 
   const optionStyle = { backgroundColor: "#e5e7eb", color: "#111827" } as const;
 
+  function openResumoReport() {
+    const totalPedidos = filtered.length;
+    const totalValor = filtered.reduce((acc, p) => acc + parseNumber(p.total_value), 0);
+    const totalQtd = filtered.reduce(
+      (acc, p) => acc + (p.items || []).reduce((s, it) => s + parseNumber(it.quantity), 0),
+      0
+    );
+    const byStatus = filtered.reduce(
+      (acc, p) => {
+        const st = resolvePedidoStatus(p, billedByPedidoItem);
+        acc[st] += 1;
+        return acc;
+      },
+      { pending: 0, partial: 0, delivered: 0, canceled: 0 }
+    );
+    const html = `
+      <html><head><meta charset="utf-8"/><title>Resumo de Pedidos</title>
+      <style>
+        body{font-family:Arial,sans-serif;padding:24px;color:#111}
+        h1{margin:0 0 8px}
+        .muted{color:#555;font-size:12px}
+        .kpi{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:16px}
+        .card{border:1px solid #ddd;border-radius:10px;padding:12px}
+        .v{font-size:22px;font-weight:700}
+      </style></head><body>
+      <h1>Resumo de Pedidos</h1>
+      <p class="muted">Gerado em ${new Date().toLocaleString("pt-BR")}</p>
+      <div class="kpi">
+        <div class="card"><div class="muted">Quantidade de pedidos</div><div class="v">${totalPedidos}</div></div>
+        <div class="card"><div class="muted">Valor total</div><div class="v">R$ ${totalValor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div></div>
+        <div class="card"><div class="muted">Quantidade total</div><div class="v">${totalQtd.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</div></div>
+        <div class="card"><div class="muted">Status</div><div class="v">${byStatus.delivered} fat. / ${byStatus.partial} parc. / ${byStatus.pending} pend.</div></div>
+      </div>
+      <script>window.print()</script>
+      </body></html>
+    `;
+    const w = window.open("", "_blank", "noopener,noreferrer,width=1200,height=900");
+    if (!w) return;
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+  }
+
+  function openAnaliticoReport() {
+    const rows = filtered
+      .map((p) => {
+        const qty = (p.items || []).reduce((acc, it) => acc + parseNumber(it.quantity), 0);
+        const total = parseNumber(p.total_value);
+        const price = qty > 0 ? total / qty : 0;
+        const status = statusBadge(resolvePedidoStatus(p, billedByPedidoItem)).label;
+        return `
+          <tr>
+            <td>${status}</td>
+            <td>${prettyDateBR(p.date)}</td>
+            <td>${p.code || `#${p.id}`}</td>
+            <td>${prettyDateBR(p.due_date)}</td>
+            <td>${p.grupo?.name ?? "-"}</td>
+            <td>${p.produtor?.name ?? "-"}</td>
+            <td>${p.fornecedor?.name ?? "-"}</td>
+            <td style="text-align:right">${qty.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
+            <td style="text-align:right">${price.toLocaleString("pt-BR", { minimumFractionDigits: 5, maximumFractionDigits: 5 })}</td>
+            <td style="text-align:right">R$ ${total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>
+        `;
+      })
+      .join("");
+    const html = `
+      <html><head><meta charset="utf-8"/><title>Relatório Analítico de Pedidos</title>
+      <style>
+        body{font-family:Arial,sans-serif;padding:20px;color:#111}
+        h1{margin:0 0 8px}
+        .muted{color:#555;font-size:12px}
+        table{width:100%;border-collapse:collapse;margin-top:16px;font-size:12px}
+        th,td{border:1px solid #ddd;padding:6px 8px}
+        th{background:#f5f5f5;text-align:left}
+      </style></head><body>
+      <h1>Relatório Analítico de Pedidos</h1>
+      <p class="muted">Gerado em ${new Date().toLocaleString("pt-BR")} · ${filtered.length} item(ns)</p>
+      <table>
+        <thead>
+          <tr><th>Status</th><th>Data</th><th>Pedido</th><th>Venc.</th><th>Grupo</th><th>Produtor</th><th>Fornecedor</th><th>Qtd.</th><th>Preço</th><th>Valor</th></tr>
+        </thead>
+        <tbody>${rows || '<tr><td colspan="10">Sem dados.</td></tr>'}</tbody>
+      </table>
+      <script>window.print()</script>
+      </body></html>
+    `;
+    const w = window.open("", "_blank", "noopener,noreferrer,width=1280,height=900");
+    if (!w) return;
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+  }
+
   return (
     <AuthedAdminShell>
       {() => (
@@ -408,8 +502,8 @@ export default function PedidoCompraPage() {
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Compra</p>
           <h1 className="text-2xl font-black tracking-tight text-white">Pedido</h1>
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-            <div className="grid gap-3 lg:grid-cols-10">
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por pedido, fornecedor ou produtor..." className="lg:col-span-2 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50" />
+            <div className="grid gap-3 lg:grid-cols-12">
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por pedido, fornecedor ou produtor..." className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50 lg:col-span-3" />
               <select value={reportSafraId} onChange={(e) => setReportSafraId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="" style={optionStyle}>Safra</option>
                 {safras.map((s) => (<option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>))}
@@ -437,9 +531,11 @@ export default function PedidoCompraPage() {
                 <input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
                 <input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
               </div>
-            </div>
-            <div className="mt-3 flex justify-end">
-              <button onClick={openCreate} className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">Novo pedido</button>
+              <div className="flex flex-wrap items-center justify-end gap-2 lg:col-span-2">
+                <button onClick={openResumoReport} className="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-xs font-black text-white hover:bg-white/10">Relatório resumo</button>
+                <button onClick={openAnaliticoReport} className="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-xs font-black text-white hover:bg-white/10">Relatório analítico</button>
+                <button onClick={openCreate} className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">Novo pedido</button>
+              </div>
             </div>
           </section>
 
@@ -462,23 +558,25 @@ export default function PedidoCompraPage() {
               <p className="text-sm font-black text-white">Lista</p>
               <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
             </div>
-            <div className="mt-3 hidden grid-cols-[120px_96px_130px_120px_150px_150px_150px_110px_110px_110px_120px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 md:grid">
-              <div>Status</div>
-              <div>Data</div>
-              <div>Pedido</div>
-              <div>Venc.</div>
-              <div>Grupo</div>
-              <div>Produtor</div>
-              <div>Fornecedor</div>
-              <div className="text-right">Qtd.</div>
-              <div className="text-right">Preço</div>
-              <div className="text-right">Valor</div>
-              <div className="text-right">Ações</div>
+            <div className="mt-3 overflow-x-auto">
+              <div className="hidden min-w-[1540px] grid-cols-[120px_96px_130px_120px_150px_150px_150px_110px_110px_130px_160px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 md:grid">
+                <div>Status</div>
+                <div>Data</div>
+                <div>Pedido</div>
+                <div>Venc.</div>
+                <div>Grupo</div>
+                <div>Produtor</div>
+                <div>Fornecedor</div>
+                <div className="text-right">Qtd.</div>
+                <div className="text-right">Preço</div>
+                <div className="text-right">Valor</div>
+                <div className="text-right">Ações</div>
+              </div>
             </div>
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 space-y-2 overflow-x-auto">
               {filtered.map((p) => (
                 <div key={p.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-4 py-3 hover:bg-white/5">
-                  <div className="grid grid-cols-1 gap-2 md:grid-cols-[120px_96px_130px_120px_150px_150px_150px_110px_110px_110px_120px] md:items-center md:gap-3">
+                  <div className="grid min-w-[1540px] grid-cols-1 gap-2 md:grid-cols-[120px_96px_130px_120px_150px_150px_150px_110px_110px_130px_160px] md:items-center md:gap-3">
                     <div>
                       {(() => {
                         const meta = statusBadge(resolvePedidoStatus(p, billedByPedidoItem));
@@ -508,7 +606,7 @@ export default function PedidoCompraPage() {
                     <div className="text-right">
                       <p className="text-sm font-black text-zinc-100">R$ {Number(p.total_value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                     </div>
-                    <div className="min-w-[120px] whitespace-nowrap">
+                    <div className="min-w-[160px] whitespace-nowrap">
                       <div className="flex w-full flex-nowrap justify-end gap-1.5 whitespace-nowrap">
                         <button
                           onClick={() => openEdit(p.id)}
@@ -535,7 +633,7 @@ export default function PedidoCompraPage() {
                           </svg>
                         </button>
                         <button
-                          onClick={() => window.open(`/compra/pedido/${p.id}/print`, "_blank", "noopener,noreferrer")}
+                          onClick={() => window.open(`/compra/pedido/${p.id}/print?t=${Date.now()}`, "_blank", "noopener,noreferrer")}
                           className="whitespace-nowrap rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-black text-white hover:bg-white/10"
                           title="Imprimir / PDF"
                           aria-label="Imprimir / PDF"

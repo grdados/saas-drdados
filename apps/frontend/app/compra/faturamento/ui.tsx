@@ -638,25 +638,27 @@ export default function FaturamentoCompraPage() {
               <p className="text-sm font-black text-white">Notas fiscais</p>
               <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
             </div>
-            <div className="mt-3 hidden grid-cols-[120px_96px_130px_130px_140px_90px_90px_130px_130px_100px_120px_96px_120px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 md:grid">
-              <div>Status</div>
-              <div>Data</div>
-              <div>Nota Fiscal</div>
-              <div>Venc.</div>
-              <div>Grupo</div>
-              <div>Dias</div>
-              <div>Produtor</div>
-              <div>Fornecedor</div>
-              <div>Pedido</div>
-              <div className="text-right">Qtd.</div>
-              <div className="text-right">Preço</div>
-              <div className="text-right">Valor</div>
-              <div className="text-right">Ações</div>
+            <div className="mt-3 overflow-x-auto">
+              <div className="hidden min-w-[1700px] grid-cols-[120px_96px_130px_130px_140px_90px_90px_130px_130px_100px_120px_96px_120px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 md:grid">
+                <div>Status</div>
+                <div>Data</div>
+                <div>Nota Fiscal</div>
+                <div>Venc.</div>
+                <div>Grupo</div>
+                <div>Dias</div>
+                <div>Produtor</div>
+                <div>Fornecedor</div>
+                <div>Pedido</div>
+                <div className="text-right">Qtd.</div>
+                <div className="text-right">Preço</div>
+                <div className="text-right">Valor</div>
+                <div className="text-right">Ações</div>
+              </div>
             </div>
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 space-y-2 overflow-x-auto">
               {filtered.map((f) => (
                 <div key={f.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-4 py-3 hover:bg-white/5">
-                  <div className="grid grid-cols-1 gap-2 md:grid-cols-[120px_96px_130px_130px_140px_90px_90px_130px_130px_100px_120px_96px_120px] md:items-center md:gap-3">
+                  <div className="grid min-w-[1700px] grid-cols-1 gap-2 md:grid-cols-[120px_96px_130px_130px_140px_90px_90px_130px_130px_100px_120px_96px_120px] md:items-center md:gap-3">
                     <div>
                       {(() => {
                         const meta = fatStatusMeta(resolveFatStatus(f, cpStatusByFatId[f.id]));
