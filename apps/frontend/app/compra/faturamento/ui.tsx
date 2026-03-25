@@ -638,23 +638,25 @@ export default function FaturamentoCompraPage() {
               <p className="text-sm font-black text-white">Notas fiscais</p>
               <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
             </div>
-            <div className="mt-3 hidden grid-cols-[120px_100px_170px_150px_110px_100px_140px_140px_100px_120px_84px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 md:grid">
+            <div className="mt-3 hidden grid-cols-[120px_96px_130px_130px_140px_90px_90px_130px_130px_100px_120px_96px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 md:grid">
               <div>Status</div>
               <div>Data</div>
               <div>Nota Fiscal</div>
-              <div>Grupo</div>
               <div>Venc.</div>
+              <div>Grupo</div>
               <div>Dias</div>
               <div>Produtor</div>
               <div>Fornecedor</div>
               <div>Pedido</div>
+              <div className="text-right">Qtd.</div>
+              <div className="text-right">Preço</div>
               <div className="text-right">Valor</div>
               <div className="text-right">Ações</div>
             </div>
             <div className="mt-3 space-y-2">
               {filtered.map((f) => (
                 <div key={f.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-4 py-3 hover:bg-white/5">
-                  <div className="grid grid-cols-1 gap-2 md:grid-cols-[120px_100px_170px_150px_110px_100px_140px_140px_100px_120px_84px] md:items-center md:gap-3">
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-[120px_96px_130px_130px_140px_90px_90px_130px_130px_100px_120px_96px] md:items-center md:gap-3">
                     <div>
                       {(() => {
                         const meta = fatStatusMeta(resolveFatStatus(f, cpStatusByFatId[f.id]));
@@ -663,8 +665,8 @@ export default function FaturamentoCompraPage() {
                     </div>
                     <div><p className="text-sm font-semibold text-zinc-100">{prettyDateBR(f.date)}</p></div>
                     <div><p className="truncate text-sm font-black text-white">{f.invoice_number || `#${f.id}`}</p></div>
-                    <div><p className="truncate text-sm font-semibold text-zinc-100">{f.grupo?.name ?? "-"}</p></div>
                     <div><p className="truncate text-sm font-semibold text-zinc-100">{prettyDateBR(f.due_date)}</p></div>
+                    <div><p className="truncate text-sm font-semibold text-zinc-100">{f.grupo?.name ?? "-"}</p></div>
                     <div>
                       {(() => {
                         const d = daysUntilDue(f.due_date);
@@ -676,6 +678,25 @@ export default function FaturamentoCompraPage() {
                     <div><p className="truncate text-sm font-semibold text-zinc-100">{f.produtor?.name ?? "-"}</p></div>
                     <div><p className="truncate text-sm font-semibold text-zinc-100">{f.fornecedor?.name ?? "-"}</p></div>
                     <div><p className="text-sm font-semibold text-zinc-100">{f.pedido?.code ?? "-"}</p></div>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-zinc-100">
+                        {(f.items || []).reduce((acc, it) => acc + parseNumber(it.quantity), 0).toLocaleString("pt-BR", {
+                          minimumFractionDigits: 3,
+                          maximumFractionDigits: 3
+                        })}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      {(() => {
+                        const qty = (f.items || []).reduce((acc, it) => acc + parseNumber(it.quantity), 0);
+                        const price = qty > 0 ? parseNumber(f.total_value) / qty : 0;
+                        return (
+                          <p className="text-sm font-black text-zinc-100">
+                            {price.toLocaleString("pt-BR", { minimumFractionDigits: 5, maximumFractionDigits: 5 })}
+                          </p>
+                        );
+                      })()}
+                    </div>
                     <div className="text-right">
                       <p className="text-sm font-black text-zinc-100">{money(parseNumber(f.total_value))}</p>
                     </div>

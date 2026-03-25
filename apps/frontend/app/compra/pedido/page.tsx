@@ -7,10 +7,12 @@ import { getAccessToken } from "@/lib/auth";
 import {
   createPedidoCompra,
   deletePedidoCompra,
+  FaturamentoCompra,
   FornecedorGerencial,
   GrupoProdutor,
   Insumo,
   isApiError,
+  listFaturamentosCompra,
   listFornecedoresGerencial,
   listGruposProdutores,
   listInsumos,
@@ -56,9 +58,27 @@ function prettyDateBR(value?: string | null) {
 function statusBadge(status: string) {
   const s = (status || "").toLowerCase();
   if (s === "delivered" || s === "confirmed" || s === "paid") return { label: "Faturado", cls: "border-emerald-400/30 bg-emerald-500/15 text-emerald-200" };
-  if (s === "partial") return { label: "Parcial", cls: "border-sky-400/30 bg-sky-500/15 text-sky-200" };
+  if (s === "partial") return { label: "Fat. Parcial", cls: "border-sky-400/30 bg-sky-500/15 text-sky-200" };
   if (s === "canceled") return { label: "Cancelado", cls: "border-zinc-400/30 bg-zinc-500/15 text-zinc-200" };
   return { label: "Pendente", cls: "border-amber-400/30 bg-amber-500/15 text-amber-200" };
+}
+
+function resolvePedidoStatus(
+  p: PedidoCompra,
+  billedByPedidoItem: Map<number, number>
+): "pending" | "partial" | "delivered" | "canceled" {
+  const original = String(p.status || "").toLowerCase();
+  if (original === "canceled") return "canceled";
+  const items = p.items || [];
+  if (!items.length) return "pending";
+  const totalQty = items.reduce((acc, it) => acc + parseNumber(it.quantity), 0);
+  const totalReceived = items.reduce((acc, it) => {
+    const billed = billedByPedidoItem.get(it.id);
+    return acc + (typeof billed === "number" ? billed : parseNumber(it.received_quantity ?? "0"));
+  }, 0);
+  if (totalReceived <= 0) return "pending";
+  if (totalQty > 0 && totalReceived >= totalQty) return "delivered";
+  return "partial";
 }
 
 export default function PedidoCompraPage() {
@@ -72,6 +92,7 @@ export default function PedidoCompraPage() {
   const [safras, setSafras] = useState<Safra[]>([]);
   const [operacoes, setOperacoes] = useState<Operacao[]>([]);
   const [insumos, setInsumos] = useState<Insumo[]>([]);
+  const [faturamentos, setFaturamentos] = useState<FaturamentoCompra[]>([]);
 
   const [q, setQ] = useState("");
   const [reportSafraId, setReportSafraId] = useState<number | "">("");
@@ -101,13 +122,27 @@ export default function PedidoCompraPage() {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
 
+  const billedByPedidoItem = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const fat of faturamentos) {
+      if ((fat.status || "").toLowerCase() === "canceled") continue;
+      for (const it of fat.items || []) {
+        const pid = it.pedido_item_id ?? null;
+        if (!pid) continue;
+        map.set(pid, (map.get(pid) ?? 0) + parseNumber(it.quantity));
+      }
+    }
+    return map;
+  }, [faturamentos]);
+
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return pedidos.filter((p) => {
+      const resolvedStatus = resolvePedidoStatus(p, billedByPedidoItem);
       if (reportSafraId !== "" && (p.safra?.id ?? null) !== Number(reportSafraId)) return false;
       if (reportGrupoId !== "" && (p.grupo?.id ?? null) !== Number(reportGrupoId)) return false;
       if (reportProdutorId !== "" && (p.produtor?.id ?? null) !== Number(reportProdutorId)) return false;
-      if (reportStatus !== "all" && (p.status ?? "") !== reportStatus) return false;
+      if (reportStatus !== "all" && resolvedStatus !== reportStatus) return false;
       if (reportFrom && p.date && p.date < reportFrom) return false;
       if (reportTo && p.date && p.date > reportTo) return false;
       if (reportCategoria) {
@@ -135,7 +170,8 @@ export default function PedidoCompraPage() {
     reportFrom,
     reportTo,
     reportCategoria,
-    insumos
+    insumos,
+    billedByPedidoItem
   ]);
 
   const total = useMemo(() => {
@@ -169,9 +205,9 @@ export default function PedidoCompraPage() {
 
   const cards = useMemo(() => {
     const total = filtered.reduce((acc, p) => acc + parseNumber(p.total_value), 0);
-    const faturadosList = filtered.filter((p) => ["delivered", "confirmed", "paid"].includes((p.status || "").toLowerCase()));
-    const pendentesList = filtered.filter((p) => ["pending", "open", "draft"].includes((p.status || "").toLowerCase()));
-    const parciaisList = filtered.filter((p) => (p.status || "").toLowerCase() === "partial");
+    const faturadosList = filtered.filter((p) => resolvePedidoStatus(p, billedByPedidoItem) === "delivered");
+    const pendentesList = filtered.filter((p) => resolvePedidoStatus(p, billedByPedidoItem) === "pending");
+    const parciaisList = filtered.filter((p) => resolvePedidoStatus(p, billedByPedidoItem) === "partial");
     const faturados = faturadosList.length;
     const pendentes = pendentesList.length;
     const parciais = parciaisList.length;
@@ -210,7 +246,7 @@ export default function PedidoCompraPage() {
         tone: "border-white/15 bg-white/5"
       }
     ];
-  }, [filtered]);
+  }, [filtered, billedByPedidoItem]);
 
   async function refresh() {
     const token = getAccessToken();
@@ -218,14 +254,15 @@ export default function PedidoCompraPage() {
     setError("");
     setLoading(true);
     try {
-      const [ped, grp, pro, forn, saf, ope, ins] = await Promise.all([
+      const [ped, grp, pro, forn, saf, ope, ins, fats] = await Promise.all([
         listPedidosCompra(token),
         listGruposProdutores(token),
         listProdutores(token),
         listFornecedoresGerencial(token),
         listSafras(token),
         listOperacoes(token),
-        listInsumos(token)
+        listInsumos(token),
+        listFaturamentosCompra(token)
       ]);
       setPedidos(ped);
       setGrupos(grp);
@@ -234,6 +271,7 @@ export default function PedidoCompraPage() {
       setSafras(saf);
       setOperacoes(ope);
       setInsumos(ins);
+      setFaturamentos(fats);
     } catch (err) {
       if (isApiError(err) && err.status === 401) {
         window.location.href = "/login";
@@ -391,10 +429,8 @@ export default function PedidoCompraPage() {
               <select value={reportStatus} onChange={(e) => setReportStatus(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="all" style={optionStyle}>Status (todos)</option>
                 <option value="pending" style={optionStyle}>Pendente</option>
-                <option value="open" style={optionStyle}>Em aberto</option>
-                <option value="partial" style={optionStyle}>Parcial</option>
-                <option value="delivered" style={optionStyle}>Entregue</option>
-                <option value="confirmed" style={optionStyle}>Confirmado</option>
+                <option value="partial" style={optionStyle}>Fat. Parcial</option>
+                <option value="delivered" style={optionStyle}>Faturado</option>
                 <option value="canceled" style={optionStyle}>Cancelado</option>
               </select>
               <div className="flex min-w-0 gap-2 lg:col-span-2">
@@ -426,37 +462,53 @@ export default function PedidoCompraPage() {
               <p className="text-sm font-black text-white">Lista</p>
               <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
             </div>
-            <div className="mt-3 hidden grid-cols-12 gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 md:grid">
-              <div className="col-span-1">Status</div>
-              <div className="col-span-1">Data</div>
-              <div className="col-span-2">Pedido</div>
-              <div className="col-span-2">Grupo</div>
-              <div className="col-span-2">Produtor</div>
-              <div className="col-span-2">Fornecedor</div>
-              <div className="col-span-1 text-right">Valor</div>
-              <div className="col-span-1 text-right">Ações</div>
+            <div className="mt-3 hidden grid-cols-[120px_96px_130px_120px_150px_150px_150px_110px_110px_110px_120px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 md:grid">
+              <div>Status</div>
+              <div>Data</div>
+              <div>Pedido</div>
+              <div>Venc.</div>
+              <div>Grupo</div>
+              <div>Produtor</div>
+              <div>Fornecedor</div>
+              <div className="text-right">Qtd.</div>
+              <div className="text-right">Preço</div>
+              <div className="text-right">Valor</div>
+              <div className="text-right">Ações</div>
             </div>
             <div className="mt-3 space-y-2">
               {filtered.map((p) => (
                 <div key={p.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-4 py-3 hover:bg-white/5">
-                  <div className="grid grid-cols-1 gap-2 md:grid-cols-12 md:items-center md:gap-3">
-                    <div className="md:col-span-1 md:text-left">
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-[120px_96px_130px_120px_150px_150px_150px_110px_110px_110px_120px] md:items-center md:gap-3">
+                    <div>
                       {(() => {
-                        const meta = statusBadge(p.status);
+                        const meta = statusBadge(resolvePedidoStatus(p, billedByPedidoItem));
                         return <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>;
                       })()}
                     </div>
-                    <div className="md:col-span-1"><p className="text-sm font-semibold text-zinc-100">{prettyDateBR(p.date)}</p></div>
-                    <div className="md:col-span-2">
+                    <div><p className="text-sm font-semibold text-zinc-100">{prettyDateBR(p.date)}</p></div>
+                    <div>
                       <button onClick={() => openEdit(p.id)} className="truncate text-left text-sm font-black text-white hover:text-accent-200">{p.code || `#${p.id}`}</button>
                     </div>
-                    <div className="md:col-span-2"><p className="truncate text-sm font-semibold text-zinc-100">{p.grupo?.name ?? "-"}</p></div>
-                    <div className="md:col-span-2"><p className="truncate text-sm font-semibold text-zinc-100">{p.produtor?.name ?? "-"}</p></div>
-                    <div className="md:col-span-2"><p className="truncate text-sm font-semibold text-zinc-100">{p.fornecedor?.name ?? "-"}</p></div>
-                    <div className="md:col-span-1 md:text-right">
+                    <div><p className="text-sm font-semibold text-zinc-100">{prettyDateBR(p.due_date)}</p></div>
+                    <div><p className="truncate text-sm font-semibold text-zinc-100">{p.grupo?.name ?? "-"}</p></div>
+                    <div><p className="truncate text-sm font-semibold text-zinc-100">{p.produtor?.name ?? "-"}</p></div>
+                    <div><p className="truncate text-sm font-semibold text-zinc-100">{p.fornecedor?.name ?? "-"}</p></div>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-zinc-100">
+                        {(p.items || []).reduce((acc, it) => acc + parseNumber(it.quantity), 0).toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      {(() => {
+                        const qty = (p.items || []).reduce((acc, it) => acc + parseNumber(it.quantity), 0);
+                        const price = qty > 0 ? parseNumber(p.total_value) / qty : 0;
+                        return <p className="text-sm font-black text-zinc-100">{price.toLocaleString("pt-BR", { minimumFractionDigits: 5, maximumFractionDigits: 5 })}</p>;
+                      })()}
+                    </div>
+                    <div className="text-right">
                       <p className="text-sm font-black text-zinc-100">R$ {Number(p.total_value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                     </div>
-                    <div className="md:col-span-1">
+                    <div>
                       <div className="flex flex-nowrap justify-end gap-1.5">
                         <button
                           onClick={() => openEdit(p.id)}

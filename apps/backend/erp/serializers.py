@@ -699,9 +699,32 @@ class FaturamentoCompraSerializer(serializers.ModelSerializer):
         all_delivered = True
         any_received = False
         for it in items:
-            if it.received_quantity and it.received_quantity > 0:
+            # Recalcula recebido real a partir dos faturamentos (desconsidera cancelados)
+            billed = (
+                models.FaturamentoCompraItem.objects.filter(
+                    pedido_item=it,
+                    faturamento__status__in=[
+                        models.FaturamentoCompra.Status.PENDING,
+                        models.FaturamentoCompra.Status.OVERDUE,
+                        models.FaturamentoCompra.Status.PARTIAL,
+                        models.FaturamentoCompra.Status.PAID,
+                    ],
+                ).aggregate(v=Coalesce(Sum("quantity"), Decimal("0")))["v"]
+                or Decimal("0")
+            )
+            if it.received_quantity != billed:
+                it.received_quantity = billed
+                if billed >= (it.quantity or Decimal("0")):
+                    it.status = models.PedidoCompraItem.ItemStatus.DELIVERED
+                elif billed > 0:
+                    it.status = models.PedidoCompraItem.ItemStatus.PARTIAL
+                else:
+                    it.status = models.PedidoCompraItem.ItemStatus.PENDING
+                it.save(update_fields=["received_quantity", "status", "updated_at"])
+
+            if billed > 0:
                 any_received = True
-            if it.received_quantity < it.quantity:
+            if billed < (it.quantity or Decimal("0")):
                 all_delivered = False
         if all_delivered:
             pedido.status = models.PedidoCompra.Status.DELIVERED
