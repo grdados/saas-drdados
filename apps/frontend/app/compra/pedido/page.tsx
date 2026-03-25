@@ -410,7 +410,9 @@ export default function PedidoCompraPage() {
       .replaceAll("'", "&#39;");
   }
 
-  function openPrintHtml(title: string, htmlBody: string) {
+  function openPrintHtml(title: string, htmlBody: string, orientation: "portrait" | "landscape" = "landscape") {
+    const generatedAt = new Date().toLocaleString("pt-BR");
+    const logoUrl = `${window.location.origin}/logo_horizontal.png`;
     const html = `
       <!doctype html>
       <html lang="pt-BR">
@@ -419,7 +421,24 @@ export default function PedidoCompraPage() {
         <meta name="viewport" content="width=device-width,initial-scale=1" />
         <title>${escapeHtml(title)}</title>
         <style>
-          body { font-family: Arial, sans-serif; margin: 0; padding: 22px; color: #111; background: #fff; }
+          @page { size: A4 ${orientation}; margin: 12mm 10mm; }
+          body { font-family: Arial, sans-serif; margin: 0; padding: 0; color: #111; background: #fff; }
+          .page { padding: 14px 10px 10px; }
+          .header {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 12px;
+            align-items: center;
+            border: 1px solid #e4e4e7;
+            border-radius: 10px;
+            padding: 8px 10px;
+            margin-bottom: 12px;
+          }
+          .logo-wrap { display: flex; align-items: center; }
+          .logo-wrap img { max-height: 52px; width: auto; object-fit: contain; }
+          .header-info { text-align: right; }
+          .header-title { margin: 0; font-size: 18px; font-weight: 800; }
+          .header-meta { margin-top: 4px; color: #52525b; font-size: 11px; line-height: 1.4; }
           h1 { margin: 0 0 8px; font-size: 24px; }
           .muted { color: #555; font-size: 12px; }
           .group { border: 1px solid #d7d7d7; border-radius: 10px; padding: 10px; margin-top: 12px; }
@@ -432,11 +451,43 @@ export default function PedidoCompraPage() {
           th, td { border: 1px solid #e2e2e2; padding: 6px 8px; text-align: left; vertical-align: top; }
           th { background: #f7f7f7; }
           td.num, th.num { text-align: right; }
-          @media print { body { padding: 10px; } .no-print { display: none !important; } }
+          .footer {
+            margin-top: 16px;
+            border-top: 1px solid #e4e4e7;
+            padding-top: 8px;
+            color: #52525b;
+            font-size: 11px;
+            line-height: 1.45;
+          }
+          @media print {
+            .no-print { display: none !important; }
+            .page { padding: 0; }
+          }
         </style>
       </head>
       <body>
-        ${htmlBody}
+        <div class="page">
+          <header class="header">
+            <div class="logo-wrap">
+              <img src="${logoUrl}" alt="GR Dados" />
+            </div>
+            <div class="header-info">
+              <p class="header-title">${escapeHtml(title)}</p>
+              <div class="header-meta">
+                Cliente: GR Dados Demo<br/>
+                Emissão: ${generatedAt}
+              </div>
+            </div>
+          </header>
+
+          ${htmlBody}
+
+          <footer class="footer">
+            <strong>GR Dados</strong> · Todos os direitos reservados<br/>
+            AV 22 de Abril, 519 - Centro - Laguna Carapã - MS · CEP 79920-000<br/>
+            Contato: (67) 99869-8159
+          </footer>
+        </div>
       </body>
       </html>
     `;
@@ -546,7 +597,8 @@ export default function PedidoCompraPage() {
           </thead>
           <tbody>${rows || '<tr><td colspan="7">Sem dados para os filtros selecionados.</td></tr>'}</tbody>
         </table>
-      `
+      `,
+      "portrait"
     );
   }
 
