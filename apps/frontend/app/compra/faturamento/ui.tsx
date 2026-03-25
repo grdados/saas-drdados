@@ -265,18 +265,30 @@ export default function FaturamentoCompraPage() {
     return pedidos.find((p) => p.id === id) ?? null;
   }, [pedidos, formPedidoId]);
 
+  const faturadoPorPedidoItem = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const fat of fats) {
+      if (editingId && fat.id === editingId) continue;
+      if ((fat.status || "").toLowerCase() === "canceled") continue;
+      for (const it of fat.items || []) {
+        const pedidoItemId = it.pedido_item_id ?? null;
+        if (!pedidoItemId) continue;
+        map.set(pedidoItemId, (map.get(pedidoItemId) ?? 0) + parseNumber(it.quantity));
+      }
+    }
+    return map;
+  }, [fats, editingId]);
+
   const itensPendentes = useMemo(() => {
     const p = pedidoSelecionado;
     if (!p) return [];
-    return (p.items || [])
-      .map((it) => {
-        const qty = parseNumber(it.quantity);
-        const rec = parseNumber(it.received_quantity ?? "0");
-        const remaining = Math.max(0, qty - rec);
-        return { ...it, remaining };
-      })
-      .filter((it) => it.remaining > 0);
-  }, [pedidoSelecionado]);
+    return (p.items || []).map((it) => {
+      const qty = parseNumber(it.quantity);
+      const billed = faturadoPorPedidoItem.get(it.id) ?? 0;
+      const remaining = Math.max(0, qty - billed);
+      return { ...it, remaining };
+    });
+  }, [pedidoSelecionado, faturadoPorPedidoItem]);
 
   const operacoesDespesa = useMemo(() => {
     return [...operacoes].filter((o) => o.kind === "debit").sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
@@ -815,10 +827,7 @@ export default function FaturamentoCompraPage() {
                         if (selectedFromPedido && !optionsItems.some((x) => x.id === selectedFromPedido.id)) {
                           optionsItems.push({
                             ...selectedFromPedido,
-                            remaining: Math.max(
-                              0,
-                              parseNumber(selectedFromPedido.quantity) - parseNumber(selectedFromPedido.received_quantity ?? "0")
-                            )
+                            remaining: Math.max(0, parseNumber(selectedFromPedido.quantity) - (faturadoPorPedidoItem.get(selectedFromPedido.id) ?? 0))
                           });
                         }
                         const remaining = pi?.remaining ?? 0;
@@ -827,13 +836,24 @@ export default function FaturamentoCompraPage() {
                           <div key={idx} className="grid grid-cols-1 gap-2 rounded-2xl border border-white/10 bg-zinc-950/35 p-3 lg:grid-cols-[1.6fr_190px_170px_56px]">
                             <div className="grid gap-1">
                               <label className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">Produto</label>
-                              <select value={r.pedido_item_id ?? ""} onChange={(e) => { const next = e.target.value === "" ? null : Number(e.target.value); if (next) { const found = itensPendentes.find((x) => x.id === next); setRows((prev) => prev.map((row, i) => i === idx ? { ...row, pedido_item_id: next, price: String(found?.price ?? defaultPrice) } : row)); } else { setRows((prev) => prev.map((row, i) => i === idx ? { ...row, pedido_item_id: null } : row)); } }} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
-                                <option value="" style={optionStyle}>Produto pendente...</option>
-                                {optionsItems.map((it) => (<option key={it.id} value={it.id} style={optionStyle}>{it.produto?.name ?? "PRODUTO"} · Saldo {it.remaining}</option>))}
+                              <select value={r.pedido_item_id ?? ""} onChange={(e) => { const next = e.target.value === "" ? null : Number(e.target.value); if (next) { const found = optionsItems.find((x) => x.id === next); setRows((prev) => prev.map((row, i) => i === idx ? { ...row, pedido_item_id: next, price: String(found?.price ?? defaultPrice) } : row)); } else { setRows((prev) => prev.map((row, i) => i === idx ? { ...row, pedido_item_id: null } : row)); } }} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                                <option value="" style={optionStyle}>Selecione o produto...</option>
+                                {optionsItems
+                                  .filter((it) => it.remaining > 0 || it.id === r.pedido_item_id)
+                                  .map((it) => (
+                                    <option key={it.id} value={it.id} style={optionStyle}>
+                                      {`${it.produto?.name ?? "PRODUTO"} · Saldo pendente: ${it.remaining.toLocaleString("pt-BR", {
+                                        minimumFractionDigits: 3,
+                                        maximumFractionDigits: 3
+                                      })}`}
+                                    </option>
+                                  ))}
                               </select>
                             </div>
                             <div className="grid gap-1">
-                              <label className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">Quantidade (saldo: {remaining})</label>
+                              <label className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                                Quantidade (saldo pendente: {remaining.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })})
+                              </label>
                               <input value={r.quantity} onChange={(e) => { const next = e.target.value; const n = parseNumber(next); if (remaining > 0 && n > remaining) { setRows((prev) => prev.map((row, i) => i === idx ? { ...row, quantity: String(remaining) } : row)); return; } setRows((prev) => prev.map((row, i) => i === idx ? { ...row, quantity: next } : row)); }} inputMode="decimal" placeholder="Qtd" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50" />
                             </div>
                             <div className="grid gap-1">
