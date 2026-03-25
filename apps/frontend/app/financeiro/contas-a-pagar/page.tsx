@@ -35,6 +35,15 @@ function prettyDate(s: string | null | undefined) {
   return dt.toLocaleDateString("pt-BR");
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 type ContaStatus = "open" | "overdue" | "partial" | "paid" | "canceled";
 
 function statusMeta(status: ContaStatus) {
@@ -101,6 +110,10 @@ export default function ContasAPagarPage() {
   const [payOpen, setPayOpen] = useState(false);
   const [payment, setPayment] = useState<PaymentState>(DEFAULT_PAYMENT);
   const [paying, setPaying] = useState(false);
+  const [simPaymentDate, setSimPaymentDate] = useState("");
+  const [simAntecipMonthPct, setSimAntecipMonthPct] = useState("0");
+  const [simJurosMonthPct, setSimJurosMonthPct] = useState("0");
+  const [simSacaPrice, setSimSacaPrice] = useState("0");
 
   const faturamentoById = useMemo(() => {
     const map = new Map<number, FaturamentoCompra>();
@@ -202,6 +215,174 @@ export default function ContasAPagarPage() {
       canceledQty: byStatus.canceled.length
     };
   }, [filtered]);
+
+  const simulation = useMemo(() => {
+    const paymentDate = simPaymentDate ? new Date(`${simPaymentDate}T00:00:00`) : null;
+    const antecipPct = parseNumber(simAntecipMonthPct) / 100;
+    const jurosPct = parseNumber(simJurosMonthPct) / 100;
+    const sacaPrice = parseNumber(simSacaPrice);
+
+    const rows = filtered
+      .map((it) => {
+        const statusNow = normalizeStatus(it);
+        if (statusNow === "paid" || statusNow === "canceled") return null;
+
+        const base = Math.max(0, parseNumber(it.balance_value || 0));
+        const dueDate = it.due_date ? new Date(`${it.due_date}T00:00:00`) : null;
+        let antecipValue = 0;
+        let jurosValue = 0;
+        if (paymentDate && dueDate && base > 0) {
+          const diffDays = Math.round((dueDate.getTime() - paymentDate.getTime()) / (1000 * 60 * 60 * 24));
+          if (diffDays > 0) {
+            const monthsAdvance = diffDays / 30;
+            antecipValue = base * antecipPct * monthsAdvance;
+          } else if (diffDays < 0) {
+            const monthsDelay = Math.abs(diffDays) / 30;
+            jurosValue = base * jurosPct * monthsDelay;
+          }
+        }
+        const previsto = Math.max(0, base - antecipValue + jurosValue);
+        return {
+          id: it.id,
+          nf: it.invoice_number || "-",
+          pedido: it.pedido?.code || "-",
+          fornecedor: it.fornecedor?.name || "-",
+          produtor: it.produtor?.name || "-",
+          dueDate: it.due_date || "",
+          base,
+          antecipValue,
+          jurosValue,
+          previsto
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => Boolean(x));
+
+    const totalBase = rows.reduce((acc, r) => acc + r.base, 0);
+    const totalAntecip = rows.reduce((acc, r) => acc + r.antecipValue, 0);
+    const totalJuros = rows.reduce((acc, r) => acc + r.jurosValue, 0);
+    const totalPrevisto = rows.reduce((acc, r) => acc + r.previsto, 0);
+    const sacksNeeded = sacaPrice > 0 ? totalPrevisto / sacaPrice : 0;
+    return {
+      rows,
+      totalBase,
+      totalAntecip,
+      totalJuros,
+      totalPrevisto,
+      sacksNeeded,
+      sacaPrice,
+      paymentDate: simPaymentDate
+    };
+  }, [filtered, simPaymentDate, simAntecipMonthPct, simJurosMonthPct, simSacaPrice]);
+
+  function printSimulationReport() {
+    const htmlRows = simulation.rows
+      .map(
+        (r) => `
+          <tr>
+            <td>${escapeHtml(r.nf)}</td>
+            <td>${escapeHtml(r.pedido)}</td>
+            <td>${escapeHtml(r.fornecedor)}</td>
+            <td>${escapeHtml(r.produtor)}</td>
+            <td>${escapeHtml(prettyDate(r.dueDate))}</td>
+            <td class="num">${prettyMoney(r.base)}</td>
+            <td class="num">${prettyMoney(r.antecipValue)}</td>
+            <td class="num">${prettyMoney(r.jurosValue)}</td>
+            <td class="num">${prettyMoney(r.previsto)}</td>
+          </tr>
+        `
+      )
+      .join("");
+
+    const generatedAt = new Date().toLocaleString("pt-BR");
+    const logoUrl = `${window.location.origin}/logo_horizontal.png`;
+    const html = `
+      <!doctype html>
+      <html lang="pt-BR">
+      <head>
+        <meta charset="utf-8" />
+        <title>Simulacao de Pagamento - Contas a Pagar</title>
+        <style>
+          @page { size: A4 landscape; margin: 12mm 10mm; }
+          body { font-family: Arial, sans-serif; color: #111; margin: 0; }
+          .page { padding: 12px 10px; }
+          .header { display: grid; grid-template-columns: 260px 1fr; gap: 12px; align-items: center; border: 1px solid #ddd; border-radius: 10px; padding: 8px 10px; }
+          .header img { max-height: 52px; width: auto; }
+          .header-info { text-align: right; font-size: 11px; color: #555; line-height: 1.4; }
+          h1 { margin: 14px 0 6px; font-size: 22px; }
+          .muted { font-size: 12px; color: #555; }
+          .kpi { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+          .card { border: 1px solid #ddd; border-radius: 8px; padding: 8px; }
+          .label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.08em; }
+          .value { margin-top: 4px; font-size: 18px; font-weight: 700; }
+          table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12px; }
+          th, td { border: 1px solid #e2e2e2; padding: 6px 8px; text-align: left; }
+          th { background: #f7f7f7; }
+          .num { text-align: right; white-space: nowrap; }
+          .footer { margin-top: 14px; border-top: 1px solid #ddd; padding-top: 8px; font-size: 11px; color: #555; line-height: 1.45; }
+        </style>
+      </head>
+      <body>
+        <div class="page">
+          <header class="header">
+            <img src="${logoUrl}" alt="GR Dados" />
+            <div class="header-info">
+              <strong>Simulacao de Pagamento - Contas a Pagar</strong><br/>
+              Cliente: GR Dados Demo<br/>
+              Emissao: ${generatedAt}
+            </div>
+          </header>
+          <h1>Resumo da Simulacao</h1>
+          <p class="muted">Data pagamento: ${escapeHtml(prettyDate(simulation.paymentDate || ""))} · Antecipacao ao mes: ${escapeHtml(simAntecipMonthPct)}% · Juros ao mes: ${escapeHtml(simJurosMonthPct)}% · Preco da saca: ${prettyMoney(simulation.sacaPrice)}</p>
+          <div class="kpi">
+            <div class="card"><div class="label">Valor total</div><div class="value">${prettyMoney(simulation.totalBase)}</div></div>
+            <div class="card"><div class="label">Valor antecipacao</div><div class="value">${prettyMoney(simulation.totalAntecip)}</div></div>
+            <div class="card"><div class="label">Valor juros</div><div class="value">${prettyMoney(simulation.totalJuros)}</div></div>
+            <div class="card"><div class="label">Valor previsto</div><div class="value">${prettyMoney(simulation.totalPrevisto)}</div></div>
+            <div class="card"><div class="label">Sacas necessarias</div><div class="value">${simulation.sacksNeeded.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</div></div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>NF</th>
+                <th>Pedido</th>
+                <th>Fornecedor</th>
+                <th>Produtor</th>
+                <th>Vencimento</th>
+                <th class="num">Base</th>
+                <th class="num">Antecipacao</th>
+                <th class="num">Juros</th>
+                <th class="num">Previsto</th>
+              </tr>
+            </thead>
+            <tbody>${htmlRows || '<tr><td colspan="9">Sem dados para os filtros selecionados.</td></tr>'}</tbody>
+          </table>
+          <footer class="footer">
+            <strong>GR Dados</strong> · Todos os direitos reservados<br/>
+            AV 22 de Abril, 519 - Centro - Laguna Carapa - MS · CEP 79920-000<br/>
+            Contato: (67) 99869-8159
+          </footer>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, "_blank", "width=1280,height=900");
+    if (!w) {
+      URL.revokeObjectURL(url);
+      return;
+    }
+    setTimeout(() => {
+      try {
+        w.focus();
+        w.print();
+      } catch {
+        // noop
+      }
+    }, 350);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
 
   async function refresh() {
     const token = getAccessToken();
@@ -505,6 +686,55 @@ export default function ContasAPagarPage() {
                   </div>
                 );
               })}
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <p className="text-sm font-black text-white">Simulacao de pagamento</p>
+                <p className="mt-1 text-xs text-zinc-400">Baseado nos filtros aplicados em Contas a Pagar.</p>
+              </div>
+              <button
+                onClick={printSimulationReport}
+                className="rounded-2xl border border-sky-400/25 bg-sky-500/15 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-500/25"
+              >
+                Imprimir simulacao
+              </button>
+            </div>
+
+            <div className="mt-3 grid gap-3 lg:grid-cols-4">
+              <div className="grid gap-2">
+                <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Data pagamento</label>
+                <input type="date" value={simPaymentDate} onChange={(e) => setSimPaymentDate(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">% Antecipacao mes</label>
+                <input value={simAntecipMonthPct} onChange={(e) => setSimAntecipMonthPct(e.target.value)} inputMode="decimal" placeholder="0,00" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">% Juros mes</label>
+                <input value={simJurosMonthPct} onChange={(e) => setSimJurosMonthPct(e.target.value)} inputMode="decimal" placeholder="0,00" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Preco produto (saca)</label>
+                <input value={simSacaPrice} onChange={(e) => setSimSacaPrice(e.target.value)} inputMode="decimal" placeholder="0,00" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 lg:grid-cols-5">
+              {[
+                { label: "Valor total", value: prettyMoney(simulation.totalBase), tone: "border-accent-400/30 bg-accent-500/10" },
+                { label: "Valor antecipacao", value: prettyMoney(simulation.totalAntecip), tone: "border-sky-400/30 bg-sky-500/10" },
+                { label: "Valor juros", value: prettyMoney(simulation.totalJuros), tone: "border-rose-400/30 bg-rose-500/10" },
+                { label: "Valor previsto", value: prettyMoney(simulation.totalPrevisto), tone: "border-emerald-400/30 bg-emerald-500/10" },
+                { label: "Sacas necessarias", value: simulation.sacksNeeded.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }), tone: "border-white/15 bg-white/5" }
+              ].map((c) => (
+                <div key={c.label} className={`rounded-2xl border p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.05)_inset] ${c.tone}`}>
+                  <p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">{c.label}</p>
+                  <p className="mt-2 text-xl font-black text-white">{c.value}</p>
+                </div>
+              ))}
             </div>
           </section>
 
