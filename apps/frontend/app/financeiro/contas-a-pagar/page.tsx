@@ -30,11 +30,9 @@ function prettyMoney(v: unknown) {
 
 function prettyDate(s: string | null | undefined) {
   if (!s) return "-";
-  try {
-    return new Date(s).toLocaleDateString("pt-BR");
-  } catch {
-    return s;
-  }
+  const dt = new Date(`${s}T00:00:00`);
+  if (Number.isNaN(dt.getTime())) return s;
+  return dt.toLocaleDateString("pt-BR");
 }
 
 type ContaStatus = "open" | "overdue" | "partial" | "paid" | "canceled";
@@ -336,7 +334,7 @@ export default function ContasAPagarPage() {
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Financeiro</p>
             <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Contas a pagar</h1>
-            <p className="mt-1 text-sm text-zinc-300">Consulta e pagamento individual/lote com reflexo em faturamento.</p>
+            <p className="mt-1 text-sm text-zinc-300">Consulta e pagamento individual/lote com reflexo no faturamento.</p>
           </div>
 
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
@@ -431,17 +429,19 @@ export default function ContasAPagarPage() {
               <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
             </div>
 
-            <div className="mt-3 hidden grid-cols-12 gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 lg:grid">
-              <div className="col-span-1">Sel</div>
-              <div className="col-span-1">Venc.</div>
-              <div className="col-span-1">NF</div>
-              <div className="col-span-2">Fornecedor</div>
-              <div className="col-span-2">Produtor</div>
-              <div className="col-span-1">Pedido</div>
-              <div className="col-span-1">Total</div>
-              <div className="col-span-1">Pago</div>
-              <div className="col-span-1">Saldo</div>
-              <div className="col-span-1 text-right">Status / Acoes</div>
+            <div className="mt-3 hidden grid-cols-[56px_120px_120px_110px_180px_180px_120px_120px_120px_120px_180px_160px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 lg:grid">
+              <div>Sel</div>
+              <div>Status</div>
+              <div>Venc.</div>
+              <div>NF</div>
+              <div>Fornecedor</div>
+              <div>Produtor</div>
+              <div>Pedido</div>
+              <div>Total</div>
+              <div>Pago</div>
+              <div>Saldo</div>
+              <div>Status (edição)</div>
+              <div className="text-right">Ações</div>
             </div>
 
             <div className="mt-3 space-y-2">
@@ -450,27 +450,23 @@ export default function ContasAPagarPage() {
                 const meta = statusMeta(st);
                 return (
                   <div key={it.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3 hover:bg-white/5">
-                    <div className="grid grid-cols-1 gap-2 lg:grid-cols-12 lg:items-center lg:gap-3">
-                      <div className="lg:col-span-1">
+                    <div className="grid grid-cols-1 gap-2 lg:grid-cols-[56px_120px_120px_110px_180px_180px_120px_120px_120px_120px_180px_160px] lg:items-center lg:gap-3">
+                      <div>
                         <input type="checkbox" checked={selectedIds.includes(it.id)} onChange={() => toggleOne(it.id)} className="h-4 w-4 rounded border-white/20 bg-zinc-900" />
                       </div>
-                      <div className="lg:col-span-1 text-sm font-semibold text-zinc-100">{prettyDate(it.due_date)}</div>
-                      <div className="lg:col-span-1 text-sm font-black text-zinc-100">{it.invoice_number || "-"}</div>
-                      <div className="lg:col-span-2 truncate text-sm font-semibold text-zinc-100">{it.fornecedor?.name ?? "-"}</div>
-                      <div className="lg:col-span-2 truncate text-sm font-semibold text-zinc-100">{it.produtor?.name ?? "-"}</div>
-                      <div className="lg:col-span-1 truncate text-sm font-semibold text-zinc-100">{it.pedido?.code ?? "-"}</div>
-                      <div className="lg:col-span-1 text-sm font-black text-zinc-100">{prettyMoney(it.total_value)}</div>
-                      <div className="lg:col-span-1 text-sm font-black text-zinc-100">{prettyMoney(it.paid_value)}</div>
-                      <div className="lg:col-span-1 text-sm font-black text-zinc-100">{prettyMoney(it.balance_value)}</div>
-                      <div className="lg:col-span-1 lg:text-right">
+                      <div>
                         <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>
-                        <div className="mt-1 flex flex-nowrap items-center justify-end gap-1 whitespace-nowrap">
-                          <button
-                            onClick={() => openPayFor([it.id])}
-                            className="rounded-xl border border-emerald-400/25 bg-emerald-500/15 px-2 py-1 text-[11px] font-black text-emerald-100 hover:bg-emerald-500/25"
-                          >
-                            {st === "paid" ? "Editar" : "Pagar"}
-                          </button>
+                      </div>
+                      <div className="text-sm font-semibold text-zinc-100">{prettyDate(it.due_date)}</div>
+                      <div className="text-sm font-black text-zinc-100">{it.invoice_number || "-"}</div>
+                      <div className="truncate text-sm font-semibold text-zinc-100">{it.fornecedor?.name ?? "-"}</div>
+                      <div className="truncate text-sm font-semibold text-zinc-100">{it.produtor?.name ?? "-"}</div>
+                      <div className="truncate text-sm font-semibold text-zinc-100">{it.pedido?.code ?? "-"}</div>
+                      <div className="text-sm font-black text-zinc-100">{prettyMoney(it.total_value)}</div>
+                      <div className="text-sm font-black text-zinc-100">{prettyMoney(it.paid_value)}</div>
+                      <div className="text-sm font-black text-zinc-100">{prettyMoney(it.balance_value)}</div>
+                      <div>
+                        <div className="flex flex-nowrap items-center gap-1 whitespace-nowrap">
                           <select
                             value={it.status as ContaStatus}
                             onChange={async (e) => {
@@ -497,6 +493,14 @@ export default function ContasAPagarPage() {
                           <p className="mt-1 text-[11px] font-semibold text-zinc-400">Saldo: {prettyMoney(it.balance_value)}</p>
                         )}
                       </div>
+                      <div className="text-right whitespace-nowrap">
+                        <button
+                          onClick={() => openPayFor([it.id])}
+                          className="whitespace-nowrap rounded-xl border border-emerald-400/25 bg-emerald-500/15 px-3 py-1.5 text-[11px] font-black text-emerald-100 hover:bg-emerald-500/25"
+                        >
+                          {st === "paid" ? "Editar" : "Pagar"}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -511,7 +515,7 @@ export default function ContasAPagarPage() {
                 <div className="flex items-start justify-between gap-3 border-b border-white/10 p-5">
                   <div>
                     <p className="text-sm font-black text-white">Pagamento ({selectedIds.length} conta(s))</p>
-                    <p className="mt-1 text-xs text-zinc-400">Individual ou lote com data, descontos, acrescimos, forma e conta.</p>
+                    <p className="mt-1 text-xs text-zinc-400">Individual ou lote com data, descontos, acréscimos, forma e conta.</p>
                   </div>
                   <button onClick={() => setPayOpen(false)} className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10">x</button>
                 </div>
@@ -535,7 +539,7 @@ export default function ContasAPagarPage() {
                     <input value={payment.payment_increment} onChange={(e) => setPayment((p) => ({ ...p, payment_increment: e.target.value }))} inputMode="decimal" placeholder="0,00" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
                   </div>
                   <div className="grid gap-2">
-                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Valor pago (edicao)</label>
+                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Valor pago (edição)</label>
                     <input value={payment.paid_value} onChange={(e) => setPayment((p) => ({ ...p, paid_value: e.target.value }))} inputMode="decimal" placeholder="Opcional: define valor pago final" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
                   </div>
                   <div className="grid gap-2">
@@ -554,7 +558,7 @@ export default function ContasAPagarPage() {
                     <input value={payment.discount_value} onChange={(e) => setPayment((p) => ({ ...p, discount_value: e.target.value }))} inputMode="decimal" placeholder="0,00" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
                   </div>
                   <div className="grid gap-2">
-                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Acrescimo</label>
+                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Acréscimo</label>
                     <input value={payment.addition_value} onChange={(e) => setPayment((p) => ({ ...p, addition_value: e.target.value }))} inputMode="decimal" placeholder="0,00" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
                   </div>
                   <div className="grid gap-2">

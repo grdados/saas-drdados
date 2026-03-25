@@ -47,6 +47,12 @@ function parseNumber(v: unknown) {
 function money(n: number) {
   return `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
+function prettyDateBR(value?: string | null) {
+  if (!value) return "-";
+  const dt = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(dt.getTime())) return value;
+  return dt.toLocaleDateString("pt-BR");
+}
 
 type FatStatus = "pending" | "overdue" | "partial" | "paid" | "canceled";
 
@@ -302,7 +308,7 @@ export default function FaturamentoCompraPage() {
     const pedidosUnicos = new Set(filtered.map((f) => f.pedido?.id).filter(Boolean) as number[]);
     return [
       { label: "Total faturado", value: money(totalFat), note: `${notas} NF(s)`, tone: "border-accent-400/30 bg-accent-500/10" },
-      { label: "Ticket medio", value: money(ticket), note: "Por nota", tone: "border-sky-400/30 bg-sky-500/10" },
+      { label: "Ticket médio", value: money(ticket), note: "Por nota", tone: "border-sky-400/30 bg-sky-500/10" },
       { label: "Pendentes/Vencidos", value: String(statusCounts.pending + statusCounts.overdue), note: "A pagar", tone: "border-amber-400/30 bg-amber-500/10" },
       { label: "Pagos", value: String(statusCounts.paid), note: "Liquidados", tone: "border-emerald-400/30 bg-emerald-500/10" },
       { label: "Pedidos", value: String(pedidosUnicos.size), note: "Com faturamento", tone: "border-white/15 bg-white/5" }
@@ -518,7 +524,7 @@ export default function FaturamentoCompraPage() {
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Compra</p>
               <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Faturamento</h1>
-              <p className="mt-1 text-sm text-zinc-300">Nota fiscal de recebimento + geracao automatica em Contas a Pagar.</p>
+              <p className="mt-1 text-sm text-zinc-300">Nota fiscal de recebimento + geração automática em Contas a Pagar.</p>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -620,34 +626,34 @@ export default function FaturamentoCompraPage() {
               <p className="text-sm font-black text-white">Notas fiscais</p>
               <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
             </div>
-            <div className="mt-3 hidden grid-cols-12 gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 md:grid">
-              <div className="col-span-1">Status</div>
-              <div className="col-span-1">Data</div>
-              <div className="col-span-2">Nota Fiscal</div>
-              <div className="col-span-2">Grupo</div>
-              <div className="col-span-1">Venc.</div>
-              <div className="col-span-1">Dias</div>
-              <div className="col-span-1">Produtor</div>
-              <div className="col-span-1">Fornecedor</div>
-              <div className="col-span-1">Pedido</div>
-              <div className="col-span-1 text-right">Valor</div>
-              <div className="col-span-1 text-right">Ações</div>
+            <div className="mt-3 hidden grid-cols-[120px_100px_170px_150px_110px_100px_140px_140px_100px_120px_84px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 md:grid">
+              <div>Status</div>
+              <div>Data</div>
+              <div>Nota Fiscal</div>
+              <div>Grupo</div>
+              <div>Venc.</div>
+              <div>Dias</div>
+              <div>Produtor</div>
+              <div>Fornecedor</div>
+              <div>Pedido</div>
+              <div className="text-right">Valor</div>
+              <div className="text-right">Ações</div>
             </div>
             <div className="mt-3 space-y-2">
               {filtered.map((f) => (
                 <div key={f.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-4 py-3 hover:bg-white/5">
-                  <div className="grid grid-cols-1 gap-2 md:grid-cols-12 md:items-center md:gap-3">
-                    <div className="md:col-span-1">
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-[120px_100px_170px_150px_110px_100px_140px_140px_100px_120px_84px] md:items-center md:gap-3">
+                    <div>
                       {(() => {
                         const meta = fatStatusMeta(resolveFatStatus(f, cpStatusByFatId[f.id]));
                         return <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>;
                       })()}
                     </div>
-                    <div className="md:col-span-1"><p className="text-sm font-semibold text-zinc-100">{f.date || "-"}</p></div>
-                    <div className="md:col-span-2"><p className="truncate text-sm font-black text-white">{f.invoice_number || `#${f.id}`}</p></div>
-                    <div className="md:col-span-2"><p className="truncate text-sm font-semibold text-zinc-100">{f.grupo?.name ?? "-"}</p></div>
-                    <div className="md:col-span-1"><p className="truncate text-sm font-semibold text-zinc-100">{f.due_date || "-"}</p></div>
-                    <div className="md:col-span-1">
+                    <div><p className="text-sm font-semibold text-zinc-100">{prettyDateBR(f.date)}</p></div>
+                    <div><p className="truncate text-sm font-black text-white">{f.invoice_number || `#${f.id}`}</p></div>
+                    <div><p className="truncate text-sm font-semibold text-zinc-100">{f.grupo?.name ?? "-"}</p></div>
+                    <div><p className="truncate text-sm font-semibold text-zinc-100">{prettyDateBR(f.due_date)}</p></div>
+                    <div>
                       {(() => {
                         const d = daysUntilDue(f.due_date);
                         if (d === null) return <p className="text-sm font-semibold text-zinc-400">-</p>;
@@ -655,14 +661,14 @@ export default function FaturamentoCompraPage() {
                         return <p className={`text-sm font-black ${cls}`}>{d < 0 ? `${Math.abs(d)} atras.` : `${d} dia(s)`}</p>;
                       })()}
                     </div>
-                    <div className="md:col-span-1"><p className="truncate text-sm font-semibold text-zinc-100">{f.produtor?.name ?? "-"}</p></div>
-                    <div className="md:col-span-1"><p className="truncate text-sm font-semibold text-zinc-100">{f.fornecedor?.name ?? "-"}</p></div>
-                    <div className="md:col-span-1"><p className="text-sm font-semibold text-zinc-100">{f.pedido?.code ?? "-"}</p></div>
-                    <div className="md:col-span-1 md:text-right">
+                    <div><p className="truncate text-sm font-semibold text-zinc-100">{f.produtor?.name ?? "-"}</p></div>
+                    <div><p className="truncate text-sm font-semibold text-zinc-100">{f.fornecedor?.name ?? "-"}</p></div>
+                    <div><p className="text-sm font-semibold text-zinc-100">{f.pedido?.code ?? "-"}</p></div>
+                    <div className="text-right">
                       <p className="text-sm font-black text-zinc-100">{money(parseNumber(f.total_value))}</p>
                     </div>
-                    <div className="md:col-span-1">
-                      <div className="flex justify-end gap-1.5">
+                    <div className="whitespace-nowrap">
+                      <div className="flex flex-nowrap justify-end gap-1.5 whitespace-nowrap">
                         <button
                           onClick={() => openEdit(f)}
                           className="rounded-xl border border-sky-400/25 bg-sky-500/10 p-2 text-sky-200 hover:bg-sky-500/20"
@@ -703,7 +709,7 @@ export default function FaturamentoCompraPage() {
                 <div className="flex items-start justify-between gap-3 border-b border-white/10 p-5">
                   <div>
                     <p className="text-sm font-black text-white">{editingId ? "Editar faturamento" : "Novo faturamento"}</p>
-                    <p className="mt-1 text-xs text-zinc-400">Formulario Pai e Itens (Filho).</p>
+                  <p className="mt-1 text-xs text-zinc-400">Formulário pai e itens (filho).</p>
                   </div>
                   <button onClick={() => setOpen(false)} className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10" aria-label="Fechar modal" title="Fechar">
                     ×
@@ -765,7 +771,7 @@ export default function FaturamentoCompraPage() {
                     </div>
 
                     <div className="grid gap-2">
-                      <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Deposito</label>
+                      <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Depósito</label>
                       <select value={formDepositoId} onChange={(e) => setFormDepositoId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                         <option value="" style={optionStyle}>Selecione</option>
                         {depositos.map((d) => (<option key={d.id} value={d.id} style={optionStyle}>{d.name}</option>))}
@@ -773,7 +779,7 @@ export default function FaturamentoCompraPage() {
                     </div>
 
                     <div className="grid gap-2">
-                      <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Operacao</label>
+                      <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Operação</label>
                       <select value={formOperacaoId} onChange={(e) => setFormOperacaoId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                         <option value="" style={optionStyle}>Selecione</option>
                         {operacoesDespesa.map((o) => (<option key={o.id} value={o.id} style={optionStyle}>{o.name}</option>))}
@@ -785,8 +791,8 @@ export default function FaturamentoCompraPage() {
                       <select value={formPaymentMethod} onChange={(e) => setFormPaymentMethod(e.target.value as typeof formPaymentMethod)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                         <option value="pix" style={optionStyle}>PIX</option>
                         <option value="boleto" style={optionStyle}>Boleto</option>
-                        <option value="transfer" style={optionStyle}>Transferencia</option>
-                        <option value="card" style={optionStyle}>Cartao</option>
+                        <option value="transfer" style={optionStyle}>Transferência</option>
+                        <option value="card" style={optionStyle}>Cartão</option>
                         <option value="cash" style={optionStyle}>Dinheiro</option>
                         <option value="other" style={optionStyle}>Outro</option>
                       </select>

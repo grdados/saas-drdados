@@ -27,14 +27,14 @@ import {
 import { toUpperText } from "@/lib/text";
 
 function toApiDecimal(v: unknown) {
-  // DRF DecimalField aceita "5.50" mas nao "5,50". Tambem lidamos com "1.234,56".
+  // DRF DecimalField aceita "5.50" mas não "5,50". Também lidamos com "1.234,56".
   const raw = String(v ?? "").trim();
   if (!raw) return "0";
   const s = raw.replace(/\s+/g, "");
   const hasComma = s.includes(",");
   const hasDot = s.includes(".");
   if (hasComma && hasDot) {
-    // assume "." como milhar e "," como decimal
+    // Assume "." como milhar e "," como decimal.
     return s.replace(/\./g, "").replace(",", ".");
   }
   if (hasComma) return s.replace(",", ".");
@@ -44,6 +44,13 @@ function toApiDecimal(v: unknown) {
 function parseNumber(v: unknown) {
   const n = Number(String(v ?? "0").replace(",", "."));
   return Number.isFinite(n) ? n : 0;
+}
+
+function prettyDateBR(value?: string | null) {
+  if (!value) return "-";
+  const dt = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(dt.getTime())) return value;
+  return dt.toLocaleDateString("pt-BR");
 }
 
 function statusBadge(status: string) {
@@ -162,16 +169,46 @@ export default function PedidoCompraPage() {
 
   const cards = useMemo(() => {
     const total = filtered.reduce((acc, p) => acc + parseNumber(p.total_value), 0);
-    const faturados = filtered.filter((p) => ["delivered", "confirmed", "paid"].includes((p.status || "").toLowerCase())).length;
-    const pendentes = filtered.filter((p) => ["pending", "open", "draft"].includes((p.status || "").toLowerCase())).length;
-    const parciais = filtered.filter((p) => (p.status || "").toLowerCase() === "partial").length;
+    const faturadosList = filtered.filter((p) => ["delivered", "confirmed", "paid"].includes((p.status || "").toLowerCase()));
+    const pendentesList = filtered.filter((p) => ["pending", "open", "draft"].includes((p.status || "").toLowerCase()));
+    const parciaisList = filtered.filter((p) => (p.status || "").toLowerCase() === "partial");
+    const faturados = faturadosList.length;
+    const pendentes = pendentesList.length;
+    const parciais = parciaisList.length;
     const aFaturar = pendentes + parciais;
+    const val = (arr: PedidoCompra[]) =>
+      arr.reduce((acc, p) => acc + parseNumber(p.total_value), 0);
     return [
-      { label: "Valor total", value: `R$ ${total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, tone: "border-accent-400/30 bg-accent-500/10" },
-      { label: "Faturados", value: String(faturados), tone: "border-emerald-400/30 bg-emerald-500/10" },
-      { label: "Pendentes", value: String(pendentes), tone: "border-amber-400/30 bg-amber-500/10" },
-      { label: "Parciais", value: String(parciais), tone: "border-sky-400/30 bg-sky-500/10" },
-      { label: "A faturar", value: String(aFaturar), tone: "border-white/15 bg-white/5" }
+      {
+        label: "Valor total",
+        value: `R$ ${total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        qty: `${filtered.length} pedido(s)`,
+        tone: "border-accent-400/30 bg-accent-500/10"
+      },
+      {
+        label: "Faturados",
+        value: `R$ ${val(faturadosList).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        qty: `${faturados} pedido(s)`,
+        tone: "border-emerald-400/30 bg-emerald-500/10"
+      },
+      {
+        label: "Pendentes",
+        value: `R$ ${val(pendentesList).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        qty: `${pendentes} pedido(s)`,
+        tone: "border-amber-400/30 bg-amber-500/10"
+      },
+      {
+        label: "Parciais",
+        value: `R$ ${val(parciaisList).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        qty: `${parciais} pedido(s)`,
+        tone: "border-sky-400/30 bg-sky-500/10"
+      },
+      {
+        label: "A faturar",
+        value: `R$ ${val([...pendentesList, ...parciaisList]).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        qty: `${aFaturar} pedido(s)`,
+        tone: "border-white/15 bg-white/5"
+      }
     ];
   }, [filtered]);
 
@@ -203,7 +240,7 @@ export default function PedidoCompraPage() {
         return;
       }
       const msg = err instanceof Error ? err.message : String(err);
-      setError((msg || "").trim() || "Falha ao carregar pedidos.");
+    setError((msg || "").trim() || "Falha ao carregar pedidos.");
     } finally {
       setLoading(false);
     }
@@ -333,7 +370,7 @@ export default function PedidoCompraPage() {
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Compra</p>
           <h1 className="text-2xl font-black tracking-tight text-white">Pedido</h1>
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-            <div className="grid gap-3 lg:grid-cols-8">
+            <div className="grid gap-3 lg:grid-cols-10">
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por pedido, fornecedor ou produtor..." className="lg:col-span-2 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50" />
               <select value={reportSafraId} onChange={(e) => setReportSafraId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="" style={optionStyle}>Safra</option>
@@ -360,7 +397,7 @@ export default function PedidoCompraPage() {
                 <option value="confirmed" style={optionStyle}>Confirmado</option>
                 <option value="canceled" style={optionStyle}>Cancelado</option>
               </select>
-              <div className="flex gap-2">
+              <div className="flex min-w-0 gap-2 lg:col-span-2">
                 <input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
                 <input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
               </div>
@@ -379,6 +416,7 @@ export default function PedidoCompraPage() {
               <div key={c.label} className={`rounded-3xl border p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] ${c.tone}`}>
                 <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">{c.label}</p>
                 <p className="mt-2 text-2xl font-black text-white">{c.value}</p>
+                <p className="mt-2 text-xs font-semibold text-zinc-300">{c.qty}</p>
               </div>
             ))}
           </section>
@@ -389,34 +427,34 @@ export default function PedidoCompraPage() {
               <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
             </div>
             <div className="mt-3 hidden grid-cols-12 gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 md:grid">
-              <div className="col-span-2">Data</div>
+              <div className="col-span-1">Status</div>
+              <div className="col-span-1">Data</div>
               <div className="col-span-2">Pedido</div>
               <div className="col-span-2">Grupo</div>
               <div className="col-span-2">Produtor</div>
-              <div className="col-span-1">Fornecedor</div>
+              <div className="col-span-2">Fornecedor</div>
               <div className="col-span-1 text-right">Valor</div>
-              <div className="col-span-1 text-right">Status</div>
               <div className="col-span-1 text-right">Ações</div>
             </div>
             <div className="mt-3 space-y-2">
               {filtered.map((p) => (
                 <div key={p.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-4 py-3 hover:bg-white/5">
                   <div className="grid grid-cols-1 gap-2 md:grid-cols-12 md:items-center md:gap-3">
-                    <div className="md:col-span-2"><p className="text-sm font-semibold text-zinc-100">{p.date || "-"}</p></div>
+                    <div className="md:col-span-1 md:text-left">
+                      {(() => {
+                        const meta = statusBadge(p.status);
+                        return <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>;
+                      })()}
+                    </div>
+                    <div className="md:col-span-1"><p className="text-sm font-semibold text-zinc-100">{prettyDateBR(p.date)}</p></div>
                     <div className="md:col-span-2">
                       <button onClick={() => openEdit(p.id)} className="truncate text-left text-sm font-black text-white hover:text-accent-200">{p.code || `#${p.id}`}</button>
                     </div>
                     <div className="md:col-span-2"><p className="truncate text-sm font-semibold text-zinc-100">{p.grupo?.name ?? "-"}</p></div>
                     <div className="md:col-span-2"><p className="truncate text-sm font-semibold text-zinc-100">{p.produtor?.name ?? "-"}</p></div>
-                    <div className="md:col-span-1"><p className="truncate text-sm font-semibold text-zinc-100">{p.fornecedor?.name ?? "-"}</p></div>
+                    <div className="md:col-span-2"><p className="truncate text-sm font-semibold text-zinc-100">{p.fornecedor?.name ?? "-"}</p></div>
                     <div className="md:col-span-1 md:text-right">
                       <p className="text-sm font-black text-zinc-100">R$ {Number(p.total_value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                    </div>
-                    <div className="md:col-span-1 md:text-right">
-                      {(() => {
-                        const meta = statusBadge(p.status);
-                        return <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>;
-                      })()}
                     </div>
                     <div className="md:col-span-1">
                       <div className="flex flex-nowrap justify-end gap-1.5">
@@ -471,7 +509,7 @@ export default function PedidoCompraPage() {
                 <div className="flex items-start justify-between gap-3 border-b border-white/10 p-5">
                   <div>
                     <p className="text-sm font-black text-white">{editing ? "Editar pedido" : "Novo pedido"}</p>
-                    <p className="mt-1 text-xs text-zinc-400">Formulario Pai e Itens (Filho).</p>
+                    <p className="mt-1 text-xs text-zinc-400">Formulário pai e itens (filho).</p>
                   </div>
                   <button
                     onClick={() => setOpen(false)}
@@ -590,7 +628,7 @@ export default function PedidoCompraPage() {
                     </div>
 
                     <div className="grid gap-2">
-                      <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Operacao</label>
+                      <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Operação</label>
                       <select
                         value={formOperacaoId}
                         onChange={(e) => setFormOperacaoId(e.target.value === "" ? "" : Number(e.target.value))}

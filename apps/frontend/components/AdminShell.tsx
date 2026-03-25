@@ -118,15 +118,17 @@ function Chevron({ open }: { open: boolean }) {
 function SidebarLink({
   item,
   active,
-  icon
+  icon,
+  depth = 0
 }: {
   item: NavItem;
   active: boolean;
   icon: ReactNode;
+  depth?: number;
 }) {
   const base =
     "group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition-colors";
-  const activeCls = "bg-accent-500 text-zinc-950 ring-1 ring-accent-300/40";
+  const activeCls = "bg-accent-500/16 text-accent-100 ring-1 ring-accent-400/25";
   const idleCls = "text-zinc-300 hover:bg-white/5 hover:text-white";
 
   if (item.disabled) {
@@ -141,7 +143,8 @@ function SidebarLink({
 
   return (
     <Link href={item.href} className={`${base} ${active ? activeCls : idleCls}`}>
-      <span className={active ? "text-zinc-950" : "text-zinc-400 group-hover:text-accent-300"}>{icon}</span>
+      <span className={active ? "text-accent-300" : "text-zinc-400 group-hover:text-accent-300"}>{icon}</span>
+      {depth > 0 ? <span className="h-4 w-px bg-accent-500/35" /> : null}
       <span className="flex-1">{item.label}</span>
       {typeof item.badge === "number" ? (
         <span className="rounded-full bg-accent-500/15 px-2 py-0.5 text-xs font-black text-accent-200 ring-1 ring-accent-500/20">
@@ -160,18 +163,26 @@ function isNodeActive(node: NavNode, pathname: string): boolean {
 function SidebarTree({
   nodes,
   pathname,
-  depth = 0
+  depth = 0,
+  parentLabel
 }: {
   nodes: NavNode[];
   pathname: string;
   depth?: number;
+  parentLabel?: string;
 }) {
   const pad = depth === 0 ? "pl-0" : depth === 1 ? "pl-4" : "pl-8";
 
   return (
     <div className={`space-y-1 ${pad}`}>
       {nodes.map((node) => (
-        <SidebarTreeNode key={`${node.label}-${node.href || "group"}`} node={node} pathname={pathname} depth={depth} />
+        <SidebarTreeNode
+          key={`${node.label}-${node.href || "group"}`}
+          node={node}
+          pathname={pathname}
+          depth={depth}
+          parentLabel={parentLabel}
+        />
       ))}
     </div>
   );
@@ -180,24 +191,28 @@ function SidebarTree({
 function SidebarTreeNode({
   node,
   pathname,
-  depth
+  depth,
+  parentLabel
 }: {
   node: NavNode;
   pathname: string;
   depth: number;
+  parentLabel?: string;
 }) {
-  const active = isNodeActive(node, pathname);
   const hasChildren = Boolean(node.children?.length);
-  const [open, setOpen] = useState<boolean>(() => (hasChildren ? active : false));
+  const nodeMatch = node.href ? pathname === node.href || pathname.startsWith(node.href + "/") : false;
+  const descendantActive = isNodeActive(node, pathname);
+  const active = hasChildren ? false : nodeMatch;
+  const [open, setOpen] = useState<boolean>(() => (hasChildren ? descendantActive : false));
 
   // If route changes to something inside this group, keep it expanded.
   useEffect(() => {
-    if (hasChildren && active) setOpen(true);
-  }, [active, hasChildren]);
+    if (hasChildren && descendantActive) setOpen(true);
+  }, [descendantActive, hasChildren]);
 
   const base =
     "group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-semibold transition-colors";
-  const activeCls = "bg-accent-500 text-zinc-950 ring-1 ring-accent-300/40";
+  const activeCls = "bg-accent-500/16 text-accent-100 ring-1 ring-accent-400/25";
   const idleCls = "text-zinc-300 hover:bg-white/5 hover:text-white";
 
   if (!hasChildren) {
@@ -206,8 +221,9 @@ function SidebarTreeNode({
       <SidebarLink
         item={item}
         active={active && Boolean(node.href)}
+        depth={depth}
         icon={
-          <span className={active ? "text-zinc-950" : "text-zinc-400 group-hover:text-accent-300"}>
+          <span className={active ? "text-accent-300" : "text-zinc-400 group-hover:text-accent-300"}>
             {node.icon || <span className="h-4 w-4" />}
           </span>
         }
@@ -223,7 +239,7 @@ function SidebarTreeNode({
         className={`${base} ${active ? activeCls : idleCls}`}
         aria-expanded={open}
       >
-        <span className={active ? "text-zinc-950" : "text-zinc-400 group-hover:text-accent-300"}>
+        <span className={active ? "text-accent-300" : "text-zinc-400 group-hover:text-accent-300"}>
           {node.icon || <span className="h-4 w-4" />}
         </span>
         <span className="flex-1">{node.label}</span>
@@ -234,7 +250,15 @@ function SidebarTreeNode({
         className={`grid transition-[grid-template-rows] duration-300 ease-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
       >
         <div className="min-h-0 overflow-hidden pt-1">
-          <SidebarTree nodes={node.children || []} pathname={pathname} depth={Math.min(depth + 1, 2)} />
+          <p className="px-3 pb-1 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
+            {parentLabel ? `${parentLabel} · ${node.label}` : node.label}
+          </p>
+          <SidebarTree
+            nodes={node.children || []}
+            pathname={pathname}
+            depth={Math.min(depth + 1, 2)}
+            parentLabel={node.label}
+          />
         </div>
       </div>
     </div>
@@ -257,12 +281,12 @@ export function AdminShell({
       dashboard: [
         { label: "Overview", href: "/dashboard", icon: <Icon name="overview" /> },
         {
-          label: "Producao",
+          label: "Produção",
           icon: <Icon name="products" />,
           children: [
             { label: "Contrato", href: "/producao/contrato" },
             { label: "Romaneio", href: "/producao/romaneio" },
-            { label: "Talhao", href: "/producao/talhao" }
+            { label: "Talhão", href: "/producao/talhao" }
           ]
         },
         {
@@ -270,7 +294,8 @@ export function AdminShell({
           icon: <Icon name="orders" />,
           children: [
             { label: "Pedido", href: "/compra/pedido" },
-            { label: "Faturamento", href: "/compra/faturamento" }
+            { label: "Faturamento", href: "/compra/faturamento" },
+            { label: "Produtos", href: "/compra/produtos" }
           ]
         },
         {
@@ -284,7 +309,7 @@ export function AdminShell({
           children: [
             { label: "Produtos", href: "/estoque/produtos" },
             { label: "Insumos", href: "/estoque/insumos" },
-            { label: "Combustivel", href: "/estoque/combustivel" }
+            { label: "Combustível", href: "/estoque/combustivel" }
           ]
         },
         { label: "Contas a Pagar", href: "/financeiro/contas-a-pagar", icon: <Icon name="analytics" /> },
@@ -303,7 +328,7 @@ export function AdminShell({
                 { label: "Safra", href: "/cadastros/gerais/safra" },
                 { label: "Cultivares", href: "/cadastros/gerais/cultivares" },
                 { label: "Centro Custos", href: "/cadastros/gerais/centro-custos" },
-                { label: "Operacoes", href: "/cadastros/gerais/operacoes" },
+                { label: "Operações", href: "/cadastros/gerais/operacoes" },
                 { label: "Fabricantes", href: "/cadastros/gerais/fabricantes" }
               ]
             },
@@ -314,7 +339,7 @@ export function AdminShell({
                 { label: "Caixas", href: "/cadastros/financeiro/caixas" },
                 { label: "Contas", href: "/cadastros/financeiro/contas" },
                 { label: "Moedas", href: "/cadastros/financeiro/moedas" },
-                { label: "Condicao Financeira", href: "/cadastros/financeiro/condicao-financeira" }
+                { label: "Condição Financeira", href: "/cadastros/financeiro/condicao-financeira" }
               ]
             },
             {
@@ -323,7 +348,7 @@ export function AdminShell({
                 { label: "Grupo de Produtores", href: "/cadastros/gerencial/grupo-produtores" },
                 { label: "Produtores", href: "/cadastros/gerencial/produtor" },
                 { label: "Propriedades", href: "/cadastros/gerencial/propriedade" },
-                { label: "Talhoes", href: "/cadastros/gerencial/talhao" },
+                { label: "Talhões", href: "/cadastros/gerencial/talhao" },
                 { label: "Clientes", href: "/cadastros/gerencial/clientes" },
                 { label: "Fornecedores", href: "/cadastros/gerencial/fornecedores" }
               ]
@@ -333,16 +358,16 @@ export function AdminShell({
               children: [
                 { label: "Categorias", href: "/cadastros/produtos/categorias" },
                 { label: "Insumos", href: "/cadastros/produtos/insumos" },
-                { label: "Pecas", href: "/cadastros/produtos/pecas" },
+                { label: "Peças", href: "/cadastros/produtos/pecas" },
                 { label: "Produtos", href: "/cadastros/produtos/produtos" }
               ]
             },
             {
               label: "Patrimonial",
               children: [
-                { label: "Maquinas", href: "/cadastros/patrimonial/maquinas" },
-                { label: "Depositos", href: "/cadastros/patrimonial/depositos" },
-                { label: "Bombas Combustivel", href: "/cadastros/patrimonial/bombas-combustivel" },
+                { label: "Máquinas", href: "/cadastros/patrimonial/maquinas" },
+                { label: "Depósitos", href: "/cadastros/patrimonial/depositos" },
+                { label: "Bombas Combustível", href: "/cadastros/patrimonial/bombas-combustivel" },
                 { label: "Benfeitorias", href: "/cadastros/patrimonial/benfeitorias" }
               ]
             }
@@ -422,8 +447,8 @@ export function AdminShell({
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-black text-white">{user?.name || "Usuario"}</p>
-                  <p className="truncate text-xs text-zinc-400">{user?.email || "—"}</p>
+                  <p className="truncate text-sm font-black text-white">{user?.name || "Usuário"}</p>
+                  <p className="truncate text-xs text-zinc-400">{user?.email || "-"}</p>
                 </div>
               </div>
             </div>
@@ -440,8 +465,8 @@ export function AdminShell({
                   </div>
                 </div>
                 <div className="leading-tight">
-                  <p className="text-sm font-black text-white">Sales Overview</p>
-                  <p className="text-xs text-zinc-400">{user?.company ? `Empresa: ${user.company}` : "Monitoramento da operacao"}</p>
+                  <p className="text-sm font-black text-white">Visão geral</p>
+                  <p className="text-xs text-zinc-400">{user?.company ? `Empresa: ${user.company}` : "Monitoramento da operação"}</p>
                 </div>
               </div>
 
@@ -507,7 +532,7 @@ export function AdminShell({
                       )}
                     </span>
                     <div className="hidden text-left sm:block">
-                      <p className="text-sm font-black text-white">{user?.name || "Usuario"}</p>
+                      <p className="text-sm font-black text-white">{user?.name || "Usuário"}</p>
                       <p className="text-xs text-zinc-400">{user?.email || ""}</p>
                     </div>
                     <svg viewBox="0 0 24 24" className="h-4 w-4 text-zinc-400" fill="none" stroke="currentColor" strokeWidth="2">
