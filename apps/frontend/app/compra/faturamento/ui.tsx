@@ -318,10 +318,6 @@ export default function FaturamentoCompraPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function patchRow(i: number, patch: Partial<(typeof rows)[number]>) {
-    setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
-  }
-
   function onPickPedido(nextId: number | "") {
     setFormPedidoId(nextId);
     const p = nextId === "" ? null : pedidos.find((x) => x.id === nextId) ?? null;
@@ -542,10 +538,10 @@ export default function FaturamentoCompraPage() {
                               {itensPendentes.map((it) => (<option key={it.id} value={it.id} style={optionStyle}>{it.produto?.name ?? "PRODUTO"} · Saldo {it.remaining}</option>))}
                             </select>
                             <div className="grid gap-1">
-                              <input value={r.quantity} onChange={(e) => { const next = e.target.value; const n = parseNumber(next); if (remaining > 0 && n > remaining) { patchRow(idx, { quantity: String(remaining) }); return; } patchRow(idx, { quantity: next }); }} inputMode="decimal" placeholder="Qtd" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50" />
+                              <input value={r.quantity} onChange={(e) => { const next = e.target.value; const n = parseNumber(next); if (remaining > 0 && n > remaining) { setRows((prev) => prev.map((row, i) => i === idx ? { ...row, quantity: String(remaining) } : row)); return; } setRows((prev) => prev.map((row, i) => i === idx ? { ...row, quantity: next } : row)); }} inputMode="decimal" placeholder="Qtd" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50" />
                               <p className="text-[11px] font-semibold text-zinc-400">Saldo: <span className="text-zinc-200">{remaining}</span></p>
                             </div>
-                            <input value={r.price} onChange={(e) => patchRow(idx, { price: e.target.value })} inputMode="decimal" placeholder="Preco (5 casas)" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50" />
+                            <input value={r.price} onChange={(e) => setRows((prev) => prev.map((row, i) => i === idx ? { ...row, price: e.target.value } : row))} inputMode="decimal" placeholder="Preco (5 casas)" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50" />
                             <button onClick={() => setRows((prev) => prev.filter((_, i) => i !== idx))} className="rounded-2xl border border-rose-400/25 bg-rose-500/10 px-3 py-2.5 text-sm font-black text-rose-200 hover:bg-rose-500/15" aria-label="Remover" title="Remover">×</button>
                           </div>
                         );
