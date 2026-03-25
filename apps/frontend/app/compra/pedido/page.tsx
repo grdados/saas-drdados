@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -26,7 +26,7 @@ import {
 import { toUpperText } from "@/lib/text";
 
 function toApiDecimal(v: unknown) {
-  // DRF DecimalField aceita "5.50" mas não "5,50". Também lidamos com "1.234,56".
+  // DRF DecimalField aceita "5.50" mas nÃ£o "5,50". TambÃ©m lidamos com "1.234,56".
   const raw = String(v ?? "").trim();
   if (!raw) return "0";
   const s = raw.replace(/\s+/g, "");
@@ -270,22 +270,32 @@ export default function PedidoCompraPage() {
             </div>
             <div className="mt-3 space-y-2">
               {filtered.map((p) => (
-                <button
+                <div
                   key={p.id}
-                  onClick={() => openEdit(p.id)}
-                  className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-zinc-950/35 px-4 py-3 text-left hover:bg-white/5"
+                  className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-zinc-950/35 px-4 py-3 hover:bg-white/5"
                 >
-                  <div className="min-w-0">
+                  <button onClick={() => openEdit(p.id)} className="min-w-0 flex-1 text-left">
                     <p className="truncate text-sm font-black text-white">{p.code || `#${p.id}`}</p>
                     <p className="mt-0.5 truncate text-xs text-zinc-400">
-                      {p.fornecedor?.name ?? "-"} · {p.produtor?.name ?? "-"} · {p.date || "-"}
+                      {p.fornecedor?.name ?? "-"} Â· {p.produtor?.name ?? "-"} Â· {p.date || "-"}
                     </p>
+                  </button>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="text-sm font-black text-zinc-100">
+                        R$ {Number(p.total_value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                      <p className="mt-0.5 text-xs text-zinc-400">{p.status}</p>
+                    </div>
+                    <button
+                      onClick={() => window.open(`/compra/pedido/${p.id}/print`, "_blank", "noopener,noreferrer")}
+                      className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-black text-white hover:bg-white/10"
+                      title="Imprimir / PDF"
+                    >
+                      Imprimir
+                    </button>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-black text-zinc-100">R$ {Number(p.total_value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                    <p className="mt-0.5 text-xs text-zinc-400">{p.status}</p>
-                  </div>
-                </button>
+                </div>
               ))}
               {!loading && filtered.length === 0 ? (
                 <div className="rounded-2xl border border-white/10 bg-zinc-950/30 p-4 text-sm text-zinc-300">Nenhum pedido encontrado.</div>
@@ -309,7 +319,7 @@ export default function PedidoCompraPage() {
                     aria-label="Fechar modal"
                     title="Fechar"
                   >
-                    ✕
+                    âœ•
                   </button>
                 </div>
                 <div className="max-h-[78vh] overflow-auto p-5">
@@ -525,7 +535,7 @@ export default function PedidoCompraPage() {
                             aria-label="Remover"
                             title="Remover"
                           >
-                            ✕
+                            âœ•
                           </button>
                         </div>
                       ))}

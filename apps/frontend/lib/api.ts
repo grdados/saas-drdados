@@ -731,9 +731,11 @@ export type PedidoCompraItem = {
   produto_id?: number | null;
   unit: string;
   quantity: string; // DRF Decimal -> string
+  received_quantity?: string; // DRF Decimal -> string
   price: string; // DRF Decimal -> string
   discount: string; // DRF Decimal -> string
   total_item: string; // DRF Decimal -> string
+  status?: string;
   created_at: string;
   updated_at: string;
 };
@@ -762,6 +764,10 @@ export type PedidoCompra = {
 
 export function listPedidosCompra(token: string) {
   return request<PedidoCompra[]>("/api/erp/compras/pedidos/", { method: "GET" }, token);
+}
+
+export function getPedidoCompra(token: string, id: number) {
+  return request<PedidoCompra>(`/api/erp/compras/pedidos/${id}/`, { method: "GET" }, token);
 }
 
 export function createPedidoCompra(
@@ -815,6 +821,114 @@ export function updatePedidoCompra(
     { method: "PATCH", body: JSON.stringify(payload) },
     token
   );
+}
+
+export type FaturamentoCompraItem = {
+  id: number;
+  pedido_item_id?: number | null;
+  produto: { id: number; name: string } | null;
+  quantity: string;
+  price: string;
+  total_item: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type FaturamentoCompra = {
+  id: number;
+  date: string | null;
+  invoice_number: string;
+  grupo: { id: number; name: string; cpf_cnpj?: string } | null;
+  grupo_id?: number | null;
+  produtor: { id: number; name: string } | null;
+  produtor_id?: number | null;
+  pedido: { id: number; code: string } | null;
+  pedido_id?: number | null;
+  fornecedor: { id: number; name: string } | null;
+  fornecedor_id?: number | null;
+  operacao: { id: number; name: string; kind: string } | null;
+  operacao_id?: number | null;
+  due_date: string | null;
+  total_value: string;
+  items: FaturamentoCompraItem[];
+  created_at: string;
+  updated_at: string;
+};
+
+export function listFaturamentosCompra(token: string) {
+  return request<FaturamentoCompra[]>("/api/erp/compras/faturamentos/", { method: "GET" }, token);
+}
+
+export function createFaturamentoCompra(
+  token: string,
+  payload: Partial<{
+    date: string | null;
+    invoice_number: string;
+    grupo_id: number | null;
+    produtor_id: number | null;
+    pedido_id: number | null;
+    fornecedor_id: number | null;
+    operacao_id: number | null;
+    due_date: string | null;
+    items: Array<{
+      pedido_item_id: number | null;
+      quantity: string | number;
+      price: string | number;
+    }>;
+  }>
+) {
+  return request<FaturamentoCompra>(
+    "/api/erp/compras/faturamentos/",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  );
+}
+
+export function updateFaturamentoCompra(
+  token: string,
+  id: number,
+  payload: Partial<{
+    date: string | null;
+    invoice_number: string;
+    grupo_id: number | null;
+    produtor_id: number | null;
+    pedido_id: number | null;
+    fornecedor_id: number | null;
+    operacao_id: number | null;
+    due_date: string | null;
+    items: Array<{
+      pedido_item_id: number | null;
+      quantity: string | number;
+      price: string | number;
+    }>;
+  }>
+) {
+  return request<FaturamentoCompra>(
+    `/api/erp/compras/faturamentos/${id}/`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  );
+}
+
+export type ContaPagar = {
+  id: number;
+  date: string | null;
+  due_date: string | null;
+  invoice_number: string;
+  grupo: { id: number; name: string; cpf_cnpj?: string } | null;
+  produtor: { id: number; name: string } | null;
+  fornecedor: { id: number; name: string } | null;
+  operacao: { id: number; name: string; kind: string } | null;
+  pedido: { id: number; code: string } | null;
+  faturamento: { id: number; invoice_number: string } | null;
+  total_value: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export function listContasAPagar(token: string) {
+  return request<ContaPagar[]>("/api/erp/financeiro/contas-a-pagar/", { method: "GET" }, token);
 }
 
 export type GrupoProdutor = {

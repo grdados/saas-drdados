@@ -133,6 +133,22 @@ class PedidoCompraViewSet(CompanyScopedViewSet):
     serializer_class = serializers.PedidoCompraSerializer
 
 
+class FaturamentoCompraViewSet(CompanyScopedViewSet):
+    queryset = (
+        models.FaturamentoCompra.objects.select_related(
+            "company", "grupo", "produtor", "pedido", "fornecedor", "operacao"
+        ).prefetch_related("items", "items__pedido_item", "items__produto")
+    )
+    serializer_class = serializers.FaturamentoCompraSerializer
+
+
+class ContaPagarViewSet(CompanyScopedViewSet):
+    queryset = models.ContaPagar.objects.select_related(
+        "company", "grupo", "produtor", "fornecedor", "operacao", "pedido", "faturamento"
+    )
+    serializer_class = serializers.ContaPagarSerializer
+
+
 class CategoriaViewSet(CompanyScopedViewSet):
     queryset = models.Categoria.objects.select_related("company")
     serializer_class = serializers.CategoriaSerializer
