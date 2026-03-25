@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
 import { createGrupoProdutor, GrupoProdutor, isApiError, listGruposProdutores, updateGrupoProdutor } from "@/lib/api";
+import { maskCpfCnpj } from "@/lib/masks";
 import { toUpperText } from "@/lib/text";
 
 function IconPencil({ className = "h-4 w-4" }: { className?: string }) {
@@ -50,7 +51,7 @@ function Modal({
   return (
     <div className="fixed inset-0 z-50 grid place-items-center px-4">
       <button aria-label="Fechar" onClick={onClose} className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm" />
-      <div className="relative w-full max-w-[820px] overflow-hidden rounded-3xl border border-white/10 bg-zinc-950/90 shadow-2xl">
+      <div className="relative w-full max-w-[820px] overflow-hidden rounded-3xl border border-white/15 bg-zinc-900/85 shadow-2xl">
         <div className="flex items-start justify-between gap-3 border-b border-white/10 p-5">
           <div>
             <p className="text-sm font-black text-white">{title}</p>
@@ -147,7 +148,7 @@ export default function GrupoProdutoresPage() {
     if (!it) return;
     setEditingId(id);
     setFormName(it.name);
-    setFormDoc(it.cpf_cnpj || "");
+    setFormDoc(maskCpfCnpj(it.cpf_cnpj || ""));
     setFormActive(it.is_active);
     setSaveMessage("");
     setModalOpen(true);
@@ -328,8 +329,9 @@ export default function GrupoProdutoresPage() {
                 <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">CPF/CNPJ</label>
                 <input
                   value={formDoc}
-                  onChange={(e) => setFormDoc(toUpperText(e.target.value))}
+                  onChange={(e) => setFormDoc(maskCpfCnpj(e.target.value))}
                   placeholder="Ex: 00.000.000/0000-00"
+                  inputMode="numeric"
                   className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                 />
               </div>

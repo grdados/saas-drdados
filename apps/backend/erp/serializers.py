@@ -61,7 +61,19 @@ class SafraSerializer(serializers.ModelSerializer):
         return {"id": obj.cultura_id, "name": obj.cultura.name}
 
 GrupoCompraSerializer = _mk_serializer(models.GrupoCompra)
-GrupoProdutorSerializer = _mk_serializer(models.GrupoProdutor)
+
+
+class GrupoProdutorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.GrupoProdutor
+        fields = [
+            "id",
+            "name",
+            "cpf_cnpj",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
 
 
 class ProdutorSerializer(serializers.ModelSerializer):
@@ -235,7 +247,7 @@ class PedidoCompraItemSerializer(serializers.ModelSerializer):
 class PedidoCompraSerializer(serializers.ModelSerializer):
     grupo = serializers.SerializerMethodField()
     grupo_id = serializers.PrimaryKeyRelatedField(
-        source="grupo", queryset=models.GrupoCompra.objects.all(), allow_null=True, required=False
+        source="grupo", queryset=models.GrupoProdutor.objects.all(), allow_null=True, required=False
     )
     produtor = serializers.SerializerMethodField()
     produtor_id = serializers.PrimaryKeyRelatedField(
@@ -284,7 +296,7 @@ class PedidoCompraSerializer(serializers.ModelSerializer):
     def get_grupo(self, obj):
         if not getattr(obj, "grupo_id", None):
             return None
-        return {"id": obj.grupo_id, "name": obj.grupo.name}
+        return {"id": obj.grupo_id, "name": obj.grupo.name, "cpf_cnpj": getattr(obj.grupo, "cpf_cnpj", "")}
 
     def get_produtor(self, obj):
         if not getattr(obj, "produtor_id", None):

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 
 import { submitProjectIntake } from "@/lib/api";
+import { maskPhoneBR } from "@/lib/masks";
 
 type Solution = "erp" | "crm" | "power_bi" | "landing_page";
 type DataLocation = "excel" | "database" | "erp" | "api" | "unknown";
@@ -306,7 +307,7 @@ export function ProjectIntakeForm() {
                         <FieldLabel>Whatsapp</FieldLabel>
                         <InputBase
                           value={form.whatsapp}
-                          onChange={(e) => setForm((s) => ({ ...s, whatsapp: e.target.value }))}
+                          onChange={(e) => setForm((s) => ({ ...s, whatsapp: maskPhoneBR(e.target.value) }))}
                           placeholder="(67) 99869-8159"
                           inputMode="tel"
                         />

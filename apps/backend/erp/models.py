@@ -144,6 +144,7 @@ class CondicaoFinanceira(CompanyNamedModel):
 # Compra
 class PedidoCompra(models.Model):
     class Status(models.TextChoices):
+        PENDING = "pending", "Pendente"
         DRAFT = "draft", "Rascunho"
         OPEN = "open", "Em aberto"
         CONFIRMED = "confirmed", "Confirmado"
@@ -153,7 +154,8 @@ class PedidoCompra(models.Model):
     date = models.DateField(null=True, blank=True)
     code = models.CharField(max_length=60, blank=True, default="")  # numero/codigo do pedido
 
-    grupo = models.ForeignKey("erp.GrupoCompra", null=True, blank=True, on_delete=models.PROTECT)
+    # Grupo de produtores (gerencial)
+    grupo = models.ForeignKey("erp.GrupoProdutor", null=True, blank=True, on_delete=models.PROTECT)
     produtor = models.ForeignKey("erp.Produtor", null=True, blank=True, on_delete=models.PROTECT)
     fornecedor = models.ForeignKey("erp.Fornecedor", null=True, blank=True, on_delete=models.PROTECT)
     safra = models.ForeignKey("erp.Safra", null=True, blank=True, on_delete=models.PROTECT)
@@ -161,7 +163,7 @@ class PedidoCompra(models.Model):
     operacao = models.ForeignKey("erp.Operacao", null=True, blank=True, on_delete=models.PROTECT)
 
     total_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

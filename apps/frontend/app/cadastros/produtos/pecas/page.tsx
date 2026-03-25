@@ -64,7 +64,7 @@ function Modal({
   return (
     <div className="fixed inset-0 z-50 grid place-items-center px-4">
       <button aria-label="Fechar" onClick={onClose} className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm" />
-      <div className="relative w-full max-w-[1000px] overflow-hidden rounded-3xl border border-white/10 bg-zinc-950/90 shadow-2xl">
+      <div className="relative w-full max-w-[1000px] overflow-hidden rounded-3xl border border-white/15 bg-zinc-900/85 shadow-2xl">
         <div className="flex items-start justify-between gap-3 border-b border-white/10 p-5">
           <div>
             <p className="text-sm font-black text-white">{title}</p>

@@ -7,11 +7,11 @@ import { getAccessToken } from "@/lib/auth";
 import {
   createPedidoCompra,
   FornecedorGerencial,
-  GrupoCompra,
+  GrupoProdutor,
   Insumo,
   isApiError,
   listFornecedoresGerencial,
-  listGruposCompra,
+  listGruposProdutores,
   listInsumos,
   listOperacoes,
   listPedidosCompra,
@@ -19,6 +19,7 @@ import {
   listSafras,
   Operacao,
   PedidoCompra,
+  Produtor,
   Safra,
   updatePedidoCompra
 } from "@/lib/api";
@@ -29,8 +30,8 @@ export default function PedidoCompraPage() {
   const [pedidos, setPedidos] = useState<PedidoCompra[]>([]);
   const [error, setError] = useState("");
 
-  const [grupos, setGrupos] = useState<GrupoCompra[]>([]);
-  const [produtores, setProdutores] = useState<Array<{ id: number; name: string }>>([]);
+  const [grupos, setGrupos] = useState<GrupoProdutor[]>([]);
+  const [produtores, setProdutores] = useState<Produtor[]>([]);
   const [fornecedores, setFornecedores] = useState<FornecedorGerencial[]>([]);
   const [safras, setSafras] = useState<Safra[]>([]);
   const [operacoes, setOperacoes] = useState<Operacao[]>([]);
@@ -50,7 +51,7 @@ export default function PedidoCompraPage() {
   const [formSafraId, setFormSafraId] = useState<number | "">("");
   const [formDueDate, setFormDueDate] = useState("");
   const [formOperacaoId, setFormOperacaoId] = useState<number | "">("");
-  const [formStatus, setFormStatus] = useState("draft");
+  const [formStatus, setFormStatus] = useState("pending");
   const [rows, setRows] = useState<
     Array<{ produto_id: number | null; unit: string; quantity: string; price: string; discount: string }>
   >([]);
@@ -79,6 +80,16 @@ export default function PedidoCompraPage() {
     }, 0);
   }, [rows]);
 
+  const produtoresFiltrados = useMemo(() => {
+    if (formGrupoId === "") return produtores;
+    const gid = Number(formGrupoId);
+    return produtores.filter((p) => (p.grupo?.id ?? null) === gid);
+  }, [produtores, formGrupoId]);
+
+  const operacoesDespesa = useMemo(() => {
+    return [...operacoes].filter((o) => o.kind === "debit").sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  }, [operacoes]);
+
   async function refresh() {
     const token = getAccessToken();
     if (!token) return;
@@ -87,7 +98,7 @@ export default function PedidoCompraPage() {
     try {
       const [ped, grp, pro, forn, saf, ope, ins] = await Promise.all([
         listPedidosCompra(token),
-        listGruposCompra(token),
+        listGruposProdutores(token),
         listProdutores(token),
         listFornecedoresGerencial(token),
         listSafras(token),
@@ -128,7 +139,7 @@ export default function PedidoCompraPage() {
     setFormSafraId("");
     setFormDueDate("");
     setFormOperacaoId("");
-    setFormStatus("draft");
+    setFormStatus("pending");
     setRows([{ produto_id: null, unit: "", quantity: "0", price: "0", discount: "0" }]);
     setSaveMessage("");
     setOpen(true);
@@ -146,7 +157,7 @@ export default function PedidoCompraPage() {
     setFormSafraId(p.safra?.id ?? "");
     setFormDueDate(p.due_date ?? "");
     setFormOperacaoId(p.operacao?.id ?? "");
-    setFormStatus(p.status ?? "draft");
+    setFormStatus(p.status ?? "pending");
     setRows(
       (p.items || []).map((it) => ({
         produto_id: it.produto?.id ?? null,
@@ -271,7 +282,7 @@ export default function PedidoCompraPage() {
           {open ? (
             <div className="fixed inset-0 z-50 grid place-items-center px-4">
               <button className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm" onClick={() => setOpen(false)} aria-label="Fechar" />
-              <div className="relative w-full max-w-[1100px] overflow-hidden rounded-3xl border border-white/10 bg-zinc-950/90 shadow-2xl">
+              <div className="relative w-full max-w-[1100px] overflow-hidden rounded-3xl border border-white/15 bg-zinc-900/85 shadow-2xl">
                 <div className="flex items-start justify-between gap-3 border-b border-white/10 p-5">
                   <div>
                     <p className="text-sm font-black text-white">{editing ? "Editar pedido" : "Novo pedido"}</p>
@@ -311,7 +322,11 @@ export default function PedidoCompraPage() {
                       <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Grupo</label>
                       <select
                         value={formGrupoId}
-                        onChange={(e) => setFormGrupoId(e.target.value === "" ? "" : Number(e.target.value))}
+                        onChange={(e) => {
+                          const next = e.target.value === "" ? "" : Number(e.target.value);
+                          setFormGrupoId(next);
+                          setFormProdutorId("");
+                        }}
                         className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50"
                       >
                         <option value="" style={optionStyle}>
@@ -335,7 +350,7 @@ export default function PedidoCompraPage() {
                         <option value="" style={optionStyle}>
                           Selecione
                         </option>
-                        {produtores.map((p) => (
+                        {produtoresFiltrados.map((p) => (
                           <option key={p.id} value={p.id} style={optionStyle}>
                             {p.name}
                           </option>
@@ -399,7 +414,7 @@ export default function PedidoCompraPage() {
                         <option value="" style={optionStyle}>
                           Selecione
                         </option>
-                        {operacoes.map((o) => (
+                        {operacoesDespesa.map((o) => (
                           <option key={o.id} value={o.id} style={optionStyle}>
                             {o.name}
                           </option>
@@ -414,6 +429,9 @@ export default function PedidoCompraPage() {
                         onChange={(e) => setFormStatus(e.target.value)}
                         className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50"
                       >
+                        <option value="pending" style={optionStyle}>
+                          Pendente
+                        </option>
                         <option value="draft" style={optionStyle}>
                           Rascunho
                         </option>
@@ -437,7 +455,7 @@ export default function PedidoCompraPage() {
                         onClick={() =>
                           setRows((prev) => [...prev, { produto_id: null, unit: "", quantity: "0", price: "0", discount: "0" }])
                         }
-                        className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-black text-white hover:bg-white/10"
+                        className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-3 py-2 text-sm font-black text-emerald-100 hover:bg-emerald-500/20"
                       >
                         Adicionar
                       </button>
@@ -488,7 +506,7 @@ export default function PedidoCompraPage() {
                           />
                           <button
                             onClick={() => setRows((prev) => prev.filter((_, i) => i !== idx))}
-                            className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-black text-zinc-200 hover:bg-white/5"
+                            className="rounded-2xl border border-rose-400/25 bg-rose-500/10 px-3 py-2.5 text-sm font-black text-rose-200 hover:bg-rose-500/15"
                             aria-label="Remover"
                             title="Remover"
                           >

@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { AdminShell } from "@/components/AdminShell";
 import { getAccessToken } from "@/lib/auth";
 import { createLead, getMe, isApiError, listLeads } from "@/lib/api";
+import { maskPhoneBR } from "@/lib/masks";
 
 type Lead = {
   id: number;
@@ -99,7 +100,8 @@ export default function LeadsPage() {
           <input
             placeholder="Telefone"
             value={form.phone}
-            onChange={(e) => setForm((old) => ({ ...old, phone: e.target.value }))}
+            onChange={(e) => setForm((old) => ({ ...old, phone: maskPhoneBR(e.target.value) }))}
+            inputMode="tel"
             disabled={!!accessMessage}
             className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-500/50 focus:outline-none disabled:opacity-60"
           />
