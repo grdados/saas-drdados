@@ -846,9 +846,12 @@ export type FaturamentoCompra = {
   pedido_id?: number | null;
   fornecedor: { id: number; name: string } | null;
   fornecedor_id?: number | null;
+  deposito: { id: number; name: string } | null;
+  deposito_id?: number | null;
   operacao: { id: number; name: string; kind: string } | null;
   operacao_id?: number | null;
   due_date: string | null;
+  status: "pending" | "overdue" | "partial" | "paid";
   total_value: string;
   items: FaturamentoCompraItem[];
   created_at: string;
@@ -868,6 +871,7 @@ export function createFaturamentoCompra(
     produtor_id: number | null;
     pedido_id: number | null;
     fornecedor_id: number | null;
+    deposito_id: number | null;
     operacao_id: number | null;
     due_date: string | null;
     items: Array<{
@@ -894,6 +898,7 @@ export function updateFaturamentoCompra(
     produtor_id: number | null;
     pedido_id: number | null;
     fornecedor_id: number | null;
+    deposito_id: number | null;
     operacao_id: number | null;
     due_date: string | null;
     items: Array<{
@@ -922,6 +927,8 @@ export type ContaPagar = {
   pedido: { id: number; code: string } | null;
   faturamento: { id: number; invoice_number: string } | null;
   total_value: string;
+  paid_value: string;
+  balance_value: string;
   status: string;
   created_at: string;
   updated_at: string;
@@ -929,6 +936,47 @@ export type ContaPagar = {
 
 export function listContasAPagar(token: string) {
   return request<ContaPagar[]>("/api/erp/financeiro/contas-a-pagar/", { method: "GET" }, token);
+}
+
+export function updateContaPagarStatus(
+  token: string,
+  id: number,
+  payload: { status?: "open" | "partial" | "paid" | "canceled"; paid_value?: number | string }
+) {
+  return request<ContaPagar>(
+    `/api/erp/financeiro/contas-a-pagar/${id}/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+}
+
+export type Deposito = {
+  id: number;
+  name: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export function listDepositos(token: string) {
+  return request<Deposito[]>("/api/erp/patrimonio/depositos/", { method: "GET" }, token);
+}
+export function createDeposito(token: string, payload: { name: string; is_active?: boolean }) {
+  return request<Deposito>(
+    "/api/erp/patrimonio/depositos/",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  );
+}
+export function updateDeposito(token: string, id: number, payload: { name?: string; is_active?: boolean }) {
+  return request<Deposito>(
+    `/api/erp/patrimonio/depositos/${id}/`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  );
 }
 
 export type GrupoProdutor = {

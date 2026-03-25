@@ -40,6 +40,19 @@ function toApiDecimal(v: unknown) {
   return s;
 }
 
+function parseNumber(v: unknown) {
+  const n = Number(String(v ?? "0").replace(",", "."));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function statusBadge(status: string) {
+  const s = (status || "").toLowerCase();
+  if (s === "delivered" || s === "confirmed" || s === "paid") return { label: "Faturado", cls: "border-emerald-400/30 bg-emerald-500/15 text-emerald-200" };
+  if (s === "partial") return { label: "Parcial", cls: "border-sky-400/30 bg-sky-500/15 text-sky-200" };
+  if (s === "canceled") return { label: "Cancelado", cls: "border-zinc-400/30 bg-zinc-500/15 text-zinc-200" };
+  return { label: "Pendente", cls: "border-amber-400/30 bg-amber-500/15 text-amber-200" };
+}
+
 export default function PedidoCompraPage() {
   const [loading, setLoading] = useState(true);
   const [pedidos, setPedidos] = useState<PedidoCompra[]>([]);
@@ -53,6 +66,13 @@ export default function PedidoCompraPage() {
   const [insumos, setInsumos] = useState<Insumo[]>([]);
 
   const [q, setQ] = useState("");
+  const [reportSafraId, setReportSafraId] = useState<number | "">("");
+  const [reportGrupoId, setReportGrupoId] = useState<number | "">("");
+  const [reportProdutorId, setReportProdutorId] = useState<number | "">("");
+  const [reportCategoria, setReportCategoria] = useState("");
+  const [reportStatus, setReportStatus] = useState("all");
+  const [reportFrom, setReportFrom] = useState("");
+  const [reportTo, setReportTo] = useState("");
 
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -75,15 +95,40 @@ export default function PedidoCompraPage() {
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    if (!needle) return pedidos;
     return pedidos.filter((p) => {
+      if (reportSafraId !== "" && (p.safra?.id ?? null) !== Number(reportSafraId)) return false;
+      if (reportGrupoId !== "" && (p.grupo?.id ?? null) !== Number(reportGrupoId)) return false;
+      if (reportProdutorId !== "" && (p.produtor?.id ?? null) !== Number(reportProdutorId)) return false;
+      if (reportStatus !== "all" && (p.status ?? "") !== reportStatus) return false;
+      if (reportFrom && p.date && p.date < reportFrom) return false;
+      if (reportTo && p.date && p.date > reportTo) return false;
+      if (reportCategoria) {
+        const hasCategory = (p.items || []).some((it) => {
+          const prodId = it.produto?.id ?? null;
+          const found = prodId ? insumos.find((x) => x.id === prodId) : null;
+          return (found?.categoria?.name ?? "") === reportCategoria;
+        });
+        if (!hasCategory) return false;
+      }
+      if (!needle) return true;
       return (
         (p.code || "").toLowerCase().includes(needle) ||
         (p.fornecedor?.name ?? "").toLowerCase().includes(needle) ||
         (p.produtor?.name ?? "").toLowerCase().includes(needle)
       );
     });
-  }, [pedidos, q]);
+  }, [
+    pedidos,
+    q,
+    reportSafraId,
+    reportGrupoId,
+    reportProdutorId,
+    reportStatus,
+    reportFrom,
+    reportTo,
+    reportCategoria,
+    insumos
+  ]);
 
   const total = useMemo(() => {
     return rows.reduce((acc, r) => {
@@ -104,6 +149,30 @@ export default function PedidoCompraPage() {
   const operacoesDespesa = useMemo(() => {
     return [...operacoes].filter((o) => o.kind === "debit").sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
   }, [operacoes]);
+
+  const reportCategorias = useMemo(() => {
+    const s = new Set<string>();
+    for (const i of insumos) {
+      const name = i.categoria?.name?.trim();
+      if (name) s.add(name);
+    }
+    return [...s].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [insumos]);
+
+  const cards = useMemo(() => {
+    const total = filtered.reduce((acc, p) => acc + parseNumber(p.total_value), 0);
+    const faturados = filtered.filter((p) => ["delivered", "confirmed", "paid"].includes((p.status || "").toLowerCase())).length;
+    const pendentes = filtered.filter((p) => ["pending", "open", "draft"].includes((p.status || "").toLowerCase())).length;
+    const parciais = filtered.filter((p) => (p.status || "").toLowerCase() === "partial").length;
+    const aFaturar = pendentes + parciais;
+    return [
+      { label: "Valor total", value: `R$ ${total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, tone: "border-accent-400/30 bg-accent-500/10" },
+      { label: "Faturados", value: String(faturados), tone: "border-emerald-400/30 bg-emerald-500/10" },
+      { label: "Pendentes", value: String(pendentes), tone: "border-amber-400/30 bg-amber-500/10" },
+      { label: "Parciais", value: String(parciais), tone: "border-sky-400/30 bg-sky-500/10" },
+      { label: "A faturar", value: String(aFaturar), tone: "border-white/15 bg-white/5" }
+    ];
+  }, [filtered]);
 
   async function refresh() {
     const token = getAccessToken();
@@ -244,56 +313,94 @@ export default function PedidoCompraPage() {
         <div className="space-y-5">
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Compra</p>
           <h1 className="text-2xl font-black tracking-tight text-white">Pedido</h1>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Buscar por pedido, fornecedor ou produtor..."
-              className="w-full max-w-xl rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
-            />
-            <button
-              onClick={openCreate}
-              className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400"
-            >
-              Novo pedido
-            </button>
-          </div>
+          <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
+            <div className="grid gap-3 lg:grid-cols-8">
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por pedido, fornecedor ou produtor..." className="lg:col-span-2 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50" />
+              <select value={reportSafraId} onChange={(e) => setReportSafraId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                <option value="" style={optionStyle}>Safra</option>
+                {safras.map((s) => (<option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>))}
+              </select>
+              <select value={reportGrupoId} onChange={(e) => setReportGrupoId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                <option value="" style={optionStyle}>Grupo</option>
+                {grupos.map((g) => (<option key={g.id} value={g.id} style={optionStyle}>{g.name}</option>))}
+              </select>
+              <select value={reportProdutorId} onChange={(e) => setReportProdutorId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                <option value="" style={optionStyle}>Produtor</option>
+                {produtores.map((p) => (<option key={p.id} value={p.id} style={optionStyle}>{p.name}</option>))}
+              </select>
+              <select value={reportCategoria} onChange={(e) => setReportCategoria(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                <option value="" style={optionStyle}>Categoria</option>
+                {reportCategorias.map((c) => (<option key={c} value={c} style={optionStyle}>{c}</option>))}
+              </select>
+              <select value={reportStatus} onChange={(e) => setReportStatus(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                <option value="all" style={optionStyle}>Status (todos)</option>
+                <option value="pending" style={optionStyle}>Pendente</option>
+                <option value="open" style={optionStyle}>Em aberto</option>
+                <option value="partial" style={optionStyle}>Parcial</option>
+                <option value="delivered" style={optionStyle}>Entregue</option>
+                <option value="confirmed" style={optionStyle}>Confirmado</option>
+                <option value="canceled" style={optionStyle}>Cancelado</option>
+              </select>
+              <div className="flex gap-2">
+                <input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
+                <input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
+              </div>
+            </div>
+            <div className="mt-3 flex justify-end">
+              <button onClick={openCreate} className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">Novo pedido</button>
+            </div>
+          </section>
 
           {error ? (
             <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm font-semibold text-amber-200">{error}</div>
           ) : null}
+
+          <section className="grid gap-4 lg:grid-cols-5">
+            {cards.map((c) => (
+              <div key={c.label} className={`rounded-3xl border p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] ${c.tone}`}>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">{c.label}</p>
+                <p className="mt-2 text-2xl font-black text-white">{c.value}</p>
+              </div>
+            ))}
+          </section>
 
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
             <div className="flex items-center justify-between">
               <p className="text-sm font-black text-white">Lista</p>
               <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
             </div>
+            <div className="mt-3 hidden grid-cols-12 gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 md:grid">
+              <div className="col-span-2">Data</div>
+              <div className="col-span-2">Pedido</div>
+              <div className="col-span-2">Grupo</div>
+              <div className="col-span-2">Produtor</div>
+              <div className="col-span-2">Fornecedor</div>
+              <div className="col-span-1 text-right">Valor</div>
+              <div className="col-span-1 text-right">Status</div>
+            </div>
             <div className="mt-3 space-y-2">
               {filtered.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-zinc-950/35 px-4 py-3 hover:bg-white/5"
-                >
-                  <button onClick={() => openEdit(p.id)} className="min-w-0 flex-1 text-left">
-                    <p className="truncate text-sm font-black text-white">{p.code || `#${p.id}`}</p>
-                    <p className="mt-0.5 truncate text-xs text-zinc-400">
-                      {p.fornecedor?.name ?? "-"} Â· {p.produtor?.name ?? "-"} Â· {p.date || "-"}
-                    </p>
-                  </button>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <p className="text-sm font-black text-zinc-100">
-                        R$ {Number(p.total_value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </p>
-                      <p className="mt-0.5 text-xs text-zinc-400">{p.status}</p>
+                <div key={p.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-4 py-3 hover:bg-white/5">
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-12 md:items-center md:gap-3">
+                    <div className="md:col-span-2"><p className="text-sm font-semibold text-zinc-100">{p.date || "-"}</p></div>
+                    <div className="md:col-span-2">
+                      <button onClick={() => openEdit(p.id)} className="truncate text-left text-sm font-black text-white hover:text-accent-200">{p.code || `#${p.id}`}</button>
                     </div>
-                    <button
-                      onClick={() => window.open(`/compra/pedido/${p.id}/print`, "_blank", "noopener,noreferrer")}
-                      className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-black text-white hover:bg-white/10"
-                      title="Imprimir / PDF"
-                    >
-                      Imprimir
-                    </button>
+                    <div className="md:col-span-2"><p className="truncate text-sm font-semibold text-zinc-100">{p.grupo?.name ?? "-"}</p></div>
+                    <div className="md:col-span-2"><p className="truncate text-sm font-semibold text-zinc-100">{p.produtor?.name ?? "-"}</p></div>
+                    <div className="md:col-span-2"><p className="truncate text-sm font-semibold text-zinc-100">{p.fornecedor?.name ?? "-"}</p></div>
+                    <div className="md:col-span-1 md:text-right">
+                      <p className="text-sm font-black text-zinc-100">R$ {Number(p.total_value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    </div>
+                    <div className="md:col-span-1 md:text-right">
+                      {(() => {
+                        const meta = statusBadge(p.status);
+                        return <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>;
+                      })()}
+                    </div>
+                  </div>
+                  <div className="mt-2 flex justify-end">
+                    <button onClick={() => window.open(`/compra/pedido/${p.id}/print`, "_blank", "noopener,noreferrer")} className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-black text-white hover:bg-white/10" title="Imprimir / PDF">Imprimir</button>
                   </div>
                 </div>
               ))}

@@ -235,10 +235,18 @@ class FaturamentoCompra(models.Model):
     pedido = models.ForeignKey("erp.PedidoCompra", null=True, blank=True, on_delete=models.PROTECT)
 
     fornecedor = models.ForeignKey("erp.Fornecedor", null=True, blank=True, on_delete=models.PROTECT)
+    deposito = models.ForeignKey("erp.Deposito", null=True, blank=True, on_delete=models.PROTECT)
     operacao = models.ForeignKey("erp.Operacao", null=True, blank=True, on_delete=models.PROTECT)
     due_date = models.DateField(null=True, blank=True)
 
     total_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pendente"
+        OVERDUE = "overdue", "Vencido"
+        PARTIAL = "partial", "Parcial"
+        PAID = "paid", "Pago"
+
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -282,6 +290,7 @@ class FaturamentoCompraItem(models.Model):
 class ContaPagar(models.Model):
     class Status(models.TextChoices):
         OPEN = "open", "Em aberto"
+        PARTIAL = "partial", "Parcial"
         PAID = "paid", "Pago"
         CANCELED = "canceled", "Cancelado"
 
@@ -300,6 +309,8 @@ class ContaPagar(models.Model):
     faturamento = models.ForeignKey("erp.FaturamentoCompra", null=True, blank=True, on_delete=models.PROTECT)
 
     total_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    paid_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    balance_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN)
 
     created_at = models.DateTimeField(auto_now_add=True)

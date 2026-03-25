@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 
 from django.db.models import Sum
@@ -419,6 +420,8 @@ class ContaPagarSerializer(serializers.ModelSerializer):
             "faturamento",
             "faturamento_id",
             "total_value",
+            "paid_value",
+            "balance_value",
             "status",
             "created_at",
             "updated_at",
@@ -453,6 +456,57 @@ class ContaPagarSerializer(serializers.ModelSerializer):
         if not getattr(obj, "faturamento_id", None):
             return None
         return {"id": obj.faturamento_id, "invoice_number": obj.faturamento.invoice_number}
+
+    def _map_faturamento_status(self, conta_status: str, due_date):
+        if conta_status == models.ContaPagar.Status.PAID:
+            return models.FaturamentoCompra.Status.PAID
+        if conta_status == models.ContaPagar.Status.PARTIAL:
+            return models.FaturamentoCompra.Status.PARTIAL
+        if conta_status == models.ContaPagar.Status.CANCELED:
+            return models.FaturamentoCompra.Status.PENDING
+        if due_date and due_date < date.today():
+            return models.FaturamentoCompra.Status.OVERDUE
+        return models.FaturamentoCompra.Status.PENDING
+
+    def validate(self, attrs):
+        current_total = getattr(self.instance, "total_value", Decimal("0")) if self.instance else Decimal("0")
+        current_paid = getattr(self.instance, "paid_value", Decimal("0")) if self.instance else Decimal("0")
+        total = attrs.get("total_value", current_total) or Decimal("0")
+        paid = attrs.get("paid_value", current_paid) or Decimal("0")
+
+        if paid < 0:
+            raise serializers.ValidationError({"paid_value": "Valor pago nao pode ser negativo."})
+        if paid > total:
+            raise serializers.ValidationError({"paid_value": "Valor pago nao pode ser maior que o valor total."})
+        return attrs
+
+    def update(self, instance, validated_data):
+        obj = super().update(instance, validated_data)
+        total = obj.total_value or Decimal("0")
+        paid = obj.paid_value or Decimal("0")
+        if paid < 0:
+            paid = Decimal("0")
+        if paid > total:
+            paid = total
+
+        if total > 0 and paid >= total:
+            obj.status = models.ContaPagar.Status.PAID
+        elif paid > 0:
+            obj.status = models.ContaPagar.Status.PARTIAL
+        elif obj.status not in {models.ContaPagar.Status.CANCELED}:
+            obj.status = models.ContaPagar.Status.OPEN
+
+        obj.paid_value = paid
+        obj.balance_value = max(Decimal("0"), total - paid)
+        obj.save(update_fields=["status", "paid_value", "balance_value", "updated_at"])
+
+        if obj.faturamento_id:
+            fat = obj.faturamento
+            next_status = self._map_faturamento_status(obj.status, obj.due_date)
+            if fat.status != next_status:
+                fat.status = next_status
+                fat.save(update_fields=["status", "updated_at"])
+        return obj
 
 
 class FaturamentoCompraItemSerializer(serializers.ModelSerializer):
@@ -507,6 +561,10 @@ class FaturamentoCompraSerializer(serializers.ModelSerializer):
     fornecedor_id = serializers.PrimaryKeyRelatedField(
         source="fornecedor", queryset=models.Fornecedor.objects.all(), allow_null=True, required=False
     )
+    deposito = serializers.SerializerMethodField()
+    deposito_id = serializers.PrimaryKeyRelatedField(
+        source="deposito", queryset=models.Deposito.objects.all(), allow_null=True, required=False
+    )
     operacao = serializers.SerializerMethodField()
     operacao_id = serializers.PrimaryKeyRelatedField(
         source="operacao", queryset=models.Operacao.objects.all(), allow_null=True, required=False
@@ -529,9 +587,12 @@ class FaturamentoCompraSerializer(serializers.ModelSerializer):
             "pedido_id",
             "fornecedor",
             "fornecedor_id",
+            "deposito",
+            "deposito_id",
             "operacao",
             "operacao_id",
             "due_date",
+            "status",
             "total_value",
             "items",
             "created_at",
@@ -563,12 +624,18 @@ class FaturamentoCompraSerializer(serializers.ModelSerializer):
             return None
         return {"id": obj.operacao_id, "name": obj.operacao.name, "kind": obj.operacao.kind}
 
+    def get_deposito(self, obj):
+        if not getattr(obj, "deposito_id", None):
+            return None
+        return {"id": obj.deposito_id, "name": obj.deposito.name}
+
     def validate(self, attrs):
         company = get_current_company(self.context["request"].user) if self.context.get("request") else None
         _validate_fk_company(attrs.get("grupo"), company, "grupo_id")
         _validate_fk_company(attrs.get("produtor"), company, "produtor_id")
         _validate_fk_company(attrs.get("pedido"), company, "pedido_id")
         _validate_fk_company(attrs.get("fornecedor"), company, "fornecedor_id")
+        _validate_fk_company(attrs.get("deposito"), company, "deposito_id")
         _validate_fk_company(attrs.get("operacao"), company, "operacao_id")
         return attrs
 
@@ -650,9 +717,14 @@ class FaturamentoCompraSerializer(serializers.ModelSerializer):
                 "operacao": fat.operacao,
                 "pedido": fat.pedido,
                 "total_value": fat.total_value,
+                "paid_value": Decimal("0"),
+                "balance_value": fat.total_value,
                 "status": models.ContaPagar.Status.OPEN,
             },
         )
+        if fat.status != models.FaturamentoCompra.Status.PENDING:
+            fat.status = models.FaturamentoCompra.Status.PENDING
+            fat.save(update_fields=["status", "updated_at"])
 
     def create(self, validated_data):
         items_data = validated_data.pop("items", [])

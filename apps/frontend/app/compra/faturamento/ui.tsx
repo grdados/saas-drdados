@@ -6,8 +6,11 @@ import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
 import {
   createFaturamentoCompra,
+  Deposito,
   FaturamentoCompra,
   isApiError,
+  listContasAPagar,
+  listDepositos,
   listFaturamentosCompra,
   listFornecedoresGerencial,
   listGruposProdutores,
@@ -43,17 +46,26 @@ function money(n: number) {
   return `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function daysBetween(a: Date, b: Date) {
-  const ms = 24 * 60 * 60 * 1000;
-  const da = new Date(a.getFullYear(), a.getMonth(), a.getDate()).getTime();
-  const db = new Date(b.getFullYear(), b.getMonth(), b.getDate()).getTime();
-  return Math.max(0, Math.round((db - da) / ms));
+type FatStatus = "pending" | "overdue" | "partial" | "paid";
+
+function monthLabel(date: Date) {
+  return date.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(".", "");
 }
 
-function addDays(d: Date, days: number) {
-  const x = new Date(d);
-  x.setDate(x.getDate() + days);
-  return x;
+function resolveFatStatus(fat: FaturamentoCompra, cpStatus?: "open" | "partial" | "paid" | "canceled"): FatStatus {
+  if (cpStatus === "paid") return "paid";
+  if (cpStatus === "partial") return "partial";
+  const s = fat.status as string | undefined;
+  if (s === "paid" || s === "partial" || s === "overdue" || s === "pending") return s;
+  if (fat.due_date && new Date(fat.due_date) < new Date(new Date().toDateString())) return "overdue";
+  return "pending";
+}
+
+function fatStatusMeta(status: FatStatus) {
+  if (status === "paid") return { label: "Pago", cls: "border-emerald-400/30 bg-emerald-500/15 text-emerald-200" };
+  if (status === "partial") return { label: "Parcial", cls: "border-sky-400/30 bg-sky-500/15 text-sky-200" };
+  if (status === "overdue") return { label: "Vencido", cls: "border-rose-400/30 bg-rose-500/15 text-rose-200" };
+  return { label: "Pendente", cls: "border-amber-400/30 bg-amber-500/15 text-amber-200" };
 }
 
 function SimpleLineChart({ points }: { points: Array<{ label: string; value: number }> }) {
@@ -124,10 +136,18 @@ export default function FaturamentoCompraPage() {
   const [grupos, setGrupos] = useState<Array<{ id: number; name: string }>>([]);
   const [produtores, setProdutores] = useState<Produtor[]>([]);
   const [fornecedores, setFornecedores] = useState<Array<{ id: number; name: string }>>([]);
+  const [depositos, setDepositos] = useState<Deposito[]>([]);
   const [operacoes, setOperacoes] = useState<Operacao[]>([]);
   const [insumos, setInsumos] = useState<Array<{ id: number; name: string; categoria?: { id: number; name: string } | null }>>([]);
+  const [cpStatusByFatId, setCpStatusByFatId] = useState<Record<number, "open" | "partial" | "paid" | "canceled">>({});
 
   const [q, setQ] = useState("");
+  const [reportGrupoId, setReportGrupoId] = useState<number | "">("");
+  const [reportProdutorId, setReportProdutorId] = useState<number | "">("");
+  const [reportCategoria, setReportCategoria] = useState("");
+  const [reportStatus, setReportStatus] = useState<"all" | FatStatus>("all");
+  const [reportFrom, setReportFrom] = useState("");
+  const [reportTo, setReportTo] = useState("");
 
   const [open, setOpen] = useState(false);
   const [formDate, setFormDate] = useState("");
@@ -138,6 +158,7 @@ export default function FaturamentoCompraPage() {
   const [formPedidoId, setFormPedidoId] = useState<number | "">("");
   const [formDueDate, setFormDueDate] = useState("");
   const [formFornecedorId, setFormFornecedorId] = useState<number | "">("");
+  const [formDepositoId, setFormDepositoId] = useState<number | "">("");
   const [formOperacaoId, setFormOperacaoId] = useState<number | "">("");
   const [rows, setRows] = useState<Array<{ pedido_item_id: number | null; quantity: string; price: string }>>([]);
   const [saving, setSaving] = useState(false);
@@ -163,8 +184,22 @@ export default function FaturamentoCompraPage() {
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    if (!needle) return fatsDaSafra;
     return fatsDaSafra.filter((f) => {
+      const st = resolveFatStatus(f, cpStatusByFatId[f.id]);
+      if (reportGrupoId !== "" && (f.grupo?.id ?? null) !== Number(reportGrupoId)) return false;
+      if (reportProdutorId !== "" && (f.produtor?.id ?? null) !== Number(reportProdutorId)) return false;
+      if (reportStatus !== "all" && st !== reportStatus) return false;
+      if (reportFrom && f.date && f.date < reportFrom) return false;
+      if (reportTo && f.date && f.date > reportTo) return false;
+      if (reportCategoria) {
+        const hasCategory = (f.items || []).some((it) => {
+          const prodId = it.produto?.id ?? null;
+          const found = prodId ? insumos.find((x) => x.id === prodId) : null;
+          return (found?.categoria?.name ?? "") === reportCategoria;
+        });
+        if (!hasCategory) return false;
+      }
+      if (!needle) return true;
       return (
         (f.invoice_number || "").toLowerCase().includes(needle) ||
         (f.fornecedor?.name ?? "").toLowerCase().includes(needle) ||
@@ -172,7 +207,18 @@ export default function FaturamentoCompraPage() {
         (f.pedido?.code ?? "").toLowerCase().includes(needle)
       );
     });
-  }, [fatsDaSafra, q]);
+  }, [
+    fatsDaSafra,
+    q,
+    reportGrupoId,
+    reportProdutorId,
+    reportStatus,
+    reportFrom,
+    reportTo,
+    reportCategoria,
+    cpStatusByFatId,
+    insumos
+  ]);
 
   const produtoresDoGrupo = useMemo(() => {
     if (formGrupoId === "") return produtores;
@@ -217,46 +263,52 @@ export default function FaturamentoCompraPage() {
 
   const total = useMemo(() => rows.reduce((acc, r) => acc + Math.max(0, parseNumber(r.quantity) * parseNumber(r.price)), 0), [rows]);
 
+  const reportCategorias = useMemo(() => {
+    const s = new Set<string>();
+    for (const i of insumos) {
+      const name = i.categoria?.name?.trim();
+      if (name) s.add(name);
+    }
+    return [...s].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [insumos]);
+
+  const statusCounts = useMemo(() => {
+    const acc: Record<FatStatus, number> = { pending: 0, overdue: 0, partial: 0, paid: 0 };
+    for (const f of filtered) {
+      acc[resolveFatStatus(f, cpStatusByFatId[f.id])] += 1;
+    }
+    return acc;
+  }, [filtered, cpStatusByFatId]);
+
   const cards = useMemo(() => {
-    const totalFat = fatsDaSafra.reduce((acc, f) => acc + parseNumber(f.total_value), 0);
-    const notas = fatsDaSafra.length;
+    const totalFat = filtered.reduce((acc, f) => acc + parseNumber(f.total_value), 0);
+    const notas = filtered.length;
     const ticket = notas ? totalFat / notas : 0;
-    const pedidosUnicos = new Set(fatsDaSafra.map((f) => f.pedido?.id).filter(Boolean) as number[]);
+    const pedidosUnicos = new Set(filtered.map((f) => f.pedido?.id).filter(Boolean) as number[]);
     return [
-      { label: "Total faturado", value: money(totalFat), note: `${notas} NF(s)` },
-      { label: "Ticket mÃ©dio", value: money(ticket), note: "Por nota" },
-      { label: "Pedidos", value: String(pedidosUnicos.size), note: "Com faturamento" }
+      { label: "Total faturado", value: money(totalFat), note: `${notas} NF(s)`, tone: "border-accent-400/30 bg-accent-500/10" },
+      { label: "Ticket medio", value: money(ticket), note: "Por nota", tone: "border-sky-400/30 bg-sky-500/10" },
+      { label: "Pendentes/Vencidos", value: String(statusCounts.pending + statusCounts.overdue), note: "A pagar", tone: "border-amber-400/30 bg-amber-500/10" },
+      { label: "Pagos", value: String(statusCounts.paid), note: "Liquidados", tone: "border-emerald-400/30 bg-emerald-500/10" },
+      { label: "Pedidos", value: String(pedidosUnicos.size), note: "Com faturamento", tone: "border-white/15 bg-white/5" }
     ];
-  }, [fatsDaSafra]);
+  }, [filtered, statusCounts]);
 
   const temporalPoints = useMemo(() => {
-    const s = safras.find((x) => x.id === (safraId === "" ? -1 : Number(safraId))) ?? null;
-    const start = s?.start_date ? new Date(s.start_date) : null;
-    const end = s?.end_date ? new Date(s.end_date) : null;
-
     const map = new Map<string, number>();
-    for (const f of fatsDaSafra) {
+    for (const f of filtered) {
       const d = f.date ? new Date(f.date) : null;
       if (!d) continue;
-      const key = d.toISOString().slice(0, 10);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       map.set(key, (map.get(key) ?? 0) + parseNumber(f.total_value));
     }
-
-    if (!start || !end) {
-      const keys = [...map.keys()].sort();
-      return keys.slice(-14).map((k) => ({ label: k.slice(5), value: map.get(k) ?? 0 }));
-    }
-
-    const len = daysBetween(start, end);
-    const step = Math.max(1, Math.ceil((len + 1) / 20));
-    const pts: Array<{ label: string; value: number }> = [];
-    for (let i = 0; i <= len; i += step) {
-      const d = addDays(start, i);
-      const key = d.toISOString().slice(0, 10);
-      pts.push({ label: key.slice(5), value: map.get(key) ?? 0 });
-    }
-    return pts;
-  }, [fatsDaSafra, safras, safraId]);
+    return [...map.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([k, value]) => {
+        const [y, m] = k.split("-");
+        return { label: monthLabel(new Date(Number(y), Number(m) - 1, 1)), value };
+      });
+  }, [filtered]);
 
   const byFornecedor = useMemo(() => {
     const m = new Map<string, number>();
@@ -290,15 +342,17 @@ export default function FaturamentoCompraPage() {
     setError("");
     setLoading(true);
     try {
-      const [sf, fat, ped, grp, pro, forn, ope, ins] = await Promise.all([
+      const [sf, fat, ped, grp, pro, forn, dep, ope, ins, cpa] = await Promise.all([
         listSafras(token),
         listFaturamentosCompra(token),
         listPedidosCompra(token),
         listGruposProdutores(token),
         listProdutores(token),
         listFornecedoresGerencial(token),
+        listDepositos(token),
         listOperacoes(token),
-        listInsumos(token)
+        listInsumos(token),
+        listContasAPagar(token)
       ]);
       setSafras(sf);
       setFats(fat);
@@ -306,8 +360,16 @@ export default function FaturamentoCompraPage() {
       setGrupos(grp);
       setProdutores(pro);
       setFornecedores(forn);
+      setDepositos(dep);
       setOperacoes(ope);
       setInsumos(ins as unknown as typeof insumos);
+      const statusMap: Record<number, "open" | "partial" | "paid" | "canceled"> = {};
+      for (const cp of cpa) {
+        if (cp.faturamento?.id) {
+          statusMap[cp.faturamento.id] = cp.status as "open" | "partial" | "paid" | "canceled";
+        }
+      }
+      setCpStatusByFatId(statusMap);
       if (sf.length && safraId === "") setSafraId(sf[0].id);
     } catch (err) {
       if (isApiError(err) && err.status === 401) {
@@ -331,6 +393,7 @@ export default function FaturamentoCompraPage() {
     if (!p) return;
     setFormDueDate(p.due_date ?? "");
     setFormFornecedorId(p.fornecedor?.id ?? "");
+    setFormDepositoId("");
     setFormOperacaoId(p.operacao?.id ?? "");
     setFormSafraId(p.safra?.id ?? "");
     setFormGrupoId(p.grupo?.id ?? "");
@@ -351,6 +414,7 @@ export default function FaturamentoCompraPage() {
         produtor_id: formProdutorId === "" ? null : Number(formProdutorId),
         pedido_id: formPedidoId === "" ? null : Number(formPedidoId),
         fornecedor_id: formFornecedorId === "" ? null : Number(formFornecedorId),
+        deposito_id: formDepositoId === "" ? null : Number(formDepositoId),
         operacao_id: formOperacaoId === "" ? null : Number(formOperacaoId),
         due_date: formDueDate || null,
         items: rows.map((r) => ({ pedido_item_id: r.pedido_item_id, quantity: toApiDecimal(r.quantity), price: toApiDecimal(r.price) }))
@@ -394,7 +458,7 @@ export default function FaturamentoCompraPage() {
                   </option>
                 ))}
               </select>
-              <button onClick={() => { setOpen(true); setFormSafraId(safraId === "" ? "" : Number(safraId)); setRows([{ pedido_item_id: null, quantity: "0", price: "0" }]); }} className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">
+              <button onClick={() => { setOpen(true); setFormSafraId(safraId === "" ? "" : Number(safraId)); setFormDepositoId(""); setRows([{ pedido_item_id: null, quantity: "0", price: "0" }]); }} className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">
                 Novo faturamento
               </button>
             </div>
@@ -402,9 +466,38 @@ export default function FaturamentoCompraPage() {
 
           {error ? <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm font-semibold text-amber-200">{error}</div> : null}
 
-          <section className="grid gap-4 lg:grid-cols-3">
+          <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
+            <div className="grid gap-3 lg:grid-cols-7">
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por NF, fornecedor, produtor ou pedido..." className="lg:col-span-2 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50" />
+              <select value={reportGrupoId} onChange={(e) => setReportGrupoId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                <option value="" style={optionStyle}>Grupo</option>
+                {grupos.map((g) => (<option key={g.id} value={g.id} style={optionStyle}>{g.name}</option>))}
+              </select>
+              <select value={reportProdutorId} onChange={(e) => setReportProdutorId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                <option value="" style={optionStyle}>Produtor</option>
+                {produtores.map((p) => (<option key={p.id} value={p.id} style={optionStyle}>{p.name}</option>))}
+              </select>
+              <select value={reportCategoria} onChange={(e) => setReportCategoria(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                <option value="" style={optionStyle}>Categoria</option>
+                {reportCategorias.map((c) => (<option key={c} value={c} style={optionStyle}>{c}</option>))}
+              </select>
+              <select value={reportStatus} onChange={(e) => setReportStatus(e.target.value as typeof reportStatus)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                <option value="all" style={optionStyle}>Status (todos)</option>
+                <option value="pending" style={optionStyle}>Pendente</option>
+                <option value="overdue" style={optionStyle}>Vencido</option>
+                <option value="partial" style={optionStyle}>Parcial</option>
+                <option value="paid" style={optionStyle}>Pago</option>
+              </select>
+              <div className="flex gap-2">
+                <input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
+                <input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
+              </div>
+            </div>
+          </section>
+
+          <section className="grid gap-4 lg:grid-cols-5">
             {cards.map((c) => (
-              <div key={c.label} className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl">
+              <div key={c.label} className={`rounded-3xl border p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl ${c.tone}`}>
                 <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">{c.label}</p>
                 <p className="mt-2 text-3xl font-black text-white">{c.value}</p>
                 <p className="mt-2 text-sm font-semibold text-zinc-300">{c.note}</p>
@@ -415,13 +508,27 @@ export default function FaturamentoCompraPage() {
           <section className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-black text-white">Faturamento no perÃ­odo</p>
-                <p className="mt-1 text-xs text-zinc-400">Linha temporal baseada na safra selecionada (inÃ­cio/fim).</p>
+                <p className="text-sm font-black text-white">Faturamento por período</p>
+                <p className="mt-1 text-xs text-zinc-400">
+                  {(() => {
+                    const s = safras.find((x) => x.id === (safraId === "" ? -1 : Number(safraId)));
+                    if (!s) return "Selecione uma safra para visualizar o período.";
+                    return `Safra: ${s.name} (${s.start_date ?? "-"} a ${s.end_date ?? "-"})`;
+                  })()}
+                </p>
               </div>
-              <div className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${fatsDaSafra.length} NF(s)`}</div>
+              <div className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} NF(s)`}</div>
             </div>
             <div className="mt-4">
               <SimpleLineChart points={temporalPoints} />
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-4">
+              {temporalPoints.map((p) => (
+                <div key={p.label} className="rounded-2xl border border-white/10 bg-zinc-950/35 p-2 text-center">
+                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">{p.label}</p>
+                  <p className="mt-1 text-sm font-black text-zinc-100">{money(p.value)}</p>
+                </div>
+              ))}
             </div>
           </section>
 
@@ -432,23 +539,35 @@ export default function FaturamentoCompraPage() {
           </div>
 
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por NF, fornecedor, produtor ou pedido..." className="w-full max-w-xl rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50" />
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-black text-white">Notas fiscais</p>
               <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
+            </div>
+            <div className="mt-3 hidden grid-cols-12 gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 md:grid">
+              <div className="col-span-2">Data</div>
+              <div className="col-span-2">Nota Fiscal</div>
+              <div className="col-span-2">Grupo</div>
+              <div className="col-span-2">Produtor</div>
+              <div className="col-span-2">Fornecedor</div>
+              <div className="col-span-1">Pedido</div>
+              <div className="col-span-1 text-right">Status/Valor</div>
             </div>
             <div className="mt-3 space-y-2">
               {filtered.map((f) => (
                 <div key={f.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-4 py-3 hover:bg-white/5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-black text-white">{f.invoice_number || `#${f.id}`}</p>
-                      <p className="mt-0.5 truncate text-xs text-zinc-400">
-                        {f.fornecedor?.name ?? "-"} Â· {f.produtor?.name ?? "-"} Â· {f.date || "-"} Â· Pedido {f.pedido?.code ?? "-"}
-                      </p>
-                    </div>
-                    <div className="text-right">
+                  <div className="grid grid-cols-1 gap-2 md:grid-cols-12 md:items-center md:gap-3">
+                    <div className="md:col-span-2"><p className="text-sm font-semibold text-zinc-100">{f.date || "-"}</p></div>
+                    <div className="md:col-span-2"><p className="truncate text-sm font-black text-white">{f.invoice_number || `#${f.id}`}</p></div>
+                    <div className="md:col-span-2"><p className="truncate text-sm font-semibold text-zinc-100">{f.grupo?.name ?? "-"}</p></div>
+                    <div className="md:col-span-2"><p className="truncate text-sm font-semibold text-zinc-100">{f.produtor?.name ?? "-"}</p></div>
+                    <div className="md:col-span-2"><p className="truncate text-sm font-semibold text-zinc-100">{f.fornecedor?.name ?? "-"}</p></div>
+                    <div className="md:col-span-1"><p className="text-sm font-semibold text-zinc-100">{f.pedido?.code ?? "-"}</p></div>
+                    <div className="md:col-span-1 md:text-right">
                       <p className="text-sm font-black text-zinc-100">{money(parseNumber(f.total_value))}</p>
-                      <p className="mt-0.5 text-xs text-zinc-400">{f.due_date ? `Venc: ${f.due_date}` : ""}</p>
+                      {(() => {
+                        const meta = fatStatusMeta(resolveFatStatus(f, cpStatusByFatId[f.id]));
+                        return <span className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>;
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -522,6 +641,14 @@ export default function FaturamentoCompraPage() {
                       <select value={formFornecedorId} onChange={(e) => setFormFornecedorId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                         <option value="" style={optionStyle}>Selecione</option>
                         {fornecedores.map((f) => (<option key={f.id} value={f.id} style={optionStyle}>{f.name}</option>))}
+                      </select>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Deposito</label>
+                      <select value={formDepositoId} onChange={(e) => setFormDepositoId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                        <option value="" style={optionStyle}>Selecione</option>
+                        {depositos.map((d) => (<option key={d.id} value={d.id} style={optionStyle}>{d.name}</option>))}
                       </select>
                     </div>
 
