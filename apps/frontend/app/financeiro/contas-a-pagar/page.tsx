@@ -67,7 +67,6 @@ function normalizeStatus(it: ContaPagar): ContaStatus {
 type PaymentState = {
   payment_date: string;
   payment_increment: string;
-  paid_value: string;
   discount_value: string;
   addition_value: string;
   payment_method: "pix" | "boleto" | "transfer" | "card" | "cash" | "other";
@@ -78,7 +77,6 @@ type PaymentState = {
 const DEFAULT_PAYMENT: PaymentState = {
   payment_date: "",
   payment_increment: "",
-  paid_value: "",
   discount_value: "0",
   addition_value: "0",
   payment_method: "pix",
@@ -215,6 +213,12 @@ export default function ContasAPagarPage() {
       canceledQty: byStatus.canceled.length
     };
   }, [filtered]);
+
+  const selectedPayItems = useMemo(() => items.filter((x) => selectedIds.includes(x.id)), [items, selectedIds]);
+  const selectedPendingTotal = useMemo(
+    () => selectedPayItems.reduce((acc, it) => acc + Math.max(parseNumber(it.balance_value), 0), 0),
+    [selectedPayItems]
+  );
 
   const simulation = useMemo(() => {
     const paymentDate = simPaymentDate ? new Date(`${simPaymentDate}T00:00:00`) : null;
@@ -467,8 +471,7 @@ export default function ContasAPagarPage() {
     const canReopen = currentStatus === "paid";
     setPayment({
       ...DEFAULT_PAYMENT,
-      status: canReopen ? "open" : "paid",
-      paid_value: canReopen ? "0" : ""
+      status: canReopen ? "open" : "paid"
     });
     setPayOpen(true);
   }
@@ -479,17 +482,23 @@ export default function ContasAPagarPage() {
     setPaying(true);
     setError("");
     try {
+      const selected = items.filter((x) => selectedIds.includes(x.id));
+      const pendingTotal = selected.reduce((acc, it) => acc + Math.max(parseNumber(it.balance_value), 0), 0);
+      const increment = payment.payment_increment ? parseNumber(payment.payment_increment) : 0;
+      if (increment > pendingTotal + 0.00001) {
+        setError(`Valor de pagamento acima do saldo pendente (${prettyMoney(pendingTotal)}).`);
+        setPaying(false);
+        return;
+      }
       const payload = {
         payment_date: payment.payment_date || null,
-        payment_increment: payment.payment_increment ? parseNumber(payment.payment_increment) : undefined,
-        paid_value: payment.paid_value ? parseNumber(payment.paid_value) : undefined,
+        payment_increment: increment > 0 ? increment : undefined,
         discount_value: parseNumber(payment.discount_value || "0"),
         addition_value: parseNumber(payment.addition_value || "0"),
         payment_method: payment.payment_method,
         conta_id: payment.conta_id === "" ? null : Number(payment.conta_id),
         status: payment.status
       };
-      const selected = items.filter((x) => selectedIds.includes(x.id));
       const allPaid = selected.every((x) => normalizeStatus(x) === "paid");
       if (allPaid && payload.status === "paid" && (payload.payment_increment ?? 0) > 0) {
         setError("Faturas pagas nao podem receber novo pagamento. Use status/valor para desfazer.");
@@ -518,7 +527,7 @@ export default function ContasAPagarPage() {
             <p className="mt-1 text-sm text-zinc-300">Consulta e pagamento individual/lote com reflexo no faturamento.</p>
           </div>
 
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
+          <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-4 backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]">
             <div className="grid gap-3 lg:grid-cols-10">
               <input
                 value={q}
@@ -610,7 +619,7 @@ export default function ContasAPagarPage() {
               <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
             </div>
 
-            <div className="mt-3 hidden grid-cols-[56px_120px_120px_110px_180px_180px_120px_120px_120px_120px_180px_160px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 lg:grid">
+            <div className="mt-3 hidden grid-cols-[56px_120px_120px_110px_180px_180px_120px_120px_120px_120px_180px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 lg:grid">
               <div>Sel</div>
               <div>Status</div>
               <div>Venc.</div>
@@ -621,7 +630,6 @@ export default function ContasAPagarPage() {
               <div>Total</div>
               <div>Pago</div>
               <div>Saldo</div>
-              <div>Status (edição)</div>
               <div className="text-right">Ações</div>
             </div>
 
@@ -631,7 +639,7 @@ export default function ContasAPagarPage() {
                 const meta = statusMeta(st);
                 return (
                   <div key={it.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3 hover:bg-white/5">
-                    <div className="grid grid-cols-1 gap-2 lg:grid-cols-[56px_120px_120px_110px_180px_180px_120px_120px_120px_120px_180px_160px] lg:items-center lg:gap-3">
+                    <div className="grid grid-cols-1 gap-2 lg:grid-cols-[56px_120px_120px_110px_180px_180px_120px_120px_120px_120px_180px] lg:items-center lg:gap-3">
                       <div>
                         <input type="checkbox" checked={selectedIds.includes(it.id)} onChange={() => toggleOne(it.id)} className="h-4 w-4 rounded border-white/20 bg-zinc-900" />
                       </div>
@@ -646,34 +654,6 @@ export default function ContasAPagarPage() {
                       <div className="text-sm font-black text-zinc-100">{prettyMoney(it.total_value)}</div>
                       <div className="text-sm font-black text-zinc-100">{prettyMoney(it.paid_value)}</div>
                       <div className="text-sm font-black text-zinc-100">{prettyMoney(it.balance_value)}</div>
-                      <div>
-                        <div className="flex flex-nowrap items-center gap-1 whitespace-nowrap">
-                          <select
-                            value={it.status as ContaStatus}
-                            onChange={async (e) => {
-                              const token = getAccessToken();
-                              if (!token) return;
-                              const nextStatus = e.target.value as ContaStatus;
-                              const isPaidNow = normalizeStatus(it) === "paid";
-                              const updated = await updateContaPagarStatus(token, it.id, {
-                                status: nextStatus,
-                                paid_value: isPaidNow && nextStatus === "open" ? 0 : undefined
-                              });
-                              setItems((prev) => prev.map((x) => (x.id === it.id ? updated : x)));
-                            }}
-                            className="rounded-xl border border-white/10 bg-zinc-900/80 px-2 py-1 text-[11px] font-bold text-zinc-100 outline-none focus:border-accent-500/50"
-                          >
-                            <option value="open" style={optionStyle}>Pendente</option>
-                            <option value="overdue" style={optionStyle}>Vencido</option>
-                            <option value="partial" style={optionStyle}>Parcial</option>
-                            <option value="paid" style={optionStyle}>Pago</option>
-                            <option value="canceled" style={optionStyle}>Cancelado</option>
-                          </select>
-                        </div>
-                        {(st === "partial" || st === "open" || st === "overdue") && (
-                          <p className="mt-1 text-[11px] font-semibold text-zinc-400">Saldo: {prettyMoney(it.balance_value)}</p>
-                        )}
-                      </div>
                       <div className="text-right whitespace-nowrap">
                         <button
                           onClick={() => openPayFor([it.id])}
@@ -724,13 +704,13 @@ export default function ContasAPagarPage() {
 
             <div className="mt-4 grid gap-3 lg:grid-cols-5">
               {[
-                { label: "Valor total", value: prettyMoney(simulation.totalBase), tone: "border-accent-400/30 bg-accent-500/10" },
-                { label: "Valor antecipacao", value: prettyMoney(simulation.totalAntecip), tone: "border-sky-400/30 bg-sky-500/10" },
-                { label: "Valor juros", value: prettyMoney(simulation.totalJuros), tone: "border-rose-400/30 bg-rose-500/10" },
-                { label: "Valor previsto", value: prettyMoney(simulation.totalPrevisto), tone: "border-emerald-400/30 bg-emerald-500/10" },
-                { label: "Sacas necessarias", value: simulation.sacksNeeded.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }), tone: "border-white/15 bg-white/5" }
+                { label: "Valor total", value: prettyMoney(simulation.totalBase) },
+                { label: "Valor antecipacao", value: prettyMoney(simulation.totalAntecip) },
+                { label: "Valor juros", value: prettyMoney(simulation.totalJuros) },
+                { label: "Valor previsto", value: prettyMoney(simulation.totalPrevisto) },
+                { label: "Sacas necessarias", value: simulation.sacksNeeded.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) }
               ].map((c) => (
-                <div key={c.label} className={`rounded-2xl border p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.05)_inset] ${c.tone}`}>
+                <div key={c.label} className="rounded-2xl border border-white/10 bg-zinc-950/45 p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]">
                   <p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">{c.label}</p>
                   <p className="mt-2 text-xl font-black text-white">{c.value}</p>
                 </div>
@@ -765,12 +745,24 @@ export default function ContasAPagarPage() {
                     <input type="date" value={payment.payment_date} onChange={(e) => setPayment((p) => ({ ...p, payment_date: e.target.value }))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
                   </div>
                   <div className="grid gap-2">
-                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Valor pagamento</label>
-                    <input value={payment.payment_increment} onChange={(e) => setPayment((p) => ({ ...p, payment_increment: e.target.value }))} inputMode="decimal" placeholder="0,00" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
-                  </div>
-                  <div className="grid gap-2">
-                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Valor pago (edição)</label>
-                    <input value={payment.paid_value} onChange={(e) => setPayment((p) => ({ ...p, paid_value: e.target.value }))} inputMode="decimal" placeholder="Opcional: define valor pago final" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
+                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">
+                      Valor pagamento (Saldo pendente: {prettyMoney(selectedPendingTotal)})
+                    </label>
+                    <input
+                      value={payment.payment_increment}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        const parsed = parseNumber(next);
+                        if (selectedPendingTotal > 0 && parsed > selectedPendingTotal) {
+                          setPayment((p) => ({ ...p, payment_increment: String(selectedPendingTotal.toFixed(2)) }));
+                          return;
+                        }
+                        setPayment((p) => ({ ...p, payment_increment: next }));
+                      }}
+                      inputMode="decimal"
+                      placeholder="0,00"
+                      className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100 outline-none focus:border-accent-500/50"
+                    />
                   </div>
                   <div className="grid gap-2">
                     <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Forma pagamento</label>
