@@ -656,21 +656,43 @@ export default function RomaneioPage() {
 
   const optionStyle = { backgroundColor: "#e5e7eb", color: "#111827" } as const;
 
-  function openReport(title: string, body: string) {
-    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/><title>${escapeHtml(title)}</title><style>body{font-family:Arial,sans-serif;padding:16px;color:#111}.head{display:flex;justify-content:space-between;align-items:center;border:1px solid #ddd;padding:10px 12px;border-radius:10px}.muted{color:#666;font-size:12px}.kpi{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}.card{border:1px solid #ddd;border-radius:8px;padding:8px}.label{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.08em}.value{font-size:18px;font-weight:700;margin-top:4px}table{width:100%;border-collapse:collapse;margin-top:10px;font-size:12px}th,td{border:1px solid #e2e2e2;padding:6px 8px;text-align:left}th{background:#f7f7f7}.num{text-align:right;white-space:nowrap}</style></head><body><div class="head"><h1>${escapeHtml(title)}</h1><div class="muted">Emissão: ${new Date().toLocaleString("pt-BR")}</div></div>${body}</body></html>`;
-    const win = window.open("about:blank", "_blank", "width=1180,height=760");
-    if (!win) return;
-    try {
-      win.document.open();
-      win.document.write(html);
-      win.document.close();
-      win.focus();
-    } catch {
-      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      win.location.href = url;
-      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    }
+  function openReport(title: string, body: string, orientation: "portrait" | "landscape" = "landscape") {
+    const generatedAt = new Date().toLocaleString("pt-BR");
+    const logoUrl = `${window.location.origin}/logo_horizontal.png`;
+    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8" /><title>${escapeHtml(title)}</title>
+      <style>
+        @page { size: A4 ${orientation}; margin: 12mm 10mm; }
+        body { font-family: Arial, sans-serif; color:#111; margin:0; }
+        .page { padding: 14px 10px 10px; }
+        .header { display:grid; grid-template-columns:260px 1fr; gap:12px; align-items:center; border:1px solid #e4e4e7; border-radius:10px; padding:8px 10px; margin-bottom:12px; }
+        .header-info { text-align:right; }
+        .header-title { margin:0; font-size:18px; font-weight:800; }
+        .header-meta { margin-top:4px; color:#52525b; font-size:11px; line-height:1.4; }
+        .footer { margin-top:14px; border-top:1px solid #d4d4d8; padding-top:8px; color:#52525b; font-size:11px; line-height:1.45; }
+        h1 { font-size: 20px; margin:0 0 6px; }
+        .muted { color:#555; font-size:12px; margin-bottom:10px; }
+        .kpi { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-top:12px; }
+        .card { border:1px solid #ddd; border-radius:8px; padding:8px; }
+        .label { font-size:11px; color:#666; text-transform:uppercase; letter-spacing:.08em; }
+        .value { margin-top:4px; font-size:18px; font-weight:700; }
+        table { width:100%; border-collapse: collapse; font-size: 12px; margin-top:10px; }
+        th, td { border:1px solid #ddd; padding:6px; vertical-align:top; text-align:left; }
+        th { background:#f6f6f6; }
+        .num { text-align:right; white-space:nowrap; }
+        .nowrap { white-space:nowrap; }
+      </style></head><body><div class="page"><header class="header"><div><img src="${logoUrl}" alt="GR Dados" style="max-height:52px"/></div><div class="header-info"><p class="header-title">${escapeHtml(title)}</p><div class="header-meta">Cliente: GR Dados Demo<br/>Emissão: ${generatedAt}</div></div></header>${body}<footer class="footer"><strong>GR Dados</strong> · Todos os direitos reservados<br/>AV 22 de Abril, 519 - Centro - Laguna Carapã - MS · CEP 79920-000<br/>Contato: (67) 99869-8159</footer></div></body></html>`;
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, "_blank", "width=1280,height=900");
+    if (!w) return;
+    window.setTimeout(() => {
+      try {
+        w.focus();
+      } catch {
+        // noop
+      }
+      URL.revokeObjectURL(url);
+    }, 600);
   }
 
   function reportResumoDiario() {
@@ -685,14 +707,14 @@ export default function RomaneioPage() {
       byDay.set(key, prev);
     }
     const rowsHtml = [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([day, v]) => `<tr><td>${d(day)}</td><td class="num">${v.loads}</td><td class="num">${toViewWeight(v.gross)}</td><td class="num">${toViewWeight(v.net)}</td></tr>`).join("");
-    openReport("Relatório Resumo Diário - Romaneio", `<table><thead><tr><th>Data</th><th class="num">Cargas</th><th class="num">Bruto</th><th class="num">Líquido</th></tr></thead><tbody>${rowsHtml || '<tr><td colspan="4">Sem dados.</td></tr>'}</tbody></table>`);
+    openReport("Relatório Resumo Diário - Romaneio", `<h1>Relatório resumo diário de romaneio</h1><table><thead><tr><th>Data</th><th class="num">Cargas</th><th class="num">Bruto</th><th class="num">Líquido</th></tr></thead><tbody>${rowsHtml || '<tr><td colspan="4">Sem dados.</td></tr>'}</tbody></table>`);
   }
 
   function reportResumoGeral() {
     const totalGross = filteredRows.reduce((a, r) => a + n(r.gross_weight), 0);
     const totalNet = filteredRows.reduce((a, r) => a + n(r.net_weight), 0);
     const totalDisc = filteredRows.reduce((a, r) => a + n(r.humidity) + n(r.impurity) + n(r.ardido) + n(r.others), 0);
-    openReport("Relatório Resumo Geral - Romaneio", `<div class="kpi"><div class="card"><div class="label">Registros</div><div class="value">${filteredRows.length}</div></div><div class="card"><div class="label">Peso Bruto</div><div class="value">${toViewWeight(totalGross)}</div></div><div class="card"><div class="label">Peso Líquido</div><div class="value">${toViewWeight(totalNet)}</div></div><div class="card"><div class="label">Descontos</div><div class="value">${toViewWeight(totalDisc)}</div></div></div>`);
+    openReport("Relatório Resumo Geral - Romaneio", `<h1>Relatório resumo geral de romaneio</h1><div class="kpi"><div class="card"><div class="label">Registros</div><div class="value">${filteredRows.length}</div></div><div class="card"><div class="label">Peso Bruto</div><div class="value">${toViewWeight(totalGross)}</div></div><div class="card"><div class="label">Peso Líquido</div><div class="value">${toViewWeight(totalNet)}</div></div><div class="card"><div class="label">Descontos</div><div class="value">${toViewWeight(totalDisc)}</div></div></div>`);
   }
 
   function reportAnalitico() {
@@ -704,7 +726,7 @@ export default function RomaneioPage() {
       const transporte = transportadoresAtivos.find((t) => t.id === ((r as Romaneio & { transportador_id?: number | null }).transportador_id ?? null))?.name ?? "-";
       return `<tr><td>${d(r.date)}</td><td>${r.code}</td><td>${produtor}</td><td>${cliente}</td><td>${propriedade}</td><td>${talhao}</td><td>${transporte}</td><td>${r.plate || "-"}</td><td class="num">${toViewWeight(n(r.gross_weight))}</td><td class="num">${toViewWeight(n(r.net_weight))}</td></tr>`;
     }).join("");
-    openReport("Relatório Analítico - Romaneio", `<table><thead><tr><th>Data</th><th>Romaneio</th><th>Produtor</th><th>Cliente</th><th>Propriedade</th><th>Talhão</th><th>Transportadora</th><th>Placa</th><th class="num">Bruto</th><th class="num">Líquido</th></tr></thead><tbody>${rowsHtml || '<tr><td colspan="10">Sem dados.</td></tr>'}</tbody></table>`);
+    openReport("Relatório Analítico - Romaneio", `<h1>Relatório analítico de romaneio</h1><table><thead><tr><th>Data</th><th>Romaneio</th><th>Produtor</th><th>Cliente</th><th>Propriedade</th><th>Talhão</th><th>Transportadora</th><th>Placa</th><th class="num">Bruto</th><th class="num">Líquido</th></tr></thead><tbody>${rowsHtml || '<tr><td colspan="10">Sem dados.</td></tr>'}</tbody></table>`);
   }
 
   return (
