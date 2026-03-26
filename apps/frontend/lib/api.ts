@@ -1248,6 +1248,7 @@ export function updateGrupoProdutor(
 export type Produtor = {
   id: number;
   name: string;
+  display_name?: string;
   registration: string;
   cpf: string;
   farm: string;
