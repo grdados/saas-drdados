@@ -152,9 +152,15 @@ export default function ContasAReceberPage() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | Status>("all");
   const [safraId, setSafraId] = useState<number | "">("");
+  const [grupoId, setGrupoId] = useState<number | "">("");
+  const [produtorId, setProdutorId] = useState<number | "">("");
+  const [clienteId, setClienteId] = useState<number | "">("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   const [receiveOpen, setReceiveOpen] = useState(false);
+  const [receiveConfirmOpen, setReceiveConfirmOpen] = useState(false);
   const [receive, setReceive] = useState<ReceiveState>(DEFAULT_RECEIVE);
   const [receiving, setReceiving] = useState(false);
 
@@ -171,6 +177,34 @@ export default function ContasAReceberPage() {
     return map;
   }, [contratos]);
 
+  const grupos = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const c of contratos) {
+      if (c.grupo?.id) map.set(c.grupo.id, c.grupo.name);
+    }
+    return [...map.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  }, [contratos]);
+  const produtores = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const it of items) {
+      if (it.produtor?.id) map.set(it.produtor.id, it.produtor.name);
+    }
+    for (const c of contratos) {
+      if (c.produtor?.id) map.set(c.produtor.id, c.produtor.name);
+    }
+    return [...map.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  }, [items, contratos]);
+  const clientes = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const it of items) {
+      if (it.cliente?.id) map.set(it.cliente.id, it.cliente.name);
+    }
+    for (const c of contratos) {
+      if (c.cliente?.id) map.set(c.cliente.id, c.cliente.name);
+    }
+    return [...map.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  }, [items, contratos]);
+
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return items.filter((it) => {
@@ -178,6 +212,12 @@ export default function ContasAReceberPage() {
       if (status !== "all" && st !== status) return false;
       const ct = it.contrato?.id ? contractById.get(it.contrato.id) : null;
       if (safraId !== "" && (ct?.safra?.id ?? null) !== Number(safraId)) return false;
+      if (grupoId !== "" && (ct?.grupo?.id ?? null) !== Number(grupoId)) return false;
+      if (produtorId !== "" && (it.produtor?.id ?? ct?.produtor?.id ?? null) !== Number(produtorId)) return false;
+      if (clienteId !== "" && (it.cliente?.id ?? ct?.cliente?.id ?? null) !== Number(clienteId)) return false;
+      const periodValue = it.due_date || it.date || "";
+      if (fromDate && periodValue && periodValue < fromDate) return false;
+      if (toDate && periodValue && periodValue > toDate) return false;
       if (!needle) return true;
       return (
         (it.document_number || "").toLowerCase().includes(needle) ||
@@ -186,7 +226,21 @@ export default function ContasAReceberPage() {
         (it.contrato?.code ?? "").toLowerCase().includes(needle)
       );
     });
-  }, [items, q, status, safraId, contractById]);
+  }, [items, q, status, safraId, grupoId, produtorId, clienteId, fromDate, toDate, contractById]);
+
+  const monthlySales = useMemo(() => {
+    const year = new Date().getFullYear();
+    const months = Array.from({ length: 12 }, (_, i) => ({ month: i, label: new Date(year, i, 1).toLocaleString("pt-BR", { month: "short" }), value: 0 }));
+    for (const it of filtered) {
+      const base = it.date || it.due_date;
+      if (!base) continue;
+      const dt = new Date(`${base}T00:00:00`);
+      if (Number.isNaN(dt.getTime()) || dt.getFullYear() !== year) continue;
+      months[dt.getMonth()].value += n(it.total_value);
+    }
+    const max = Math.max(...months.map((m) => m.value), 1);
+    return { year, max, months };
+  }, [filtered]);
 
   const stats = useMemo(() => {
     const sum = (arr: ContaReceber[]) => arr.reduce((acc, x) => acc + n(x.total_value), 0);
@@ -237,6 +291,7 @@ export default function ContasAReceberPage() {
     if (!receivable.length) return;
     setSelectedIds(receivable);
     setReceive({ ...DEFAULT_RECEIVE, status: "paid" });
+    setReceiveConfirmOpen(false);
     setReceiveOpen(true);
   }
   function requestEstorno(ids: number[]) {
@@ -253,7 +308,6 @@ export default function ContasAReceberPage() {
   async function runReceive() {
     const token = getAccessToken();
     if (!token || !selectedIds.length) return;
-    if (!window.confirm(selectedIds.length > 1 ? "Confirmar recebimento em lote?" : "Confirmar recebimento?")) return;
     setReceiving(true); setError("");
     try {
       const increment = receive.receive_increment ? n(receive.receive_increment) : 0;
@@ -268,7 +322,7 @@ export default function ContasAReceberPage() {
         status: receive.status
       };
       await Promise.all(selectedIds.map((id) => updateContaReceberStatus(token, id, payload)));
-      setReceiveOpen(false); await refresh(); showToast("success", "Recebimento efetuado.");
+      setReceiveConfirmOpen(false); setReceiveOpen(false); await refresh(); showToast("success", "Recebimento efetuado.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao efetuar recebimento.");
       showToast("error", err instanceof Error ? err.message : "Falha ao efetuar recebimento.");
@@ -410,18 +464,63 @@ export default function ContasAReceberPage() {
             </div>
           </section>
           <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-4">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por documento, cliente, produtor ou contrato..." className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 xl:col-span-2" />
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-12">
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por documento, cliente, produtor ou contrato..." className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 xl:col-span-3" />
               <select value={safraId} onChange={(e) => setSafraId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Safra</option>{safras.map((s) => <option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>)}</select>
-              <select value={status} onChange={(e) => setStatus(e.target.value as "all" | Status)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="all" style={optionStyle}>Todos</option><option value="open" style={optionStyle}>Pendente</option><option value="overdue" style={optionStyle}>Vencido</option><option value="partial" style={optionStyle}>Parcial</option><option value="paid" style={optionStyle}>Recebido</option><option value="canceled" style={optionStyle}>Cancelado</option></select>
-              <button onClick={toggleAll} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200">Selecionar lista</button>
+              <select value={grupoId} onChange={(e) => setGrupoId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Grupo</option>{grupos.map((g) => <option key={g.id} value={g.id} style={optionStyle}>{g.name}</option>)}</select>
+              <select value={produtorId} onChange={(e) => setProdutorId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Produtor</option>{produtores.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{p.name}</option>)}</select>
+              <select value={clienteId} onChange={(e) => setClienteId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Cliente</option>{clientes.map((c) => <option key={c.id} value={c.id} style={optionStyle}>{c.name}</option>)}</select>
+              <select value={status} onChange={(e) => setStatus(e.target.value as "all" | Status)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="all" style={optionStyle}>Status</option><option value="open" style={optionStyle}>Pendente</option><option value="overdue" style={optionStyle}>Vencido</option><option value="partial" style={optionStyle}>Parcial</option><option value="paid" style={optionStyle}>Recebido</option><option value="canceled" style={optionStyle}>Cancelado</option></select>
+              <div className="flex gap-2 sm:col-span-2 xl:col-span-2"><input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark]" /><input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark]" /></div>
+              <button onClick={toggleAll} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200 xl:col-span-1">Selecionar lista</button>
             </div>
             {error ? <div className="mt-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm font-semibold text-amber-200">{error}</div> : null}
           </section>
           <section className="grid gap-4 lg:grid-cols-5">
-            {[["Valor total", stats.total], ["Pendente", stats.open], ["Parcial", stats.partial], ["Vencido", stats.overdue], ["Recebido", stats.paid]].map(([label, val]) => (
-              <div key={String(label)} className="rounded-3xl border border-white/15 bg-zinc-900/55 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">{label}</p><p className="mt-2 text-2xl font-black text-white">{money(val)}</p></div>
+            {[
+              { label: "Valor total", value: stats.total, tone: "border-amber-400/30 bg-amber-500/10" },
+              { label: "Pendente", value: stats.open, tone: "border-amber-400/30 bg-amber-500/10" },
+              { label: "Parcial", value: stats.partial, tone: "border-sky-400/30 bg-sky-500/10" },
+              { label: "Vencido", value: stats.overdue, tone: "border-rose-400/30 bg-rose-500/10" },
+              { label: "Recebido", value: stats.paid, tone: "border-emerald-400/30 bg-emerald-500/10" }
+            ].map((card) => (
+              <div key={card.label} className={`rounded-3xl border p-4 ${card.tone}`}><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">{card.label}</p><p className="mt-2 text-2xl font-black text-white">{money(card.value)}</p></div>
             ))}
+          </section>
+          <section className="rounded-3xl border border-white/10 bg-white/5 p-4">
+            <p className="text-sm font-black text-white">Volume mensal de vendas ({monthlySales.year})</p>
+            <p className="mt-1 text-xs text-zinc-400">Total mensal de contas a receber no ano atual.</p>
+            <div className="mt-4 rounded-2xl border border-white/10 bg-zinc-950/30 p-3">
+              <div className="h-56 w-full">
+                <svg viewBox="0 0 1000 280" className="h-full w-full">
+                  <line x1="44" y1="20" x2="44" y2="230" stroke="rgba(255,255,255,0.22)" strokeWidth="1" />
+                  <line x1="44" y1="230" x2="968" y2="230" stroke="rgba(255,255,255,0.22)" strokeWidth="1" />
+                  {[0, 1, 2, 3].map((i) => {
+                    const y = 230 - (i * 70);
+                    return <line key={`grid-${i}`} x1="44" y1={y} x2="968" y2={y} stroke="rgba(255,255,255,0.08)" strokeWidth="1" strokeDasharray="4 4" />;
+                  })}
+                  {(() => {
+                    const max = monthlySales.max || 1;
+                    const stepX = (968 - 44) / 11;
+                    const toY = (value: number) => 230 - ((value / max) * 210);
+                    const points = monthlySales.months.map((m, i) => ({ x: 44 + (i * stepX), y: toY(m.value), label: m.label, value: m.value }));
+                    const path = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+                    return <>
+                      <path d={path} fill="none" stroke="rgba(56,189,248,0.95)" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+                      {points.map((p) => <g key={`pt-${p.label}`}><circle cx={p.x} cy={p.y} r="4.5" fill="rgb(56,189,248)" /><circle cx={p.x} cy={p.y} r="8" fill="rgba(56,189,248,0.22)" /></g>)}
+                    </>;
+                  })()}
+                  {monthlySales.months.map((m, i) => {
+                    const stepX = (968 - 44) / 11;
+                    const x = 44 + (i * stepX);
+                    return <text key={`x-${m.month}`} x={x} y="252" textAnchor="middle" fontSize="11" fill="rgba(228,228,231,0.8)" className="uppercase">{m.label}</text>;
+                  })}
+                </svg>
+              </div>
+              <div className="mt-2 grid gap-1 sm:grid-cols-2 lg:grid-cols-4">
+                {monthlySales.months.map((m) => <div key={`meta-${m.month}`} className="flex items-center justify-between rounded-xl border border-white/10 bg-zinc-900/55 px-2.5 py-1.5 text-[11px]"><span className="font-black uppercase text-zinc-400">{m.label}</span><span className="font-black text-zinc-200">{money(m.value)}</span></div>)}
+              </div>
+            </div>
           </section>
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4">
             <div className="flex items-center justify-between"><p className="text-sm font-black text-white">Lista</p><p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p></div>
@@ -454,7 +553,8 @@ export default function ContasAReceberPage() {
             </div>
           </section>
 
-          {receiveOpen ? <div className="fixed inset-0 z-50 grid place-items-center px-4"><button className="absolute inset-0 bg-zinc-950/60" onClick={() => setReceiveOpen(false)} /><div className="relative w-full max-w-[860px] rounded-3xl border border-white/15 bg-zinc-900/90"><div className="border-b border-white/10 p-5"><p className="text-sm font-black text-white">Recebimento ({selectedIds.length})</p></div><div className="grid gap-3 p-5 lg:grid-cols-3"><input type="date" value={receive.receive_date} onChange={(e) => setReceive((p) => ({ ...p, receive_date: e.target.value }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark]" /><input value={receive.receive_increment} onChange={(e) => setReceive((p) => ({ ...p, receive_increment: e.target.value }))} placeholder={`Saldo: ${money(selectedPending)}`} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100" /><select value={receive.conta_id} onChange={(e) => setReceive((p) => ({ ...p, conta_id: e.target.value === "" ? "" : Number(e.target.value) }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="">Conta</option>{contas.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div><div className="flex justify-end gap-2 border-t border-white/10 p-5"><button onClick={() => setReceiveOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200">Cancelar</button><button onClick={() => void runReceive()} disabled={receiving} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-5 py-2.5 text-sm font-black text-emerald-100">{receiving ? "Processando..." : "Efetuar recebimento"}</button></div></div></div> : null}
+          {receiveOpen ? <div className="fixed inset-0 z-50 grid place-items-center px-4"><button className="absolute inset-0 bg-zinc-950/60" onClick={() => setReceiveOpen(false)} /><div className="relative w-full max-w-[860px] rounded-3xl border border-white/15 bg-zinc-900/90"><div className="border-b border-white/10 p-5"><p className="text-sm font-black text-white">Recebimento ({selectedIds.length})</p></div><div className="grid gap-3 p-5 lg:grid-cols-3"><input type="date" value={receive.receive_date} onChange={(e) => setReceive((p) => ({ ...p, receive_date: e.target.value }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark]" /><input value={receive.receive_increment} onChange={(e) => setReceive((p) => ({ ...p, receive_increment: e.target.value }))} placeholder={`Saldo: ${money(selectedPending)}`} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100" /><select value={receive.conta_id} onChange={(e) => setReceive((p) => ({ ...p, conta_id: e.target.value === "" ? "" : Number(e.target.value) }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="">Conta</option>{contas.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div><div className="flex justify-end gap-2 border-t border-white/10 p-5"><button onClick={() => setReceiveOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200">Cancelar</button><button onClick={() => setReceiveConfirmOpen(true)} disabled={receiving} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-5 py-2.5 text-sm font-black text-emerald-100">{receiving ? "Processando..." : "Efetuar recebimento"}</button></div></div></div> : null}
+          {receiveConfirmOpen ? <div className="fixed inset-0 z-[60] grid place-items-center px-4"><button className="absolute inset-0 bg-zinc-950/60" onClick={() => setReceiveConfirmOpen(false)} /><div className="relative w-full max-w-[560px] rounded-3xl border border-white/15 bg-zinc-900/95"><div className="border-b border-white/10 p-5"><p className="text-lg font-black text-white">Confirmar recebimento</p><div className="mt-3 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-3"><p className="text-sm font-semibold text-emerald-100">Marcação: ao confirmar, o sistema vai registrar o recebimento de {selectedIds.length} título(s), atualizar os valores recebidos e recalcular o saldo pendente.</p></div></div><div className="flex justify-end gap-2 p-5"><button onClick={() => setReceiveConfirmOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200">Não</button><button onClick={() => void runReceive()} disabled={receiving} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-5 py-2.5 text-sm font-black text-emerald-100">{receiving ? "Processando..." : "Sim, confirmar"}</button></div></div></div> : null}
           {estornoOpen ? <div className="fixed inset-0 z-50 grid place-items-center px-4"><button className="absolute inset-0 bg-zinc-950/60" onClick={() => setEstornoOpen(false)} /><div className="relative w-full max-w-[520px] rounded-3xl border border-white/15 bg-zinc-900/90"><div className="border-b border-white/10 p-5"><p className="text-lg font-black text-white">Confirmar estorno</p><p className="mt-2 text-sm text-zinc-300">Deseja estornar {estornoIds.length} título(s)?</p></div><div className="flex justify-end gap-2 p-5"><button onClick={() => setEstornoOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200">Não</button><button onClick={() => void confirmEstorno()} disabled={estornando} className="rounded-2xl border border-zinc-400/25 bg-zinc-500/15 px-5 py-2.5 text-sm font-black text-zinc-100">{estornando ? "Estornando..." : "Sim, estornar"}</button></div></div></div> : null}
         </div>
       )}

@@ -285,6 +285,7 @@ export function AdminShell({
           icon: <Icon name="products" />,
           children: [
             { label: "Contrato", href: "/producao/contrato" },
+            { label: "Empreendimentos", href: "/producao/empreendimentos" },
             { label: "Romaneio", href: "/producao/romaneio" },
             { label: "Talhão", href: "/producao/talhao" }
           ]
