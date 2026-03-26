@@ -599,26 +599,30 @@ export default function EmpreendimentosPage() {
           </div>
 
           <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-4">
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-emerald-400/80 shadow-[0_0_0_4px_rgba(16,185,129,0.16)]" />
-                <select value={safraFilter} onChange={(e) => setSafraFilter(e.target.value === "" ? "" : Number(e.target.value))} className="w-full min-w-[220px] rounded-2xl border border-accent-500/40 bg-accent-500/15 pl-8 pr-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-400">
-                  <option value="" style={optionStyle}>Selecione a safra</option>
-                  {safras.map((s) => (<option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>))}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-emerald-400/80 shadow-[0_0_0_4px_rgba(16,185,129,0.16)]" />
+                  <select value={safraFilter} onChange={(e) => setSafraFilter(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[220px] rounded-2xl border border-accent-500/40 bg-accent-500/15 pl-8 pr-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-400">
+                    <option value="" style={optionStyle}>Selecione a safra</option>
+                    {safras.map((s) => (<option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>))}
+                  </select>
+                </div>
+                <select value={viewUnit} onChange={(e) => setViewUnit(e.target.value as "KG" | "SC")} className="min-w-[130px] rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-white/30">
+                  <option value="KG" style={optionStyle}>KG</option>
+                  <option value="SC" style={optionStyle}>Sacas</option>
+                </select>
+                <select value={String(sackWeight)} onChange={(e) => setSackWeight(Number(e.target.value) as 60 | 40)} disabled={viewUnit !== "SC"} className="min-w-[130px] rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50">
+                  <option value="60" style={optionStyle}>Saca 60</option>
+                  <option value="40" style={optionStyle}>Saca 40</option>
                 </select>
               </div>
-              <select value={viewUnit} onChange={(e) => setViewUnit(e.target.value as "KG" | "SC")} className="w-full min-w-[150px] rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-white/30">
-                <option value="KG" style={optionStyle}>Visualizar: KG</option>
-                <option value="SC" style={optionStyle}>Visualizar: Sacas</option>
-              </select>
-              <select value={String(sackWeight)} onChange={(e) => setSackWeight(Number(e.target.value) as 60 | 40)} disabled={viewUnit !== "SC"} className="w-full min-w-[160px] rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50">
-                <option value="60" style={optionStyle}>Saca 60 KG</option>
-                <option value="40" style={optionStyle}>Saca 40 KG</option>
-              </select>
+              <div className="flex flex-wrap items-center justify-end gap-2">
               <button onClick={reportResumo} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10">Relatório resumo</button>
               <button onClick={reportAnalitico} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10">Relatório analítico</button>
               <button onClick={() => setCloseOpen(true)} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10">Evento de encerramento</button>
               <button onClick={openCreate} className="rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">Novo empreendimento</button>
+              </div>
             </div>
           </section>
 
