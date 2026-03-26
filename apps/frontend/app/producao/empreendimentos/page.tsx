@@ -19,7 +19,7 @@ import {
   listSafras,
   listTalhoes
 } from "@/lib/api";
-import { formatCurrencyBRL, formatDateBR } from "@/lib/locale";
+import { formatCurrencyBRL, formatDateBR, formatDateTimeBR } from "@/lib/locale";
 import {
   Empreendimento,
   EmpreendimentoItem,
@@ -192,13 +192,16 @@ export default function EmpreendimentosPage() {
     let estimadoSc = 0;
     let realizadoKg = 0;
     let faturamento = 0;
+    let areaTotalHa = 0;
     for (const it of filtered) {
       estimadoKg += it.items.reduce((acc, r) => acc + n(r.production_kg), 0);
       estimadoSc += it.items.reduce((acc, r) => acc + n(r.production_sc), 0);
+      areaTotalHa += it.items.reduce((acc, r) => acc + n(r.area_ha), 0);
       faturamento += n(it.billing_value);
       realizadoKg += romaneios.filter((r) => r.empreendimento_id === it.id).reduce((acc, r) => acc + n(r.net_weight), 0);
     }
-    return { faturamento, qty: filtered.length, estimadoKg, estimadoSc, realizadoKg, gapKg: estimadoKg - realizadoKg };
+    const mediaPrevistaHaKg = areaTotalHa > 0 ? estimadoKg / areaTotalHa : 0;
+    return { faturamento, qty: filtered.length, estimadoKg, estimadoSc, realizadoKg, mediaPrevistaHaKg };
   }, [filtered, romaneios]);
 
   const groupedArea = useMemo(() => {
@@ -426,10 +429,18 @@ export default function EmpreendimentosPage() {
   }
 
   function openPrintHtml(title: string, body: string, orientation: "portrait" | "landscape" = "landscape") {
+    const generatedAt = formatDateTimeBR(new Date());
+    const logoUrl = `${window.location.origin}/logo_horizontal.png`;
     const html = `<!doctype html><html><head><meta charset="utf-8" /><title>${escapeHtml(title)}</title>
       <style>
-        @page { size: A4 ${orientation}; margin: 12mm; }
+        @page { size: A4 ${orientation}; margin: 12mm 10mm; }
         body { font-family: Arial, sans-serif; color:#111; margin:0; }
+        .page { padding: 14px 10px 10px; }
+        .header { display:grid; grid-template-columns:260px 1fr; gap:12px; align-items:center; border:1px solid #e4e4e7; border-radius:10px; padding:8px 10px; margin-bottom:12px; }
+        .header-info { text-align:right; }
+        .header-title { margin:0; font-size:18px; font-weight:800; }
+        .header-meta { margin-top:4px; color:#52525b; font-size:11px; line-height:1.4; }
+        .footer { margin-top:14px; border-top:1px solid #d4d4d8; padding-top:8px; color:#52525b; font-size:11px; line-height:1.45; }
         h1 { font-size: 20px; margin:0 0 6px; }
         .muted { color:#555; font-size:12px; margin-bottom:10px; }
         table { width:100%; border-collapse: collapse; font-size: 12px; margin-top:10px; }
@@ -439,7 +450,7 @@ export default function EmpreendimentosPage() {
         .nowrap { white-space:nowrap; }
         .group { margin-top: 14px; page-break-inside: avoid; }
         .group h3 { margin: 0 0 6px; font-size: 14px; }
-      </style></head><body>${body}</body></html>`;
+      </style></head><body><div class="page"><header class="header"><div><img src="${logoUrl}" alt="GR Dados" style="max-height:52px"/></div><div class="header-info"><p class="header-title">${escapeHtml(title)}</p><div class="header-meta">Cliente: GR Dados Demo<br/>Emissão: ${generatedAt}</div></div></header>${body}<footer class="footer"><strong>GR Dados</strong> · Todos os direitos reservados<br/>AV 22 de Abril, 519 - Centro - Laguna Carapã - MS · CEP 79920-000<br/>Contato: (67) 99869-8159</footer></div></body></html>`;
     const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     const w = window.open(url, "_blank", "width=1280,height=900");
@@ -460,14 +471,16 @@ export default function EmpreendimentosPage() {
         const status = normalizeEmpreendimentoStatus(it) === "closed" ? "Encerrado" : "Em andamento";
         const estSc = it.items.reduce((acc, r) => acc + n(r.production_sc), 0);
         const estKg = it.items.reduce((acc, r) => acc + n(r.production_kg), 0);
+        const areaHa = it.items.reduce((acc, r) => acc + n(r.area_ha), 0);
+        const mediaHa = areaHa > 0 ? estKg / areaHa : 0;
         const realKg = romaneios.filter((r) => r.empreendimento_id === it.id).reduce((acc, r) => acc + n(r.net_weight), 0);
         const safra = safras.find((s) => s.id === it.safra_id)?.name ?? "-";
-        return `<tr><td>${escapeHtml(status)}</td><td class="nowrap">${escapeHtml(d(it.date))}</td><td class="nowrap">${escapeHtml(it.code)}</td><td>${escapeHtml(safra)}</td><td class="num">${estSc.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td><td class="num">${estKg.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td><td class="num">${realKg.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td><td class="num">${escapeHtml(formatCurrencyBRL(it.billing_value))}</td></tr>`;
+        return `<tr><td>${escapeHtml(status)}</td><td class="nowrap">${escapeHtml(d(it.date))}</td><td class="nowrap">${escapeHtml(it.code)}</td><td>${escapeHtml(safra)}</td><td class="num">${estSc.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td><td class="num">${estKg.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td><td class="num">${realKg.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td><td class="num">${mediaHa.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td><td class="num">${escapeHtml(formatCurrencyBRL(n(it.sale_price)))}</td><td class="num">${escapeHtml(formatCurrencyBRL(it.billing_value))}</td></tr>`;
       })
       .join("");
     openPrintHtml(
       "Resumo de Empreendimentos",
-      `<h1>Relatório resumo de empreendimentos</h1><p class="muted">Safra: ${escapeHtml(safraNome)} · ${filtered.length} registro(s)</p><table><thead><tr><th>Status</th><th>Data</th><th>Código</th><th>Safra</th><th class="num">Estimado SC</th><th class="num">Estimado KG</th><th class="num">Realizado KG</th><th class="num">Faturamento</th></tr></thead><tbody>${rowsHtml || '<tr><td colspan="8">Sem dados para os filtros selecionados.</td></tr>'}</tbody></table>`
+      `<h1>Relatório resumo de empreendimentos</h1><p class="muted">Safra: ${escapeHtml(safraNome)} · ${filtered.length} registro(s)</p><table><thead><tr><th>Status</th><th>Data</th><th>Código</th><th>Safra</th><th class="num">Estimado SC</th><th class="num">Estimado KG</th><th class="num">Realizado KG</th><th class="num">Média/ha (KG)</th><th class="num">Preço produto</th><th class="num">Faturamento</th></tr></thead><tbody>${rowsHtml || '<tr><td colspan="10">Sem dados para os filtros selecionados.</td></tr>'}</tbody></table>`
     );
   }
 
@@ -487,6 +500,8 @@ export default function EmpreendimentosPage() {
             const status = normalizeEmpreendimentoStatus(it) === "closed" ? "Encerrado" : "Em andamento";
             const estSc = it.items.reduce((acc, r) => acc + n(r.production_sc), 0);
             const estKg = it.items.reduce((acc, r) => acc + n(r.production_kg), 0);
+            const areaHa = it.items.reduce((acc, r) => acc + n(r.area_ha), 0);
+            const mediaHa = areaHa > 0 ? estKg / areaHa : 0;
             const realKg = romaneios.filter((r) => r.empreendimento_id === it.id).reduce((acc, r) => acc + n(r.net_weight), 0);
             const rowsItems = it.items
               .map((row) => {
@@ -496,10 +511,10 @@ export default function EmpreendimentosPage() {
                 return `${escapeHtml(talhao)} / ${escapeHtml(produto)} / ${escapeHtml(cultivar)}`;
               })
               .join("<br/>");
-            return `<tr><td>${escapeHtml(status)}</td><td class="nowrap">${escapeHtml(d(it.date))}</td><td class="nowrap">${escapeHtml(it.code)}</td><td>${rowsItems || "-"}</td><td class="num">${estSc.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td><td class="num">${estKg.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td><td class="num">${realKg.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td><td class="num">${escapeHtml(formatCurrencyBRL(it.billing_value))}</td></tr>`;
+            return `<tr><td>${escapeHtml(status)}</td><td class="nowrap">${escapeHtml(d(it.date))}</td><td class="nowrap">${escapeHtml(it.code)}</td><td>${rowsItems || "-"}</td><td class="num">${estSc.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td><td class="num">${estKg.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td><td class="num">${realKg.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td><td class="num">${mediaHa.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td><td class="num">${escapeHtml(formatCurrencyBRL(n(it.sale_price)))}</td><td class="num">${escapeHtml(formatCurrencyBRL(it.billing_value))}</td></tr>`;
           })
           .join("");
-        return `<section class="group"><h3>${escapeHtml(safra)}</h3><table><thead><tr><th>Status</th><th>Data</th><th>Código</th><th>Talhão / Produto / Cultivar</th><th class="num">Estimado SC</th><th class="num">Estimado KG</th><th class="num">Realizado KG</th><th class="num">Faturamento</th></tr></thead><tbody>${rowsHtml || '<tr><td colspan="8">Sem dados.</td></tr>'}</tbody></table></section>`;
+        return `<section class="group"><h3>${escapeHtml(safra)}</h3><table><thead><tr><th>Status</th><th>Data</th><th>Código</th><th>Talhão / Produto / Cultivar</th><th class="num">Estimado SC</th><th class="num">Estimado KG</th><th class="num">Realizado KG</th><th class="num">Média/ha (KG)</th><th class="num">Preço produto</th><th class="num">Faturamento</th></tr></thead><tbody>${rowsHtml || '<tr><td colspan="10">Sem dados.</td></tr>'}</tbody></table></section>`;
       })
       .join("");
     openPrintHtml("Analítico de Empreendimentos", `<h1>Relatório analítico de empreendimentos</h1>${htmlGroups || '<p class="muted">Sem dados para os filtros selecionados.</p>'}`);
@@ -547,24 +562,27 @@ export default function EmpreendimentosPage() {
             <div className="rounded-3xl border border-sky-400/30 bg-sky-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Estimado (SC)</p><p className="mt-2 text-2xl font-black text-white">{formatSc(analytics.estimadoSc)}</p></div>
             <div className="rounded-3xl border border-sky-400/30 bg-sky-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Estimado (KG)</p><p className="mt-2 text-2xl font-black text-white">{formatKg(analytics.estimadoKg)}</p></div>
             <div className="rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Realizado (KG)</p><p className="mt-2 text-2xl font-black text-white">{formatKg(analytics.realizadoKg)}</p></div>
-            <div className="rounded-3xl border border-rose-400/30 bg-rose-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Gap (KG)</p><p className="mt-2 text-2xl font-black text-white">{formatKg(analytics.gapKg)}</p></div>
+            <div className="rounded-3xl border border-rose-400/30 bg-rose-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Média/ha prevista</p><p className="mt-2 text-2xl font-black text-white">{analytics.mediaPrevistaHaKg.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KG/ha</p></div>
           </section>
 
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4">
             <div className="flex items-center justify-between"><p className="text-sm font-black text-white">Lista</p><p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p></div>
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden min-w-[1260px] grid-cols-[120px_110px_160px_160px_130px_130px_130px_130px_170px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid">
-                <div>Status</div><div>Data</div><div>Código</div><div>Safra</div><div>Estimado SC</div><div>Estimado KG</div><div>Realizado KG</div><div>Faturamento</div><div className="text-right">Ações</div>
+              <div className="hidden min-w-[1780px] grid-cols-[120px_110px_240px_180px_130px_130px_130px_130px_140px_140px_170px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid">
+                <div>Status</div><div>Data</div><div>Código</div><div>Safra</div><div>Estimado SC</div><div>Estimado KG</div><div>Realizado KG</div><div>Média/ha (KG)</div><div>Preço produto</div><div>Faturamento</div><div className="text-right">Ações</div>
               </div>
-              <div className="mt-3 space-y-2 xl:min-w-[1260px]">
+              <div className="mt-3 space-y-2 xl:min-w-[1780px]">
                 {filtered.map((it) => {
                   const status = normalizeEmpreendimentoStatus(it);
                   const meta = statusMeta(status);
                   const estSc = it.items.reduce((acc, r) => acc + n(r.production_sc), 0);
                   const estKg = it.items.reduce((acc, r) => acc + n(r.production_kg), 0);
+                  const areaHa = it.items.reduce((acc, r) => acc + n(r.area_ha), 0);
+                  const mediaHa = areaHa > 0 ? estKg / areaHa : 0;
+                  const precoProduto = n(it.sale_price);
                   const realKg = romaneios.filter((r) => r.empreendimento_id === it.id).reduce((acc, r) => acc + n(r.net_weight), 0);
                   const safraName = safras.find((s) => s.id === it.safra_id)?.name ?? "-";
-                  return <div key={it.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3"><div className="grid grid-cols-1 gap-2 xl:grid-cols-[120px_110px_160px_160px_130px_130px_130px_130px_170px] xl:items-center xl:gap-3"><div><span className={`inline-flex rounded-full border px-2 py-1 text-[11px] font-black ${meta.cls}`}>{meta.label}</span></div><div className="text-sm text-zinc-100">{d(it.date)}</div><div className="text-sm font-black text-zinc-100 whitespace-nowrap">{it.code}</div><div className="text-sm text-zinc-100">{safraName}</div><div className="text-sm text-zinc-100">{formatSc(estSc)}</div><div className="text-sm text-zinc-100">{formatKg(estKg)}</div><div className="text-sm text-zinc-100">{formatKg(realKg)}</div><div className="text-sm font-black text-zinc-100">{formatCurrencyBRL(it.billing_value)}</div><div className="text-right"><div className="flex w-full flex-nowrap justify-end gap-1.5 whitespace-nowrap"><button onClick={() => openEdit(it)} className="rounded-xl border border-sky-400/25 bg-sky-500/10 p-2 text-sky-200 hover:bg-sky-500/20" title="Editar" aria-label="Editar"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg></button><button onClick={() => removeItem(it.id)} className="rounded-xl border border-rose-400/25 bg-rose-500/10 p-2 text-rose-200 hover:bg-rose-500/20" title="Excluir" aria-label="Excluir"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg></button></div></div></div></div>;
+                  return <div key={it.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3"><div className="grid grid-cols-1 gap-2 xl:grid-cols-[120px_110px_240px_180px_130px_130px_130px_130px_140px_140px_170px] xl:items-center xl:gap-3"><div><span className={`inline-flex rounded-full border px-2 py-1 text-[11px] font-black ${meta.cls}`}>{meta.label}</span></div><div className="text-sm text-zinc-100">{d(it.date)}</div><div className="text-sm font-black text-zinc-100 whitespace-nowrap truncate" title={it.code}>{it.code}</div><div className="text-sm text-zinc-100 truncate">{safraName}</div><div className="text-sm text-zinc-100">{formatSc(estSc)}</div><div className="text-sm text-zinc-100">{formatKg(estKg)}</div><div className="text-sm text-zinc-100">{formatKg(realKg)}</div><div className="text-sm text-zinc-100">{mediaHa.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KG</div><div className="text-sm text-zinc-100">{formatCurrencyBRL(precoProduto)}</div><div className="text-sm font-black text-zinc-100">{formatCurrencyBRL(it.billing_value)}</div><div className="text-right"><div className="flex w-full flex-nowrap justify-end gap-1.5 whitespace-nowrap"><button onClick={() => openEdit(it)} className="rounded-xl border border-sky-400/25 bg-sky-500/10 p-2 text-sky-200 hover:bg-sky-500/20" title="Editar" aria-label="Editar"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg></button><button onClick={() => removeItem(it.id)} className="rounded-xl border border-rose-400/25 bg-rose-500/10 p-2 text-rose-200 hover:bg-rose-500/20" title="Excluir" aria-label="Excluir"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg></button></div></div></div></div>;
                 })}
               </div>
             </div>
