@@ -761,34 +761,6 @@ export default function ContasAPagarPage() {
     setSelectedIds((prev) => (ids.every((id) => prev.includes(id)) ? prev.filter((id) => !ids.includes(id)) : [...new Set([...prev, ...ids])]));
   }
 
-  function exportCsv() {
-    const header = ["VENCIMENTO", "NF", "FORNECEDOR", "PRODUTOR", "PEDIDO", "TOTAL", "PAGO", "SALDO", "STATUS"];
-    const lines = filtered.map((it) => {
-      const st = statusMeta(normalizeStatus(it)).label.toUpperCase();
-      return [
-        prettyDate(it.due_date),
-        it.invoice_number || "",
-        it.fornecedor?.name ?? "",
-        it.produtor?.name ?? "",
-        it.pedido?.code ?? "",
-        String(it.total_value ?? ""),
-        String(it.paid_value ?? ""),
-        String(it.balance_value ?? ""),
-        st
-      ];
-    });
-    const csv = [header, ...lines]
-      .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(";"))
-      .join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "contas-a-pagar.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
   function openPayFor(ids: number[]) {
     if (!ids.length) return;
     setSelectedIds(ids);
@@ -873,6 +845,37 @@ export default function ContasAPagarPage() {
           </div>
 
           <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-4 backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <button
+                onClick={openResumoReport}
+                className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10"
+              >
+                Relatório resumo
+              </button>
+              <button
+                onClick={openAnaliticoReport}
+                className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10"
+              >
+                Relatório analítico
+              </button>
+              <button
+                onClick={openBulkReversal}
+                disabled={!paidFilteredIds.length}
+                className="rounded-2xl border border-zinc-400/25 bg-zinc-500/15 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-zinc-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Estornar pagos ({paidFilteredIds.length})
+              </button>
+              <button
+                onClick={() => openPayFor(selectedIds)}
+                disabled={!selectedIds.length}
+                className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-4 py-2 text-sm font-black text-emerald-100 hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Pagar selecionados ({selectedIds.length})
+              </button>
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-4 backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-12">
               <input
                 value={q}
@@ -915,20 +918,6 @@ export default function ContasAPagarPage() {
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <button
-                onClick={() => openPayFor(selectedIds)}
-                disabled={!selectedIds.length}
-                className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-4 py-2 text-sm font-black text-emerald-100 hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Pagar selecionados ({selectedIds.length})
-              </button>
-              <button
-                onClick={openBulkReversal}
-                disabled={!paidFilteredIds.length}
-                className="rounded-2xl border border-zinc-400/25 bg-zinc-500/15 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-zinc-500/25 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Estornar pagos filtrados ({paidFilteredIds.length})
-              </button>
-              <button
                 onClick={toggleAll}
                 className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200 hover:bg-white/10"
               >
@@ -936,24 +925,6 @@ export default function ContasAPagarPage() {
                   const selectableIds = filtered.filter((x) => normalizeStatus(x) !== "paid").map((x) => x.id);
                   return selectableIds.length > 0 && selectableIds.every((id) => selectedIds.includes(id)) ? "Desmarcar lista" : "Selecionar lista";
                 })()}
-              </button>
-              <button
-                onClick={exportCsv}
-                className="rounded-2xl border border-sky-400/25 bg-sky-500/15 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-500/25"
-              >
-                Exportar CSV
-              </button>
-              <button
-                onClick={openResumoReport}
-                className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10"
-              >
-                Relatório resumo
-              </button>
-              <button
-                onClick={openAnaliticoReport}
-                className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10"
-              >
-                Relatório analítico
               </button>
             </div>
             {error ? (

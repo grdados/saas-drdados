@@ -766,6 +766,14 @@ export default function PedidoCompraPage() {
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Compra</p>
           <h1 className="text-2xl font-black tracking-tight text-white">Pedido</h1>
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
+            <div className="flex items-center justify-end gap-2">
+              <button onClick={openResumoReport} className="inline-flex items-center justify-center whitespace-nowrap rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-xs font-black text-white hover:bg-white/10">Relatório resumo</button>
+              <button onClick={openAnaliticoReport} className="inline-flex items-center justify-center whitespace-nowrap rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-xs font-black text-white hover:bg-white/10">Relatório analítico</button>
+              <button onClick={openCreate} className="inline-flex items-center justify-center whitespace-nowrap rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">Novo pedido</button>
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-12">
               <div className="relative w-full xl:col-span-3">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">
@@ -807,11 +815,6 @@ export default function PedidoCompraPage() {
               <div className="flex min-w-0 gap-2 sm:col-span-2 xl:col-span-2">
                 <input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
                 <input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
-              </div>
-              <div className="flex items-center justify-end gap-2 sm:col-span-2 xl:col-span-3">
-                <button onClick={openResumoReport} className="inline-flex items-center justify-center whitespace-nowrap rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-xs font-black text-white hover:bg-white/10">Relatório resumo</button>
-                <button onClick={openAnaliticoReport} className="inline-flex items-center justify-center whitespace-nowrap rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-xs font-black text-white hover:bg-white/10">Relatório analítico</button>
-                <button onClick={openCreate} className="inline-flex items-center justify-center whitespace-nowrap rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">Novo pedido</button>
               </div>
             </div>
           </section>
