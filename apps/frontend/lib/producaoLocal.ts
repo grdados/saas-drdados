@@ -29,7 +29,7 @@ export type Empreendimento = {
   unit: UnidadeProducao;
   sale_price: number;
   billing_value: number;
-  status: "pending" | "closed" | "canceled";
+  status: "in_progress" | "closed";
   notes: string;
   items: EmpreendimentoItem[];
 };
@@ -44,6 +44,7 @@ export type Romaneio = {
   operacao_id: number | null;
   safra_id: number | null;
   produtor_id: number | null;
+  contrato_id: number | null;
   empreendimento_id: string | null;
   propriedade_id: number | null;
   talhao_id: number | null;

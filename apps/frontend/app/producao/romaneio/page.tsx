@@ -6,6 +6,7 @@ import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
 import {
   ClienteGerencial,
+  ContratoVenda,
   Operacao,
   Produtor,
   Propriedade,
@@ -13,6 +14,7 @@ import {
   Talhao,
   isApiError,
   listClientesGerencial,
+  listContratosVenda,
   listOperacoes,
   listProdutores,
   listPropriedades,
@@ -34,7 +36,6 @@ function n(v: unknown) {
   const x = Number(String(v ?? "0").replace(",", "."));
   return Number.isFinite(x) ? x : 0;
 }
-
 function d(value: string) {
   if (!value) return "-";
   const dt = new Date(`${value}T00:00:00`);
@@ -48,6 +49,7 @@ type FormState = {
   operacao_id: string;
   safra_id: string;
   produtor_id: string;
+  contrato_id: string;
   empreendimento_id: string;
   propriedade_id: string;
   talhao_id: string;
@@ -70,6 +72,7 @@ const EMPTY_FORM: FormState = {
   operacao_id: "",
   safra_id: "",
   produtor_id: "",
+  contrato_id: "",
   empreendimento_id: "",
   propriedade_id: "",
   talhao_id: "",
@@ -98,6 +101,7 @@ export default function RomaneioPage() {
 
   const [safras, setSafras] = useState<Safra[]>([]);
   const [produtores, setProdutores] = useState<Produtor[]>([]);
+  const [contratos, setContratos] = useState<ContratoVenda[]>([]);
   const [operacoes, setOperacoes] = useState<Operacao[]>([]);
   const [propriedades, setPropriedades] = useState<Propriedade[]>([]);
   const [talhoes, setTalhoes] = useState<Talhao[]>([]);
@@ -115,9 +119,10 @@ export default function RomaneioPage() {
     setLoading(true);
     setError("");
     try {
-      const [a, b, c, d, e, f] = await Promise.all([
+      const [a, b, c, d, e, f, g] = await Promise.all([
         listSafras(token),
         listProdutores(token),
+        listContratosVenda(token),
         listOperacoes(token),
         listPropriedades(token),
         listTalhoes(token),
@@ -125,10 +130,11 @@ export default function RomaneioPage() {
       ]);
       setSafras(a);
       setProdutores(b);
-      setOperacoes(c);
-      setPropriedades(d);
-      setTalhoes(e);
-      setClientes(f);
+      setContratos(c);
+      setOperacoes(d);
+      setPropriedades(e);
+      setTalhoes(f);
+      setClientes(g);
     } catch (err) {
       if (isApiError(err) && err.status === 401) {
         window.location.href = "/login";
@@ -146,7 +152,10 @@ export default function RomaneioPage() {
     return { totalNet, avgNet };
   }, [rows]);
 
-  const netWeight = useMemo(() => calcRomaneioNetWeight(n(form.gross_weight), n(form.tare), n(form.humidity), n(form.impurity), n(form.ardido), n(form.others)), [form]);
+  const netWeight = useMemo(
+    () => calcRomaneioNetWeight(n(form.gross_weight), n(form.tare), n(form.humidity), n(form.impurity), n(form.ardido), n(form.others)),
+    [form]
+  );
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -170,6 +179,7 @@ export default function RomaneioPage() {
       return;
     }
     if (!window.confirm("Confirmar registro do romaneio?")) return;
+
     setSaving(true);
     setError("");
     try {
@@ -184,6 +194,7 @@ export default function RomaneioPage() {
         operacao_id: form.operacao_id ? Number(form.operacao_id) : null,
         safra_id: form.safra_id ? Number(form.safra_id) : null,
         produtor_id: form.produtor_id ? Number(form.produtor_id) : null,
+        contrato_id: form.contrato_id ? Number(form.contrato_id) : null,
         empreendimento_id: form.empreendimento_id || null,
         propriedade_id: form.propriedade_id ? Number(form.propriedade_id) : null,
         talhao_id: form.talhao_id ? Number(form.talhao_id) : null,
@@ -236,15 +247,16 @@ export default function RomaneioPage() {
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4">
             <div className="flex items-center justify-between"><p className="text-sm font-black text-white">Lista</p><p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${rows.length} item(ns)`}</p></div>
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden min-w-[1320px] grid-cols-[110px_120px_120px_140px_160px_140px_120px_120px_170px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid">
-                <div>Data</div><div>Romaneio</div><div>NFP</div><div>Produtor</div><div>Empreendimento</div><div>Talhão</div><div>Peso Bruto</div><div>Peso Líquido</div><div className="text-right">Ações</div>
+              <div className="hidden min-w-[1440px] grid-cols-[110px_120px_120px_140px_140px_160px_140px_120px_120px_170px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid">
+                <div>Data</div><div>Romaneio</div><div>NFP</div><div>Produtor</div><div>Contrato</div><div>Empreendimento</div><div>Talhão</div><div>Peso Bruto</div><div>Peso Líquido</div><div className="text-right">Ações</div>
               </div>
-              <div className="mt-3 space-y-2 xl:min-w-[1320px]">
+              <div className="mt-3 space-y-2 xl:min-w-[1440px]">
                 {rows.map((r) => {
                   const produtor = produtores.find((p) => p.id === r.produtor_id)?.name ?? "-";
+                  const contrato = contratos.find((c) => c.id === r.contrato_id)?.code ?? "-";
                   const emp = empreendimentos.find((e) => e.id === r.empreendimento_id)?.code ?? "-";
                   const talhao = talhoes.find((t) => t.id === r.talhao_id)?.name ?? "-";
-                  return <div key={r.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3"><div className="grid grid-cols-1 gap-2 xl:grid-cols-[110px_120px_120px_140px_160px_140px_120px_120px_170px] xl:items-center xl:gap-3"><div className="text-sm text-zinc-100">{d(r.date)}</div><div className="text-sm font-black text-zinc-100">{r.code}</div><div className="text-sm text-zinc-100">{r.nfp || "-"}</div><div className="truncate text-sm text-zinc-100">{produtor}</div><div className="truncate text-sm text-zinc-100">{emp}</div><div className="truncate text-sm text-zinc-100">{talhao}</div><div className="text-sm text-zinc-100">{r.gross_weight.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</div><div className="text-sm font-black text-zinc-100">{r.net_weight.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</div><div className="text-right"><button onClick={() => removeItem(r.id)} className="rounded-xl border border-rose-400/25 bg-rose-500/10 p-2 text-rose-200 hover:bg-rose-500/20" title="Excluir" aria-label="Excluir"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg></button></div></div></div>;
+                  return <div key={r.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3"><div className="grid grid-cols-1 gap-2 xl:grid-cols-[110px_120px_120px_140px_140px_160px_140px_120px_120px_170px] xl:items-center xl:gap-3"><div className="text-sm text-zinc-100">{d(r.date)}</div><div className="text-sm font-black text-zinc-100">{r.code}</div><div className="text-sm text-zinc-100">{r.nfp || "-"}</div><div className="truncate text-sm text-zinc-100">{produtor}</div><div className="truncate text-sm text-zinc-100">{contrato}</div><div className="truncate text-sm text-zinc-100">{emp}</div><div className="truncate text-sm text-zinc-100">{talhao}</div><div className="text-sm text-zinc-100">{r.gross_weight.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</div><div className="text-sm font-black text-zinc-100">{r.net_weight.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</div><div className="text-right"><button onClick={() => removeItem(r.id)} className="rounded-xl border border-rose-400/25 bg-rose-500/10 p-2 text-rose-200 hover:bg-rose-500/20" title="Excluir" aria-label="Excluir"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg></button></div></div></div>;
                 })}
               </div>
             </div>
@@ -261,7 +273,11 @@ export default function RomaneioPage() {
                   <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">NFP</label><input value={form.nfp} onChange={(e) => setField("nfp", e.target.value.toUpperCase())} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100" /></div>
                   <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Operação</label><select value={form.operacao_id} onChange={(e) => setField("operacao_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{operacoes.map((o) => <option key={o.id} value={o.id} style={optionStyle}>{o.name}</option>)}</select></div>
                   <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Safra</label><select value={form.safra_id} onChange={(e) => setField("safra_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{safras.map((s) => <option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>)}</select></div>
+                </div>
+
+                <div className="grid gap-3 lg:grid-cols-6">
                   <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Produtor</label><select value={form.produtor_id} onChange={(e) => setField("produtor_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{produtores.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{p.name}</option>)}</select></div>
+                  <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Contrato</label><select value={form.contrato_id} onChange={(e) => setField("contrato_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{contratos.map((c) => <option key={c.id} value={c.id} style={optionStyle}>{c.code}</option>)}</select></div>
                   <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Empreendimento</label><select value={form.empreendimento_id} onChange={(e) => setField("empreendimento_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{empreendimentos.map((e) => <option key={e.id} value={e.id} style={optionStyle}>{e.code}</option>)}</select></div>
                   <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Propriedade</label><select value={form.propriedade_id} onChange={(e) => setField("propriedade_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{propriedades.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{p.name}</option>)}</select></div>
                   <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Talhão</label><select value={form.talhao_id} onChange={(e) => setField("talhao_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{talhoes.filter((t) => !form.propriedade_id || t.propriedade?.id === Number(form.propriedade_id)).map((t) => <option key={t.id} value={t.id} style={optionStyle}>{t.name}</option>)}</select></div>
@@ -293,4 +309,3 @@ export default function RomaneioPage() {
     </AuthedAdminShell>
   );
 }
-
