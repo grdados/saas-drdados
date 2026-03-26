@@ -126,6 +126,7 @@ export default function EmpreendimentosPage() {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [codeTouched, setCodeTouched] = useState(false);
 
   const [closeOpen, setCloseOpen] = useState(false);
   const [closeEmpId, setCloseEmpId] = useState("");
@@ -221,16 +222,46 @@ export default function EmpreendimentosPage() {
     return { kg, sc, billing: unitBase * n(form.sale_price) };
   }, [form.rows, form.sale_price, form.unit]);
 
+  const selectedSafra = useMemo(() => safras.find((s) => s.id === Number(form.safra_id || 0)) ?? null, [safras, form.safra_id]);
   const selectedPropriedade = useMemo(() => propriedades.find((p) => p.id === Number(form.propriedade_id || 0)) ?? null, [propriedades, form.propriedade_id]);
+  const autoCode = useMemo(() => {
+    const safraName = (selectedSafra?.name ?? "").trim().toUpperCase();
+    const propriedadeName = (selectedPropriedade?.name ?? "").trim().toUpperCase();
+    if (safraName && propriedadeName) return `${safraName} - ${propriedadeName}`;
+    return safraName || propriedadeName;
+  }, [selectedSafra?.name, selectedPropriedade?.name]);
+
+  useEffect(() => {
+    if (editingId || codeTouched) return;
+    setForm((prev) => {
+      if (prev.code === autoCode) return prev;
+      return { ...prev, code: autoCode };
+    });
+  }, [autoCode, codeTouched, editingId]);
 
   function filteredCultivaresByProduto(produtoId: string) {
+    const LINK_KEY = "grdados.cultivares.links.v1";
     const baseId = Number(produtoId || form.produto_id || 0);
     if (!baseId) return cultivares;
     const produto = produtos.find((p) => p.id === baseId);
-    const culturaId = produto?.cultura?.id ?? null;
+    const culturaId = produto?.cultura?.id ?? produto?.cultura_id ?? null;
     if (culturaId) {
-      const linked = cultivares.filter((c) => c.cultura?.id === culturaId);
+      const linked = cultivares.filter((c) => c.cultura?.id === culturaId || c.cultura_id === culturaId);
       if (linked.length) return linked;
+
+      try {
+        const raw = window.localStorage.getItem(LINK_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as Record<string, { cultura_id?: number | null }>;
+          const linkedByMap = cultivares.filter((c) => {
+            const mapped = parsed[String(c.id)]?.cultura_id ?? null;
+            return mapped === culturaId;
+          });
+          if (linkedByMap.length) return linkedByMap;
+        }
+      } catch {
+        // Ignora fallback inválido e segue para heurística por nome.
+      }
     }
     const produtoName = produto?.name ?? "";
     const needle = normalizeText(produtoName).split(" ")[0];
@@ -240,6 +271,7 @@ export default function EmpreendimentosPage() {
   }
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
+    if (key === "code") setCodeTouched(true);
     setForm((prev) => ({ ...prev, [key]: value }));
   }
   function setRowField(index: number, key: keyof FormRow, value: string) {
@@ -248,12 +280,14 @@ export default function EmpreendimentosPage() {
 
   function openCreate() {
     setEditingId(null);
+    setCodeTouched(false);
     setForm({ ...EMPTY_FORM, rows: [{ ...EMPTY_ROW, id: uid("row") }] });
     setOpen(true);
   }
 
   function openEdit(item: Empreendimento) {
     setEditingId(item.id);
+    setCodeTouched(true);
     setForm({
       date: item.date,
       code: item.code,
