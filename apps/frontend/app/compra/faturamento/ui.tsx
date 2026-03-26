@@ -26,6 +26,7 @@ import {
   Safra,
   updateFaturamentoCompra
 } from "@/lib/api";
+import { APP_LOCALE, formatCurrencyBRL, formatDateBR } from "@/lib/locale";
 import { toUpperText } from "@/lib/text";
 
 function toApiDecimal(v: unknown) {
@@ -44,20 +45,29 @@ function parseNumber(v: unknown) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function focusNextInForm(current: HTMLElement) {
+  const form = current.closest("form");
+  if (!form) return;
+  const selectors = "input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])";
+  const fields = Array.from(form.querySelectorAll<HTMLElement>(selectors)).filter((el) => el.tabIndex !== -1);
+  const idx = fields.indexOf(current);
+  if (idx >= 0 && idx < fields.length - 1) fields[idx + 1].focus();
+}
+
 function money(n: number) {
-  return `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return formatCurrencyBRL(n);
 }
 function prettyDateBR(value?: string | null) {
   if (!value) return "-";
   const dt = new Date(`${value}T00:00:00`);
   if (Number.isNaN(dt.getTime())) return value;
-  return dt.toLocaleDateString("pt-BR");
+  return formatDateBR(dt);
 }
 
 type FatStatus = "pending" | "overdue" | "partial" | "paid" | "canceled";
 
 function monthLabel(date: Date) {
-  return date.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }).replace(".", "");
+  return date.toLocaleDateString(APP_LOCALE, { month: "short", year: "2-digit" }).replace(".", "");
 }
 
 function daysUntilDue(dueDate: string | null | undefined) {
@@ -437,6 +447,8 @@ export default function FaturamentoCompraPage() {
   async function onSave() {
     const token = getAccessToken();
     if (!token) return;
+    const confirmText = editingId ? "Confirmar edição do faturamento?" : "Confirmar novo faturamento?";
+    if (!window.confirm(confirmText)) return;
     setSaving(true);
     setSaveMessage("");
     try {
@@ -490,6 +502,8 @@ export default function FaturamentoCompraPage() {
   }
 
   function openEdit(f: FaturamentoCompra) {
+    const ok = window.confirm("Editar este faturamento?");
+    if (!ok) return;
     setEditingId(f.id);
     setOpen(true);
     setFormDate(f.date ?? "");
@@ -516,6 +530,11 @@ export default function FaturamentoCompraPage() {
   async function onDelete(id: number) {
     const token = getAccessToken();
     if (!token) return;
+    const fat = fats.find((x) => x.id === id) ?? null;
+    if (fat && resolveFatStatus(fat, cpStatusByFatId[id]) === "paid") {
+      window.alert("Não é possível excluir um faturamento pago. Estorne o pagamento em Contas a Pagar e tente novamente.");
+      return;
+    }
     const ok = window.confirm("Excluir este faturamento?");
     if (!ok) return;
     try {
@@ -894,7 +913,7 @@ export default function FaturamentoCompraPage() {
           {error ? <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm font-semibold text-amber-200">{error}</div> : null}
 
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-            <div className="grid gap-3 lg:grid-cols-7">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por NF, fornecedor, produtor ou pedido..." className="lg:col-span-2 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50" />
               <select value={reportGrupoId} onChange={(e) => setReportGrupoId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="" style={optionStyle}>Grupo</option>
@@ -922,7 +941,7 @@ export default function FaturamentoCompraPage() {
             </div>
           </section>
 
-          <section className="grid gap-4 lg:grid-cols-5">
+          <section className="grid gap-4 lg:grid-cols-3 xl:grid-cols-5">
             {cards.map((c) => (
               <div key={c.label} className={`rounded-3xl border p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl ${c.tone}`}>
                 <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">{c.label}</p>
@@ -971,7 +990,7 @@ export default function FaturamentoCompraPage() {
               <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
             </div>
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden min-w-[1700px] grid-cols-[120px_96px_130px_130px_140px_90px_90px_130px_130px_100px_120px_96px_120px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 md:grid">
+              <div className="hidden min-w-[1500px] grid-cols-[110px_90px_120px_120px_130px_84px_84px_120px_120px_90px_110px_90px_110px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid">
                 <div>Status</div>
                 <div>Data</div>
                 <div>Nota Fiscal</div>
@@ -988,12 +1007,15 @@ export default function FaturamentoCompraPage() {
               </div>
             </div>
             <div className="mt-3 space-y-2 overflow-x-auto">
-              {filtered.map((f) => (
+              {filtered.map((f) => {
+                const fatStatus = resolveFatStatus(f, cpStatusByFatId[f.id]);
+                const isPaid = fatStatus === "paid";
+                return (
                 <div key={f.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-4 py-3 hover:bg-white/5">
-                  <div className="grid min-w-[1700px] grid-cols-1 gap-2 md:grid-cols-[120px_96px_130px_130px_140px_90px_90px_130px_130px_100px_120px_96px_120px] md:items-center md:gap-3">
+                  <div className="grid xl:min-w-[1500px] grid-cols-1 gap-2 xl:grid-cols-[110px_90px_120px_120px_130px_84px_84px_120px_120px_90px_110px_90px_110px] xl:items-center xl:gap-3">
                     <div>
                       {(() => {
-                        const meta = fatStatusMeta(resolveFatStatus(f, cpStatusByFatId[f.id]));
+                        const meta = fatStatusMeta(fatStatus);
                         return <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>;
                       })()}
                     </div>
@@ -1049,8 +1071,13 @@ export default function FaturamentoCompraPage() {
                         </button>
                         <button
                           onClick={() => onDelete(f.id)}
-                          className="rounded-xl border border-rose-400/25 bg-rose-500/10 p-2 text-rose-200 hover:bg-rose-500/20"
-                          title="Excluir"
+                          disabled={isPaid}
+                          className={`rounded-xl border p-2 ${
+                            isPaid
+                              ? "cursor-not-allowed border-zinc-500/25 bg-zinc-500/10 text-zinc-300"
+                              : "border-rose-400/25 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20"
+                          }`}
+                          title={isPaid ? "Estorne o pagamento para excluir" : "Excluir"}
                           aria-label="Excluir"
                         >
                           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1064,7 +1091,7 @@ export default function FaturamentoCompraPage() {
                     </div>
                   </div>
                 </div>
-              ))}
+              )})}
               {!loading && filtered.length === 0 ? <div className="rounded-2xl border border-white/10 bg-zinc-950/30 p-4 text-sm text-zinc-300">Nenhum faturamento encontrado.</div> : null}
             </div>
           </section>
@@ -1072,7 +1099,7 @@ export default function FaturamentoCompraPage() {
           {open ? (
             <div className="fixed inset-0 z-50 grid place-items-center px-4">
               <button className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm" onClick={() => setOpen(false)} aria-label="Fechar" />
-              <div className="relative w-full max-w-[1100px] overflow-hidden rounded-3xl border border-white/15 bg-zinc-900/85 shadow-2xl">
+              <div className="relative w-full max-w-[980px] xl:max-w-[1100px] overflow-hidden rounded-3xl border border-white/15 bg-zinc-900/85 shadow-2xl">
                 <div className="flex items-start justify-between gap-3 border-b border-white/10 p-5">
                   <div>
                     <p className="text-sm font-black text-white">{editingId ? "Editar faturamento" : "Novo faturamento"}</p>
@@ -1082,7 +1109,20 @@ export default function FaturamentoCompraPage() {
                     ×
                   </button>
                 </div>
-                <div className="max-h-[78vh] overflow-auto p-5">
+                <form
+                  className="max-h-[78vh] overflow-auto p-5"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void onSave();
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter" || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
+                    const target = e.target as HTMLElement;
+                    if (!target || target.tagName === "TEXTAREA") return;
+                    e.preventDefault();
+                    focusNextInForm(target);
+                  }}
+                >
                   <div className="grid gap-4 lg:grid-cols-3">
                     <div className="grid gap-2">
                       <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Data</label>
@@ -1248,14 +1288,14 @@ export default function FaturamentoCompraPage() {
                   ) : null}
 
                   <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-                    <button disabled={saving || formNF.trim().length < 1 || formPedidoId === ""} onClick={onSave} className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-5 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-60">
+                    <button type="submit" disabled={saving || formNF.trim().length < 1 || formPedidoId === ""} className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-5 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-60">
                       {saving ? "Salvando..." : "Salvar"}
                     </button>
                     <button disabled={saving} onClick={() => setOpen(false)} className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60">
                       Cancelar
                     </button>
                   </div>
-                </div>
+                </form>
               </div>
             </div>
           ) : null}

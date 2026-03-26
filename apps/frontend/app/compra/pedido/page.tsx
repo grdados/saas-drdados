@@ -26,6 +26,7 @@ import {
   Safra,
   updatePedidoCompra
 } from "@/lib/api";
+import { formatDateBR } from "@/lib/locale";
 import { toUpperText } from "@/lib/text";
 
 function toApiDecimal(v: unknown) {
@@ -48,11 +49,20 @@ function parseNumber(v: unknown) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function focusNextInForm(current: HTMLElement) {
+  const form = current.closest("form");
+  if (!form) return;
+  const selectors = "input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])";
+  const fields = Array.from(form.querySelectorAll<HTMLElement>(selectors)).filter((el) => el.tabIndex !== -1);
+  const idx = fields.indexOf(current);
+  if (idx >= 0 && idx < fields.length - 1) fields[idx + 1].focus();
+}
+
 function prettyDateBR(value?: string | null) {
   if (!value) return "-";
   const dt = new Date(`${value}T00:00:00`);
   if (Number.isNaN(dt.getTime())) return value;
-  return dt.toLocaleDateString("pt-BR");
+  return formatDateBR(dt);
 }
 
 function statusBadge(status: string) {
@@ -339,6 +349,8 @@ export default function PedidoCompraPage() {
   async function onSave() {
     const token = getAccessToken();
     if (!token) return;
+    const confirmText = editingId ? "Confirmar edição do pedido?" : "Confirmar novo pedido?";
+    if (!window.confirm(confirmText)) return;
     setSaving(true);
     setSaveMessage("");
     try {
@@ -897,7 +909,20 @@ export default function PedidoCompraPage() {
                     ×
                   </button>
                 </div>
-                <div className="max-h-[78vh] overflow-auto p-5">
+                <form
+                  className="max-h-[78vh] overflow-auto p-5"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void onSave();
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter" || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
+                    const target = e.target as HTMLElement;
+                    if (!target || target.tagName === "TEXTAREA") return;
+                    e.preventDefault();
+                    focusNextInForm(target);
+                  }}
+                >
                   <div className="grid gap-4 lg:grid-cols-3">
                     <div className="grid gap-2">
                       <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Data</label>
@@ -1129,8 +1154,8 @@ export default function PedidoCompraPage() {
 
                   <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
                     <button
+                      type="submit"
                       disabled={saving || formCode.trim().length < 2}
-                      onClick={onSave}
                       className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-5 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {saving ? "Salvando..." : "Salvar"}
@@ -1143,7 +1168,7 @@ export default function PedidoCompraPage() {
                       Cancelar
                     </button>
                   </div>
-                </div>
+                </form>
               </div>
             </div>
           ) : null}

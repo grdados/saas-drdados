@@ -394,7 +394,7 @@ export function AdminShell({
           <div className="absolute bottom-0 left-1/3 h-[420px] w-[420px] rounded-full bg-sky-500/8 blur-3xl" />
         </div>
 
-        <div className="relative grid w-full grid-cols-1 gap-0 md:grid-cols-[320px_1fr]">
+        <div className="relative grid w-full grid-cols-1 gap-0 md:grid-cols-[280px_1fr] lg:grid-cols-[300px_1fr] xl:grid-cols-[320px_1fr]">
           {/* Sidebar */}
           <aside className="sticky top-0 hidden h-screen flex-col border-r border-white/10 bg-zinc-950/40 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl md:flex">
             <div className="flex items-center gap-3 px-1 py-2">
@@ -455,7 +455,7 @@ export function AdminShell({
           </aside>
 
           {/* Main */}
-          <div className="min-w-0 px-4 py-6 md:px-6">
+          <div className="min-w-0 px-3 py-5 md:px-4 lg:px-5 xl:px-6">
             {/* Topbar */}
             <header className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-white/5 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">

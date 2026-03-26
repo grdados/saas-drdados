@@ -94,6 +94,17 @@ function prettyError(err: unknown): string {
   return trimmed || "Falha inesperada.";
 }
 
+function focusNextInForm(current: HTMLElement) {
+  const form = current.closest("form");
+  if (!form) return;
+  const selectors = "input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])";
+  const fields = Array.from(form.querySelectorAll<HTMLElement>(selectors)).filter((el) => el.tabIndex !== -1);
+  const idx = fields.indexOf(current);
+  if (idx >= 0 && idx < fields.length - 1) {
+    fields[idx + 1].focus();
+  }
+}
+
 export function SimpleCadastroPage<T extends BaseItem>({
   breadcrumb = "Cadastros · Gerais",
   title,
@@ -183,6 +194,11 @@ export function SimpleCadastroPage<T extends BaseItem>({
     if (!token) return;
     setSaving(true);
     setSaveMessage("");
+    const ok = window.confirm(editingId ? `Confirmar edição de ${title.toLowerCase()}?` : `Confirmar novo ${title.toLowerCase()}?`);
+    if (!ok) {
+      setSaving(false);
+      return;
+    }
     try {
       if (!editingId) {
         const created = await api.create(token, { name: formName.trim(), is_active: formActive });
@@ -332,7 +348,21 @@ export function SimpleCadastroPage<T extends BaseItem>({
               setSaveMessage("");
             }}
           >
-            <div className="grid gap-4">
+            <form
+              className="grid gap-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void onSave();
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                const target = e.target as HTMLElement;
+                const tag = target.tagName.toLowerCase();
+                if (tag === "textarea" || target.getAttribute("data-enter-submit") === "true") return;
+                e.preventDefault();
+                focusNextInForm(target);
+              }}
+            >
               <div className="grid gap-2">
                 <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">{fieldLabel}</label>
                 <input
@@ -371,7 +401,8 @@ export function SimpleCadastroPage<T extends BaseItem>({
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
                 <button
                   disabled={saving || formName.trim().length < 2}
-                  onClick={onSave}
+                  type="submit"
+                  data-enter-submit="true"
                   className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-5 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {saving ? "Salvando..." : "Salvar"}
@@ -387,7 +418,7 @@ export function SimpleCadastroPage<T extends BaseItem>({
                   Cancelar
                 </button>
               </div>
-            </div>
+            </form>
           </Modal>
         </div>
       )}

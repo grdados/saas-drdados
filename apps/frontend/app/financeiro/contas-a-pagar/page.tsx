@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -17,22 +17,32 @@ import {
   listSafras,
   updateContaPagarStatus
 } from "@/lib/api";
+import { formatCurrencyBRL, formatDateBR, formatDateTimeBR } from "@/lib/locale";
 
 function parseNumber(v: unknown) {
   const n = Number(String(v ?? "0").replace(",", "."));
   return Number.isFinite(n) ? n : 0;
 }
 
+function focusNextInForm(current: HTMLElement) {
+  const form = current.closest("form");
+  if (!form) return;
+  const selectors = "input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])";
+  const fields = Array.from(form.querySelectorAll<HTMLElement>(selectors)).filter((el) => el.tabIndex !== -1);
+  const idx = fields.indexOf(current);
+  if (idx >= 0 && idx < fields.length - 1) fields[idx + 1].focus();
+}
+
 function prettyMoney(v: unknown) {
   const n = parseNumber(v);
-  return `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return formatCurrencyBRL(n);
 }
 
 function prettyDate(s: string | null | undefined) {
   if (!s) return "-";
   const dt = new Date(`${s}T00:00:00`);
   if (Number.isNaN(dt.getTime())) return s;
-  return dt.toLocaleDateString("pt-BR");
+  return formatDateBR(dt);
 }
 
 function escapeHtml(value: string) {
@@ -42,6 +52,103 @@ function escapeHtml(value: string) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function openPrintHtml(title: string, htmlBody: string, orientation: "portrait" | "landscape" = "landscape") {
+  const generatedAt = formatDateTimeBR(new Date());
+  const logoUrl = `${window.location.origin}/logo_horizontal.png`;
+  const html = `
+    <!doctype html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width,initial-scale=1" />
+      <title>${escapeHtml(title)}</title>
+      <style>
+        @page { size: A4 ${orientation}; margin: 12mm 10mm; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; color: #111; background: #fff; }
+        .page { padding: 14px 10px 10px; }
+        .header {
+          display: grid;
+          grid-template-columns: 260px 1fr;
+          gap: 12px;
+          align-items: center;
+          border: 1px solid #e4e4e7;
+          border-radius: 10px;
+          padding: 8px 10px;
+          margin-bottom: 12px;
+        }
+        .logo-wrap { display: flex; align-items: center; }
+        .logo-wrap img { max-height: 52px; width: auto; object-fit: contain; }
+        .header-info { text-align: right; }
+        .header-title { margin: 0; font-size: 18px; font-weight: 800; }
+        .header-meta { margin-top: 4px; color: #52525b; font-size: 11px; line-height: 1.4; }
+        h1 { margin: 0 0 8px; font-size: 24px; }
+        .muted { color: #555; font-size: 12px; }
+        .group { border: 1px solid #d7d7d7; border-radius: 10px; padding: 10px; margin-top: 12px; }
+        .group h3 { margin: 0 0 8px; font-size: 15px; }
+        .kpi { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+        .card { border: 1px solid #e2e2e2; border-radius: 8px; padding: 8px; }
+        .label { color: #666; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+        .value { margin-top: 4px; font-size: 18px; font-weight: 700; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+        th, td { border: 1px solid #e2e2e2; padding: 6px 8px; text-align: left; vertical-align: top; }
+        th { background: #f7f7f7; }
+        td.num, th.num { text-align: right; white-space: nowrap; }
+        .footer {
+          margin-top: 16px;
+          border-top: 1px solid #e4e4e7;
+          padding-top: 8px;
+          color: #52525b;
+          font-size: 11px;
+          line-height: 1.45;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="page">
+        <header class="header">
+          <div class="logo-wrap">
+            <img src="${logoUrl}" alt="GR Dados" />
+          </div>
+          <div class="header-info">
+            <p class="header-title">${escapeHtml(title)}</p>
+            <div class="header-meta">
+              Cliente: GR Dados Demo<br/>
+              Emissão: ${generatedAt}
+            </div>
+          </div>
+        </header>
+        ${htmlBody}
+        <footer class="footer">
+          <strong>GR Dados</strong> · Todos os direitos reservados<br/>
+          AV 22 de Abril, 519 - Centro - Laguna Carapã - MS · CEP 79920-000<br/>
+          Contato: (67) 99869-8159
+        </footer>
+      </div>
+    </body>
+    </html>
+  `;
+  try {
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, "_blank", "width=1280,height=900");
+    if (!w) {
+      URL.revokeObjectURL(url);
+      return;
+    }
+    setTimeout(() => {
+      try {
+        w.focus();
+        w.print();
+      } catch {
+        // noop
+      }
+    }, 350);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } catch {
+    // noop
+  }
 }
 
 type ContaStatus = "open" | "overdue" | "partial" | "paid" | "canceled";
@@ -215,10 +322,19 @@ export default function ContasAPagarPage() {
   }, [filtered]);
 
   const selectedPayItems = useMemo(() => items.filter((x) => selectedIds.includes(x.id)), [items, selectedIds]);
+  const paidFilteredIds = useMemo(
+    () => filtered.filter((x) => normalizeStatus(x) === "paid").map((x) => x.id),
+    [filtered]
+  );
   const selectedPendingTotal = useMemo(
     () => selectedPayItems.reduce((acc, it) => acc + Math.max(parseNumber(it.balance_value), 0), 0),
     [selectedPayItems]
   );
+  const modalAllPaid = useMemo(
+    () => selectedPayItems.length > 0 && selectedPayItems.every((x) => normalizeStatus(x) === "paid"),
+    [selectedPayItems]
+  );
+  const isEstornoMode = modalAllPaid && payment.status !== "paid";
 
   const simulation = useMemo(() => {
     const paymentDate = simPaymentDate ? new Date(`${simPaymentDate}T00:00:00`) : null;
@@ -278,6 +394,216 @@ export default function ContasAPagarPage() {
     };
   }, [filtered, simPaymentDate, simAntecipMonthPct, simJurosMonthPct, simSacaPrice]);
 
+  function openResumoReport() {
+    const pedidoById = new Map(Array.from(Object.entries(pedidosSafraById)).map(([k, v]) => [Number(k), v]));
+    const insumoById = new Map(insumos.map((i) => [i.id, i.categoria?.name ?? "SEM CATEGORIA"]));
+    const fatById = new Map(faturamentos.map((f) => [f.id, f]));
+    type GroupSummary = {
+      safra: string;
+      categoria: string;
+      vencimento: string;
+      contas: number;
+      total: number;
+      pago: number;
+      saldo: number;
+    };
+    const map = new Map<string, GroupSummary>();
+
+    for (const it of filtered) {
+      const safra = pedidoById.get(it.pedido?.id ?? -1)?.name ?? "SEM SAFRA";
+      const vencRaw = it.due_date ?? "";
+      const venc = prettyDate(vencRaw);
+      const fat = it.faturamento?.id ? fatById.get(it.faturamento.id) : null;
+      const categories = new Set<string>();
+      for (const row of fat?.items || []) {
+        const pid = row.produto?.id ?? null;
+        if (!pid) continue;
+        categories.add(insumoById.get(pid) ?? "SEM CATEGORIA");
+      }
+      if (categories.size === 0) categories.add("SEM CATEGORIA");
+      const per = Math.max(1, categories.size);
+      const total = parseNumber(it.total_value);
+      const pago = parseNumber(it.paid_value);
+      const saldo = parseNumber(it.balance_value);
+      for (const categoria of categories) {
+        const key = `${safra}__${categoria}__${vencRaw || "SEM_VENC"}`;
+        const curr = map.get(key) ?? { safra, categoria, vencimento: venc, contas: 0, total: 0, pago: 0, saldo: 0 };
+        curr.contas += 1;
+        curr.total += total / per;
+        curr.pago += pago / per;
+        curr.saldo += saldo / per;
+        map.set(key, curr);
+      }
+    }
+    const groups = [...map.values()].sort((a, b) =>
+      `${a.safra}|${a.categoria}|${a.vencimento}`.localeCompare(`${b.safra}|${b.categoria}|${b.vencimento}`, "pt-BR")
+    );
+    const total = groups.reduce((acc, g) => acc + g.total, 0);
+    const pago = groups.reduce((acc, g) => acc + g.pago, 0);
+    const saldo = groups.reduce((acc, g) => acc + g.saldo, 0);
+    const rows = groups
+      .map(
+        (g) => `
+          <tr>
+            <td>${escapeHtml(g.safra)}</td>
+            <td>${escapeHtml(g.categoria)}</td>
+            <td>${escapeHtml(g.vencimento)}</td>
+            <td class="num">${g.contas}</td>
+            <td class="num">${prettyMoney(g.total)}</td>
+            <td class="num">${prettyMoney(g.pago)}</td>
+            <td class="num">${prettyMoney(g.saldo)}</td>
+          </tr>
+        `
+      )
+      .join("");
+
+    openPrintHtml(
+      "Resumo de Contas a Pagar",
+      `
+        <h1>Relatório resumo de Contas a Pagar</h1>
+        <p class="muted">Agrupado por Safra, Categoria e Vencimento Â· Gerado em ${new Date().toLocaleString("pt-BR")}</p>
+        <div class="kpi">
+          <div class="card"><div class="label">Contas</div><div class="value">${filtered.length}</div></div>
+          <div class="card"><div class="label">Valor total</div><div class="value">${prettyMoney(total)}</div></div>
+          <div class="card"><div class="label">Valor pago</div><div class="value">${prettyMoney(pago)}</div></div>
+          <div class="card"><div class="label">Saldo</div><div class="value">${prettyMoney(saldo)}</div></div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Safra</th>
+              <th>Categoria</th>
+              <th>Vencimento</th>
+              <th class="num">Contas</th>
+              <th class="num">Total</th>
+              <th class="num">Pago</th>
+              <th class="num">Saldo</th>
+            </tr>
+          </thead>
+          <tbody>${rows || '<tr><td colspan="7">Sem dados para os filtros selecionados.</td></tr>'}</tbody>
+        </table>
+      `,
+      "portrait"
+    );
+  }
+
+  function openAnaliticoReport() {
+    const pedidoById = new Map(Array.from(Object.entries(pedidosSafraById)).map(([k, v]) => [Number(k), v]));
+    const fatById = new Map(faturamentos.map((f) => [f.id, f]));
+    const insumoById = new Map(insumos.map((i) => [i.id, i.categoria?.name ?? "SEM CATEGORIA"]));
+    type Analitico = {
+      safra: string;
+      grupo: string;
+      produtor: string;
+      contas: Array<{
+        status: string;
+        nf: string;
+        data: string;
+        venc: string;
+        pedido: string;
+        fornecedor: string;
+        categoria: string;
+        total: number;
+        pago: number;
+        saldo: number;
+      }>;
+    };
+    const map = new Map<string, Analitico>();
+    for (const it of filtered) {
+      const safra = pedidoById.get(it.pedido?.id ?? -1)?.name ?? "SEM SAFRA";
+      const grupo = it.grupo?.name ?? "SEM GRUPO";
+      const produtor = it.produtor?.name ?? "SEM PRODUTOR";
+      const key = `${safra}__${grupo}__${produtor}`;
+      const group = map.get(key) ?? { safra, grupo, produtor, contas: [] };
+      const fat = it.faturamento?.id ? fatById.get(it.faturamento.id) : null;
+      const cats = new Set<string>();
+      for (const row of fat?.items || []) {
+        const pid = row.produto?.id ?? null;
+        if (!pid) continue;
+        cats.add(insumoById.get(pid) ?? "SEM CATEGORIA");
+      }
+      group.contas.push({
+        status: statusMeta(normalizeStatus(it)).label,
+        nf: it.invoice_number || "-",
+        data: prettyDate(it.date),
+        venc: prettyDate(it.due_date),
+        pedido: it.pedido?.code ?? "-",
+        fornecedor: it.fornecedor?.name ?? "-",
+        categoria: cats.size ? [...cats].join(", ") : "SEM CATEGORIA",
+        total: parseNumber(it.total_value),
+        pago: parseNumber(it.paid_value),
+        saldo: parseNumber(it.balance_value)
+      });
+      map.set(key, group);
+    }
+
+    const groups = [...map.values()].sort((a, b) =>
+      `${a.safra}|${a.grupo}|${a.produtor}`.localeCompare(`${b.safra}|${b.grupo}|${b.produtor}`, "pt-BR")
+    );
+    const htmlGroups = groups
+      .map((g) => {
+        const total = g.contas.reduce((acc, c) => acc + c.total, 0);
+        const pago = g.contas.reduce((acc, c) => acc + c.pago, 0);
+        const saldo = g.contas.reduce((acc, c) => acc + c.saldo, 0);
+        const rows = g.contas
+          .map(
+            (c) => `
+              <tr>
+                <td>${escapeHtml(c.status)}</td>
+                <td>${escapeHtml(c.nf)}</td>
+                <td>${escapeHtml(c.data)}</td>
+                <td>${escapeHtml(c.venc)}</td>
+                <td>${escapeHtml(c.pedido)}</td>
+                <td>${escapeHtml(c.fornecedor)}</td>
+                <td>${escapeHtml(c.categoria)}</td>
+                <td class="num">${prettyMoney(c.total)}</td>
+                <td class="num">${prettyMoney(c.pago)}</td>
+                <td class="num">${prettyMoney(c.saldo)}</td>
+              </tr>
+            `
+          )
+          .join("");
+        return `
+          <section class="group">
+            <h3>${escapeHtml(g.safra)} Â· ${escapeHtml(g.grupo)} Â· ${escapeHtml(g.produtor)}</h3>
+            <div class="kpi">
+              <div class="card"><div class="label">Contas</div><div class="value">${g.contas.length}</div></div>
+              <div class="card"><div class="label">Total</div><div class="value">${prettyMoney(total)}</div></div>
+              <div class="card"><div class="label">Pago</div><div class="value">${prettyMoney(pago)}</div></div>
+              <div class="card"><div class="label">Saldo</div><div class="value">${prettyMoney(saldo)}</div></div>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>NF</th>
+                  <th>Data</th>
+                  <th>Vencimento</th>
+                  <th>Pedido</th>
+                  <th>Fornecedor</th>
+                  <th>Categoria</th>
+                  <th class="num">Total</th>
+                  <th class="num">Pago</th>
+                  <th class="num">Saldo</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </section>
+        `;
+      })
+      .join("");
+
+    openPrintHtml(
+      "AnalÃ­tico de Contas a Pagar",
+      `
+        <h1>Relatório analítico de Contas a Pagar</h1>
+        <p class="muted">Agrupado por Safra, Grupo e Produtor Â· Gerado em ${new Date().toLocaleString("pt-BR")}</p>
+        ${htmlGroups || '<p class="muted">Sem dados para os filtros selecionados.</p>'}
+      `
+    );
+  }
+
   function printSimulationReport() {
     const htmlRows = simulation.rows
       .map(
@@ -336,7 +662,7 @@ export default function ContasAPagarPage() {
             </div>
           </header>
           <h1>Resumo da Simulacao</h1>
-          <p class="muted">Data pagamento: ${escapeHtml(prettyDate(simulation.paymentDate || ""))} · Antecipacao ao mes: ${escapeHtml(simAntecipMonthPct)}% · Juros ao mes: ${escapeHtml(simJurosMonthPct)}% · Preco da saca: ${prettyMoney(simulation.sacaPrice)}</p>
+          <p class="muted">Data pagamento: ${escapeHtml(prettyDate(simulation.paymentDate || ""))} Â· Antecipacao ao mes: ${escapeHtml(simAntecipMonthPct)}% Â· Juros ao mes: ${escapeHtml(simJurosMonthPct)}% Â· Preco da saca: ${prettyMoney(simulation.sacaPrice)}</p>
           <div class="kpi">
             <div class="card"><div class="label">Valor total</div><div class="value">${prettyMoney(simulation.totalBase)}</div></div>
             <div class="card"><div class="label">Valor antecipacao</div><div class="value">${prettyMoney(simulation.totalAntecip)}</div></div>
@@ -362,7 +688,7 @@ export default function ContasAPagarPage() {
           </table>
           <footer class="footer">
             <strong>GR Dados</strong> · Todos os direitos reservados<br/>
-            AV 22 de Abril, 519 - Centro - Laguna Carapa - MS · CEP 79920-000<br/>
+            AV 22 de Abril, 519 - Centro - Laguna Carapa - MS Â· CEP 79920-000<br/>
             Contato: (67) 99869-8159
           </footer>
         </div>
@@ -431,7 +757,7 @@ export default function ContasAPagarPage() {
   }
 
   function toggleAll() {
-    const ids = filtered.map((x) => x.id);
+    const ids = filtered.filter((x) => normalizeStatus(x) !== "paid").map((x) => x.id);
     setSelectedIds((prev) => (ids.every((id) => prev.includes(id)) ? prev.filter((id) => !ids.includes(id)) : [...new Set([...prev, ...ids])]));
   }
 
@@ -476,13 +802,33 @@ export default function ContasAPagarPage() {
     setPayOpen(true);
   }
 
+  function openBulkReversal() {
+    if (!paidFilteredIds.length) return;
+    setSelectedIds(paidFilteredIds);
+    setPayment({
+      ...DEFAULT_PAYMENT,
+      status: "open"
+    });
+    setPayOpen(true);
+  }
+
   async function runPayment() {
     const token = getAccessToken();
     if (!token || !selectedIds.length) return;
+    const selected = items.filter((x) => selectedIds.includes(x.id));
+    const allPaid = selected.every((x) => normalizeStatus(x) === "paid");
+    const isReversal = allPaid && payment.status !== "paid";
+    const confirmText = isReversal
+      ? selectedIds.length > 1
+        ? "Confirmar estorno em lote?"
+        : "Confirmar estorno da fatura selecionada?"
+      : selectedIds.length > 1
+        ? "Confirmar pagamento em lote?"
+        : "Confirmar pagamento da fatura selecionada?";
+    if (!window.confirm(confirmText)) return;
     setPaying(true);
     setError("");
     try {
-      const selected = items.filter((x) => selectedIds.includes(x.id));
       const pendingTotal = selected.reduce((acc, it) => acc + Math.max(parseNumber(it.balance_value), 0), 0);
       const increment = payment.payment_increment ? parseNumber(payment.payment_increment) : 0;
       if (increment > pendingTotal + 0.00001) {
@@ -499,7 +845,6 @@ export default function ContasAPagarPage() {
         conta_id: payment.conta_id === "" ? null : Number(payment.conta_id),
         status: payment.status
       };
-      const allPaid = selected.every((x) => normalizeStatus(x) === "paid");
       if (allPaid && payload.status === "paid" && (payload.payment_increment ?? 0) > 0) {
         setError("Faturas pagas nao podem receber novo pagamento. Use status/valor para desfazer.");
         setPaying(false);
@@ -528,12 +873,12 @@ export default function ContasAPagarPage() {
           </div>
 
           <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-4 backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]">
-            <div className="grid gap-3 lg:grid-cols-10">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-12">
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="Buscar por NF, fornecedor, produtor ou pedido..."
-                className="lg:col-span-2 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
+                className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50 xl:col-span-3"
               />
               <select value={reportSafraId} onChange={(e) => setReportSafraId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="" style={optionStyle}>Safra</option>
@@ -563,7 +908,7 @@ export default function ContasAPagarPage() {
                 <option value="paid" style={optionStyle}>Pago</option>
                 <option value="canceled" style={optionStyle}>Cancelado</option>
               </select>
-              <div className="flex gap-2">
+              <div className="flex gap-2 sm:col-span-2 xl:col-span-2">
                 <input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
                 <input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
               </div>
@@ -577,16 +922,38 @@ export default function ContasAPagarPage() {
                 Pagar selecionados ({selectedIds.length})
               </button>
               <button
+                onClick={openBulkReversal}
+                disabled={!paidFilteredIds.length}
+                className="rounded-2xl border border-zinc-400/25 bg-zinc-500/15 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-zinc-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Estornar pagos filtrados ({paidFilteredIds.length})
+              </button>
+              <button
                 onClick={toggleAll}
                 className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200 hover:bg-white/10"
               >
-                {filtered.length > 0 && filtered.every((x) => selectedIds.includes(x.id)) ? "Desmarcar lista" : "Selecionar lista"}
+                {(() => {
+                  const selectableIds = filtered.filter((x) => normalizeStatus(x) !== "paid").map((x) => x.id);
+                  return selectableIds.length > 0 && selectableIds.every((id) => selectedIds.includes(id)) ? "Desmarcar lista" : "Selecionar lista";
+                })()}
               </button>
               <button
                 onClick={exportCsv}
                 className="rounded-2xl border border-sky-400/25 bg-sky-500/15 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-500/25"
               >
                 Exportar CSV
+              </button>
+              <button
+                onClick={openResumoReport}
+                className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10"
+              >
+                Relatório resumo
+              </button>
+              <button
+                onClick={openAnaliticoReport}
+                className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10"
+              >
+                Relatório analítico
               </button>
             </div>
             {error ? (
@@ -596,7 +963,7 @@ export default function ContasAPagarPage() {
             ) : null}
           </section>
 
-          <section className="grid gap-4 lg:grid-cols-6">
+          <section className="grid gap-4 lg:grid-cols-3 xl:grid-cols-6">
             {[
               { label: "Valor total", value: prettyMoney(stats.totalValue), qty: stats.totalQty, tone: "border-accent-400/30 bg-accent-500/10" },
               { label: "Pendente", value: prettyMoney(stats.openValue), qty: stats.openQty, tone: "border-amber-400/30 bg-amber-500/10" },
@@ -619,29 +986,36 @@ export default function ContasAPagarPage() {
               <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
             </div>
 
-            <div className="mt-3 hidden grid-cols-[56px_120px_120px_110px_180px_180px_120px_120px_120px_120px_180px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 lg:grid">
-              <div>Sel</div>
-              <div>Status</div>
-              <div>Venc.</div>
-              <div>NF</div>
-              <div>Fornecedor</div>
-              <div>Produtor</div>
-              <div>Pedido</div>
-              <div>Total</div>
-              <div>Pago</div>
-              <div>Saldo</div>
-              <div className="text-right">Ações</div>
-            </div>
+            <div className="mt-3 overflow-x-auto">
+              <div className="hidden min-w-[1320px] grid-cols-[56px_110px_110px_100px_170px_170px_100px_110px_110px_110px_120px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid">
+                <div>Sel</div>
+                <div>Status</div>
+                <div>Venc.</div>
+                <div>NF</div>
+                <div>Fornecedor</div>
+                <div>Produtor</div>
+                <div>Pedido</div>
+                <div>Total</div>
+                <div>Pago</div>
+                <div>Saldo</div>
+                <div className="text-right">Ações</div>
+              </div>
 
-            <div className="mt-3 space-y-2">
-              {filtered.map((it) => {
-                const st = normalizeStatus(it);
-                const meta = statusMeta(st);
-                return (
-                  <div key={it.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3 hover:bg-white/5">
-                    <div className="grid grid-cols-1 gap-2 lg:grid-cols-[56px_120px_120px_110px_180px_180px_120px_120px_120px_120px_180px] lg:items-center lg:gap-3">
+              <div className="mt-3 space-y-2 xl:min-w-[1320px]">
+                {filtered.map((it) => {
+                  const st = normalizeStatus(it);
+                  const meta = statusMeta(st);
+                  return (
+                    <div key={it.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3 hover:bg-white/5">
+                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[56px_110px_110px_100px_170px_170px_100px_110px_110px_110px_120px] xl:items-center xl:gap-3">
                       <div>
-                        <input type="checkbox" checked={selectedIds.includes(it.id)} onChange={() => toggleOne(it.id)} className="h-4 w-4 rounded border-white/20 bg-zinc-900" />
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(it.id)}
+                          disabled={st === "paid"}
+                          onChange={() => toggleOne(it.id)}
+                          className="h-4 w-4 rounded border-white/20 bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-40"
+                        />
                       </div>
                       <div>
                         <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>
@@ -657,15 +1031,20 @@ export default function ContasAPagarPage() {
                       <div className="text-right whitespace-nowrap">
                         <button
                           onClick={() => openPayFor([it.id])}
-                          className="whitespace-nowrap rounded-xl border border-emerald-400/25 bg-emerald-500/15 px-3 py-1.5 text-[11px] font-black text-emerald-100 hover:bg-emerald-500/25"
+                          className={`whitespace-nowrap rounded-xl px-3 py-1.5 text-[11px] font-black ${
+                            st === "paid"
+                              ? "border border-zinc-500/25 bg-zinc-500/15 text-zinc-200 hover:bg-zinc-500/25"
+                              : "border border-emerald-400/25 bg-emerald-500/15 text-emerald-100 hover:bg-emerald-500/25"
+                          }`}
                         >
-                          {st === "paid" ? "Editar" : "Pagar"}
+                          {st === "paid" ? "Estornar" : "Pagar"}
                         </button>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </section>
 
@@ -724,12 +1103,27 @@ export default function ContasAPagarPage() {
               <div className="relative w-full max-w-[860px] overflow-hidden rounded-3xl border border-white/15 bg-zinc-900/90 shadow-2xl">
                 <div className="flex items-start justify-between gap-3 border-b border-white/10 p-5">
                   <div>
-                    <p className="text-sm font-black text-white">Pagamento ({selectedIds.length} conta(s))</p>
-                    <p className="mt-1 text-xs text-zinc-400">Individual ou lote com data, descontos, acréscimos, forma e conta.</p>
+                    <p className="text-sm font-black text-white">{isEstornoMode ? "Estorno" : "Pagamento"} ({selectedIds.length} conta(s))</p>
+                    <p className="mt-1 text-xs text-zinc-400">
+                      {isEstornoMode ? "Estorno individual ou em lote." : "Individual ou lote com data, descontos, acréscimos, forma e conta."}
+                    </p>
                   </div>
                   <button onClick={() => setPayOpen(false)} className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10">x</button>
                 </div>
-                <div className="grid gap-4 p-5 lg:grid-cols-3">
+                <form
+                  className="grid gap-4 p-5 lg:grid-cols-3"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void runPayment();
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter" || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
+                    const target = e.target as HTMLElement;
+                    if (!target || target.tagName === "TEXTAREA") return;
+                    e.preventDefault();
+                    focusNextInForm(target);
+                  }}
+                >
                   <div className="grid gap-2">
                     <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Status</label>
                     <select value={payment.status} onChange={(e) => setPayment((p) => ({ ...p, status: e.target.value as ContaStatus }))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
@@ -790,11 +1184,11 @@ export default function ContasAPagarPage() {
                       {contas.map((c) => (<option key={c.id} value={c.id} style={optionStyle}>{c.name}</option>))}
                     </select>
                   </div>
-                </div>
+                </form>
                 <div className="flex justify-end gap-2 border-t border-white/10 p-5">
                   <button onClick={() => setPayOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200 hover:bg-white/10">Cancelar</button>
-                  <button onClick={runPayment} disabled={paying} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-5 py-2.5 text-sm font-black text-emerald-100 hover:bg-emerald-500/25 disabled:opacity-60">
-                    {paying ? "Processando..." : "Efetuar pagamento"}
+                  <button type="button" onClick={runPayment} disabled={paying} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-5 py-2.5 text-sm font-black text-emerald-100 hover:bg-emerald-500/25 disabled:opacity-60">
+                    {paying ? "Processando..." : isEstornoMode ? "Efetuar estorno" : "Efetuar pagamento"}
                   </button>
                 </div>
               </div>
@@ -805,3 +1199,4 @@ export default function ContasAPagarPage() {
     </AuthedAdminShell>
   );
 }
+
