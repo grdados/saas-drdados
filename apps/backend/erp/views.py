@@ -160,6 +160,32 @@ class ContaPagarViewSet(CompanyScopedViewSet):
     serializer_class = serializers.ContaPagarSerializer
 
 
+class ContratoVendaViewSet(CompanyScopedViewSet):
+    queryset = (
+        models.ContratoVenda.objects.select_related(
+            "company", "grupo", "produtor", "cliente", "safra", "operacao"
+        ).prefetch_related("items", "items__produto")
+    )
+    serializer_class = serializers.ContratoVendaSerializer
+
+    def perform_destroy(self, instance):
+        contas = models.ContaReceber.objects.filter(
+            contrato=instance,
+            origem=models.ContaReceber.Origem.CONTRATO,
+        )
+        if contas.filter(received_value__gt=0).exists():
+            raise IntegrityError("Nao e permitido excluir contrato com recebimento registrado em Contas a Receber.")
+        contas.delete()
+        super().perform_destroy(instance)
+
+
+class ContaReceberViewSet(CompanyScopedViewSet):
+    queryset = models.ContaReceber.objects.select_related(
+        "company", "grupo", "produtor", "cliente", "operacao", "contrato"
+    )
+    serializer_class = serializers.ContaReceberSerializer
+
+
 class CategoriaViewSet(CompanyScopedViewSet):
     queryset = models.Categoria.objects.select_related("company")
     serializer_class = serializers.CategoriaSerializer

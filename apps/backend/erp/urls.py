@@ -25,6 +25,8 @@ router.register(r"financeiro/condicoes", views.CondicaoFinanceiraViewSet, basena
 router.register(r"compras/pedidos", views.PedidoCompraViewSet, basename="pedidos_compra")
 router.register(r"compras/faturamentos", views.FaturamentoCompraViewSet, basename="faturamentos_compra")
 router.register(r"financeiro/contas-a-pagar", views.ContaPagarViewSet, basename="contas_a_pagar")
+router.register(r"producao/contratos", views.ContratoVendaViewSet, basename="contratos_venda")
+router.register(r"financeiro/contas-a-receber", views.ContaReceberViewSet, basename="contas_a_receber")
 
 router.register(r"estoque/categorias", views.CategoriaViewSet, basename="categorias")
 router.register(r"estoque/insumos", views.InsumoViewSet, basename="insumos")

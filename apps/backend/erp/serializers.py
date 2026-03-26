@@ -437,6 +437,349 @@ class PedidoCompraSerializer(serializers.ModelSerializer):
         self._sync_conta_origem_pedido(instance)
         return instance
 
+
+class ContratoVendaItemSerializer(serializers.ModelSerializer):
+    produto = serializers.SerializerMethodField()
+    produto_id = serializers.PrimaryKeyRelatedField(
+        source="produto", queryset=models.Produto.objects.all(), allow_null=True, required=False
+    )
+
+    class Meta:
+        model = models.ContratoVendaItem
+        fields = [
+            "id",
+            "produto",
+            "produto_id",
+            "unit",
+            "quantity",
+            "delivered_quantity",
+            "price",
+            "discount",
+            "total_item",
+            "status",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_produto(self, obj):
+        if not getattr(obj, "produto_id", None):
+            return None
+        return {"id": obj.produto_id, "name": obj.produto.name}
+
+    def validate(self, attrs):
+        qty = attrs.get("quantity")
+        price = attrs.get("price")
+        discount = attrs.get("discount") or Decimal("0")
+        if qty is not None and qty < 0:
+            raise serializers.ValidationError({"quantity": "Quantidade nao pode ser negativa."})
+        if price is not None and price < 0:
+            raise serializers.ValidationError({"price": "Preco nao pode ser negativo."})
+        if discount < 0:
+            raise serializers.ValidationError({"discount": "Desconto nao pode ser negativo."})
+        return attrs
+
+
+class ContratoVendaSerializer(serializers.ModelSerializer):
+    grupo = serializers.SerializerMethodField()
+    grupo_id = serializers.PrimaryKeyRelatedField(
+        source="grupo", queryset=models.GrupoProdutor.objects.all(), allow_null=True, required=False
+    )
+    produtor = serializers.SerializerMethodField()
+    produtor_id = serializers.PrimaryKeyRelatedField(
+        source="produtor", queryset=models.Produtor.objects.all(), allow_null=True, required=False
+    )
+    cliente = serializers.SerializerMethodField()
+    cliente_id = serializers.PrimaryKeyRelatedField(
+        source="cliente", queryset=models.Cliente.objects.all(), allow_null=True, required=False
+    )
+    safra = serializers.SerializerMethodField()
+    safra_id = serializers.PrimaryKeyRelatedField(
+        source="safra", queryset=models.Safra.objects.all(), allow_null=True, required=False
+    )
+    operacao = serializers.SerializerMethodField()
+    operacao_id = serializers.PrimaryKeyRelatedField(
+        source="operacao", queryset=models.Operacao.objects.all(), allow_null=True, required=False
+    )
+    items = ContratoVendaItemSerializer(many=True, required=False)
+    total_value = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = models.ContratoVenda
+        fields = [
+            "id",
+            "date",
+            "code",
+            "grupo",
+            "grupo_id",
+            "produtor",
+            "produtor_id",
+            "cliente",
+            "cliente_id",
+            "safra",
+            "safra_id",
+            "due_date",
+            "operacao",
+            "operacao_id",
+            "status",
+            "notes",
+            "total_value",
+            "items",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_grupo(self, obj):
+        if not getattr(obj, "grupo_id", None):
+            return None
+        return {"id": obj.grupo_id, "name": obj.grupo.name, "cpf_cnpj": getattr(obj.grupo, "cpf_cnpj", "")}
+
+    def get_produtor(self, obj):
+        if not getattr(obj, "produtor_id", None):
+            return None
+        return {"id": obj.produtor_id, "name": obj.produtor.name}
+
+    def get_cliente(self, obj):
+        if not getattr(obj, "cliente_id", None):
+            return None
+        return {"id": obj.cliente_id, "name": obj.cliente.name}
+
+    def get_safra(self, obj):
+        if not getattr(obj, "safra_id", None):
+            return None
+        return {"id": obj.safra_id, "name": obj.safra.name}
+
+    def get_operacao(self, obj):
+        if not getattr(obj, "operacao_id", None):
+            return None
+        return {"id": obj.operacao_id, "name": obj.operacao.name, "kind": obj.operacao.kind}
+
+    def validate(self, attrs):
+        company = get_current_company(self.context["request"].user) if self.context.get("request") else None
+        _validate_fk_company(attrs.get("grupo"), company, "grupo_id")
+        _validate_fk_company(attrs.get("produtor"), company, "produtor_id")
+        _validate_fk_company(attrs.get("cliente"), company, "cliente_id")
+        _validate_fk_company(attrs.get("safra"), company, "safra_id")
+        _validate_fk_company(attrs.get("operacao"), company, "operacao_id")
+        return attrs
+
+    def _upsert_items(self, contrato: models.ContratoVenda, items_data):
+        models.ContratoVendaItem.objects.filter(contrato=contrato).delete()
+        total = Decimal("0")
+        for it in items_data or []:
+            qty = it.get("quantity") or Decimal("0")
+            price = it.get("price") or Decimal("0")
+            discount = it.get("discount") or Decimal("0")
+            total_item = (qty * price) - discount
+            if total_item < 0:
+                total_item = Decimal("0")
+            obj = models.ContratoVendaItem.objects.create(
+                company=contrato.company,
+                contrato=contrato,
+                produto=it.get("produto"),
+                unit=(it.get("unit") or "").strip(),
+                quantity=qty,
+                delivered_quantity=Decimal("0"),
+                price=price,
+                discount=discount,
+                total_item=total_item,
+            )
+            total += obj.total_item
+        contrato.total_value = total
+        contrato.save(update_fields=["total_value", "updated_at"])
+
+    def _sync_conta_receber_contrato(self, contrato: models.ContratoVenda):
+        conta = (
+            models.ContaReceber.objects.filter(
+                contrato=contrato,
+                origem=models.ContaReceber.Origem.CONTRATO,
+            )
+            .order_by("id")
+            .first()
+        )
+        if conta is None:
+            conta = models.ContaReceber(
+                company=contrato.company,
+                contrato=contrato,
+                origem=models.ContaReceber.Origem.CONTRATO,
+                payment_method=models.FaturamentoCompra.PaymentMethod.PIX,
+                received_value=Decimal("0"),
+                discount_value=Decimal("0"),
+                addition_value=Decimal("0"),
+            )
+        received = conta.received_value or Decimal("0")
+        total = contrato.total_value or Decimal("0")
+        if received > total:
+            total = received
+        conta.date = contrato.date
+        conta.due_date = contrato.due_date
+        conta.document_number = contrato.code or f"CTV-{contrato.id}"
+        conta.grupo = contrato.grupo
+        conta.produtor = contrato.produtor
+        conta.cliente = contrato.cliente
+        conta.operacao = contrato.operacao
+        conta.total_value = total
+        conta.balance_value = max(Decimal("0"), total - received)
+        conta.status = _compute_status_for_conta(conta.due_date, total, received)
+        if received <= 0:
+            conta.receive_date = None
+        conta.save()
+
+    def create(self, validated_data):
+        items_data = validated_data.pop("items", [])
+        contrato = models.ContratoVenda.objects.create(**validated_data)
+        self._upsert_items(contrato, items_data)
+        self._sync_conta_receber_contrato(contrato)
+        return contrato
+
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop("items", None)
+        for k, v in validated_data.items():
+            setattr(instance, k, v)
+        instance.save()
+        if items_data is not None:
+            self._upsert_items(instance, items_data)
+        self._sync_conta_receber_contrato(instance)
+        return instance
+
+
+class ContaReceberSerializer(serializers.ModelSerializer):
+    grupo = serializers.SerializerMethodField()
+    produtor = serializers.SerializerMethodField()
+    cliente = serializers.SerializerMethodField()
+    operacao = serializers.SerializerMethodField()
+    contrato = serializers.SerializerMethodField()
+    conta = serializers.SerializerMethodField()
+    conta_id = serializers.PrimaryKeyRelatedField(
+        source="conta", queryset=models.Conta.objects.all(), allow_null=True, required=False
+    )
+    receive_increment = serializers.DecimalField(max_digits=14, decimal_places=2, required=False, write_only=True, min_value=0)
+
+    class Meta:
+        model = models.ContaReceber
+        fields = [
+            "id",
+            "date",
+            "due_date",
+            "document_number",
+            "grupo",
+            "produtor",
+            "cliente",
+            "operacao",
+            "contrato",
+            "origem",
+            "total_value",
+            "received_value",
+            "balance_value",
+            "discount_value",
+            "addition_value",
+            "receive_date",
+            "payment_method",
+            "conta",
+            "conta_id",
+            "receive_increment",
+            "status",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_grupo(self, obj):
+        if not getattr(obj, "grupo_id", None):
+            return None
+        return {"id": obj.grupo_id, "name": obj.grupo.name}
+
+    def get_produtor(self, obj):
+        if not getattr(obj, "produtor_id", None):
+            return None
+        return {"id": obj.produtor_id, "name": obj.produtor.name}
+
+    def get_cliente(self, obj):
+        if not getattr(obj, "cliente_id", None):
+            return None
+        return {"id": obj.cliente_id, "name": obj.cliente.name}
+
+    def get_operacao(self, obj):
+        if not getattr(obj, "operacao_id", None):
+            return None
+        return {"id": obj.operacao_id, "name": obj.operacao.name, "kind": obj.operacao.kind}
+
+    def get_contrato(self, obj):
+        if not getattr(obj, "contrato_id", None):
+            return None
+        return {"id": obj.contrato_id, "code": obj.contrato.code}
+
+    def get_conta(self, obj):
+        if not getattr(obj, "conta_id", None):
+            return None
+        return {"id": obj.conta_id, "name": obj.conta.name}
+
+    def validate(self, attrs):
+        company = get_current_company(self.context["request"].user) if self.context.get("request") else None
+        _validate_fk_company(attrs.get("conta"), company, "conta_id")
+
+        current_total = getattr(self.instance, "total_value", Decimal("0")) if self.instance else Decimal("0")
+        current_received = getattr(self.instance, "received_value", Decimal("0")) if self.instance else Decimal("0")
+        current_discount = getattr(self.instance, "discount_value", Decimal("0")) if self.instance else Decimal("0")
+        current_addition = getattr(self.instance, "addition_value", Decimal("0")) if self.instance else Decimal("0")
+        total = attrs.get("total_value", current_total) or Decimal("0")
+        received = attrs.get("received_value", current_received) or Decimal("0")
+        discount = attrs.get("discount_value", current_discount) or Decimal("0")
+        addition = attrs.get("addition_value", current_addition) or Decimal("0")
+        increment = attrs.get("receive_increment")
+
+        if received < 0:
+            raise serializers.ValidationError({"received_value": "Valor recebido nao pode ser negativo."})
+        if discount < 0:
+            raise serializers.ValidationError({"discount_value": "Desconto nao pode ser negativo."})
+        if addition < 0:
+            raise serializers.ValidationError({"addition_value": "Acrescimo nao pode ser negativo."})
+        if increment is not None and increment < 0:
+            raise serializers.ValidationError({"receive_increment": "Valor de recebimento nao pode ser negativo."})
+
+        effective_total = total + addition - discount
+        if effective_total < 0:
+            effective_total = Decimal("0")
+        if received > effective_total:
+            raise serializers.ValidationError({"received_value": "Valor recebido nao pode ser maior que o valor total ajustado."})
+        return attrs
+
+    def update(self, instance, validated_data):
+        increment = validated_data.pop("receive_increment", None)
+        obj = super().update(instance, validated_data)
+        total = obj.total_value or Decimal("0")
+        discount = obj.discount_value or Decimal("0")
+        addition = obj.addition_value or Decimal("0")
+        received = obj.received_value or Decimal("0")
+        if increment is not None:
+            received += increment
+        if received < 0:
+            received = Decimal("0")
+
+        effective_total = total + addition - discount
+        if effective_total < 0:
+            effective_total = Decimal("0")
+        if received > effective_total:
+            received = effective_total
+
+        if obj.status == models.ContaReceber.Status.CANCELED:
+            pass
+        elif effective_total > 0 and received >= effective_total:
+            obj.status = models.ContaReceber.Status.PAID
+        elif received > 0:
+            obj.status = models.ContaReceber.Status.PARTIAL
+        elif obj.due_date and obj.due_date < date.today():
+            obj.status = models.ContaReceber.Status.OVERDUE
+        else:
+            obj.status = models.ContaReceber.Status.OPEN
+
+        obj.received_value = received
+        obj.balance_value = max(Decimal("0"), effective_total - received)
+        if received > 0 and not obj.receive_date:
+            obj.receive_date = date.today()
+        if received <= 0:
+            obj.receive_date = None
+        obj.save(update_fields=["status", "received_value", "balance_value", "receive_date", "updated_at"])
+        return obj
+
 CombustivelSerializer = _mk_serializer(models.Combustivel)
 
 

@@ -348,6 +348,130 @@ class ContaPagar(models.Model):
         return f"CP {self.id}"
 
 
+class ContratoVenda(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pendente"
+        PARTIAL = "partial", "Parcial"
+        DELIVERED = "delivered", "Entregue"
+        CANCELED = "canceled", "Cancelado"
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    date = models.DateField(null=True, blank=True)
+    code = models.CharField(max_length=60, blank=True, default="")
+
+    grupo = models.ForeignKey("erp.GrupoProdutor", null=True, blank=True, on_delete=models.PROTECT)
+    produtor = models.ForeignKey("erp.Produtor", null=True, blank=True, on_delete=models.PROTECT)
+    cliente = models.ForeignKey("erp.Cliente", null=True, blank=True, on_delete=models.PROTECT)
+    safra = models.ForeignKey("erp.Safra", null=True, blank=True, on_delete=models.PROTECT)
+    due_date = models.DateField(null=True, blank=True)
+    operacao = models.ForeignKey("erp.Operacao", null=True, blank=True, on_delete=models.PROTECT)
+
+    notes = models.TextField(blank=True, default="")
+    total_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-date", "-id"]
+        indexes = [
+            models.Index(fields=["company", "date"]),
+            models.Index(fields=["company", "code"]),
+        ]
+
+    def __str__(self) -> str:
+        return self.code or f"CONTRATO {self.id}"
+
+
+class ContratoVendaItem(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    contrato = models.ForeignKey("erp.ContratoVenda", related_name="items", on_delete=models.CASCADE)
+
+    produto = models.ForeignKey("erp.Produto", null=True, blank=True, on_delete=models.PROTECT)
+    unit = models.CharField(max_length=24, blank=True, default="")
+    quantity = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    delivered_quantity = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    price = models.DecimalField(max_digits=14, decimal_places=4, default=0)
+    discount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    total_item = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+
+    class ItemStatus(models.TextChoices):
+        PENDING = "pending", "Pendente"
+        PARTIAL = "partial", "Parcial"
+        DELIVERED = "delivered", "Entregue"
+
+    status = models.CharField(max_length=20, choices=ItemStatus.choices, default=ItemStatus.PENDING)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["id"]
+        indexes = [
+            models.Index(fields=["company", "contrato"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"CONTRATO ITEM {self.id} ({self.contrato_id})"
+
+    def save(self, *args, **kwargs):
+        if self.contrato_id and not self.company_id:
+            self.company_id = self.contrato.company_id
+        if isinstance(self.unit, str) and self.unit:
+            self.unit = self.unit.strip().upper()
+        return super().save(*args, **kwargs)
+
+
+class ContaReceber(models.Model):
+    class Origem(models.TextChoices):
+        CONTRATO = "contrato", "Contrato"
+        NOTA_FISCAL = "nota_fiscal", "Nota Fiscal"
+        DUPLICATA = "duplicata", "Duplicata"
+
+    class Status(models.TextChoices):
+        OPEN = "open", "Em aberto"
+        OVERDUE = "overdue", "Vencido"
+        PARTIAL = "partial", "Parcial"
+        PAID = "paid", "Pago"
+        CANCELED = "canceled", "Cancelado"
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    date = models.DateField(null=True, blank=True)
+    due_date = models.DateField(null=True, blank=True)
+    document_number = models.CharField(max_length=60, blank=True, default="")
+
+    grupo = models.ForeignKey("erp.GrupoProdutor", null=True, blank=True, on_delete=models.PROTECT)
+    produtor = models.ForeignKey("erp.Produtor", null=True, blank=True, on_delete=models.PROTECT)
+    cliente = models.ForeignKey("erp.Cliente", null=True, blank=True, on_delete=models.PROTECT)
+    operacao = models.ForeignKey("erp.Operacao", null=True, blank=True, on_delete=models.PROTECT)
+    contrato = models.ForeignKey("erp.ContratoVenda", null=True, blank=True, on_delete=models.PROTECT)
+    origem = models.CharField(max_length=20, choices=Origem.choices, default=Origem.CONTRATO)
+
+    total_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    received_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    balance_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    discount_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    addition_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    receive_date = models.DateField(null=True, blank=True)
+    payment_method = models.CharField(max_length=20, choices=FaturamentoCompra.PaymentMethod.choices, default=FaturamentoCompra.PaymentMethod.PIX)
+    conta = models.ForeignKey("erp.Conta", null=True, blank=True, on_delete=models.PROTECT)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-due_date", "-id"]
+        indexes = [
+            models.Index(fields=["company", "due_date"]),
+            models.Index(fields=["company", "status"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"CR {self.id}"
+
+
 # Estoque
 class Categoria(CompanyNamedModel):
     pass

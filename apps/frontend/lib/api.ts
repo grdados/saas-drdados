@@ -862,6 +862,159 @@ export function deletePedidoCompra(token: string, id: number) {
   return request<void>(`/api/erp/compras/pedidos/${id}/`, { method: "DELETE" }, token);
 }
 
+export type ContratoVendaItem = {
+  id: number;
+  produto: { id: number; name: string } | null;
+  produto_id?: number | null;
+  unit: string;
+  quantity: string;
+  delivered_quantity?: string;
+  price: string;
+  discount: string;
+  total_item: string;
+  status?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ContratoVenda = {
+  id: number;
+  date: string | null;
+  code: string;
+  grupo: { id: number; name: string } | null;
+  grupo_id?: number | null;
+  produtor: { id: number; name: string } | null;
+  produtor_id?: number | null;
+  cliente: { id: number; name: string } | null;
+  cliente_id?: number | null;
+  safra: { id: number; name: string } | null;
+  safra_id?: number | null;
+  due_date: string | null;
+  operacao: { id: number; name: string; kind: string } | null;
+  operacao_id?: number | null;
+  notes: string;
+  total_value: string;
+  status: string;
+  items: ContratoVendaItem[];
+  created_at: string;
+  updated_at: string;
+};
+
+export function listContratosVenda(token: string) {
+  return request<ContratoVenda[]>("/api/erp/producao/contratos/", { method: "GET" }, token);
+}
+
+export function createContratoVenda(
+  token: string,
+  payload: Partial<{
+    date: string | null;
+    code: string;
+    grupo_id: number | null;
+    produtor_id: number | null;
+    cliente_id: number | null;
+    safra_id: number | null;
+    due_date: string | null;
+    operacao_id: number | null;
+    status: string;
+    notes: string;
+    items: Array<{
+      produto_id: number | null;
+      unit: string;
+      quantity: string | number;
+      price: string | number;
+      discount: string | number;
+    }>;
+  }>
+) {
+  return request<ContratoVenda>("/api/erp/producao/contratos/", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+
+export function updateContratoVenda(
+  token: string,
+  id: number,
+  payload: Partial<{
+    date: string | null;
+    code: string;
+    grupo_id: number | null;
+    produtor_id: number | null;
+    cliente_id: number | null;
+    safra_id: number | null;
+    due_date: string | null;
+    operacao_id: number | null;
+    status: string;
+    notes: string;
+    items: Array<{
+      produto_id: number | null;
+      unit: string;
+      quantity: string | number;
+      price: string | number;
+      discount: string | number;
+    }>;
+  }>
+) {
+  return request<ContratoVenda>(
+    `/api/erp/producao/contratos/${id}/`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  );
+}
+
+export function deleteContratoVenda(token: string, id: number) {
+  return request<void>(`/api/erp/producao/contratos/${id}/`, { method: "DELETE" }, token);
+}
+
+export type ContaReceber = {
+  id: number;
+  date: string | null;
+  due_date: string | null;
+  document_number: string;
+  grupo: { id: number; name: string } | null;
+  produtor: { id: number; name: string } | null;
+  cliente: { id: number; name: string } | null;
+  operacao: { id: number; name: string; kind: string } | null;
+  contrato: { id: number; code: string } | null;
+  origem: "contrato" | "nota_fiscal" | "duplicata";
+  total_value: string;
+  received_value: string;
+  balance_value: string;
+  discount_value: string;
+  addition_value: string;
+  receive_date: string | null;
+  payment_method: "pix" | "boleto" | "transfer" | "card" | "cash" | "other";
+  conta?: { id: number; name: string } | null;
+  status: "open" | "overdue" | "partial" | "paid" | "canceled";
+  created_at: string;
+  updated_at: string;
+};
+
+export function listContasAReceber(token: string) {
+  return request<ContaReceber[]>("/api/erp/financeiro/contas-a-receber/", { method: "GET" }, token);
+}
+
+export function updateContaReceberStatus(
+  token: string,
+  id: number,
+  payload: {
+    status?: "open" | "overdue" | "partial" | "paid" | "canceled";
+    received_value?: number | string;
+    receive_increment?: number | string;
+    receive_date?: string | null;
+    discount_value?: number | string;
+    addition_value?: number | string;
+    payment_method?: "pix" | "boleto" | "transfer" | "card" | "cash" | "other";
+    conta_id?: number | null;
+  }
+) {
+  return request<ContaReceber>(
+    `/api/erp/financeiro/contas-a-receber/${id}/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    },
+    token
+  );
+}
+
 export type FaturamentoCompraItem = {
   id: number;
   pedido_item_id?: number | null;
@@ -972,7 +1125,7 @@ export type ContaPagar = {
   operacao: { id: number; name: string; kind: string } | null;
   pedido: { id: number; code: string } | null;
   faturamento: { id: number; invoice_number: string } | null;
-  origem: "pedido" | "nota_fiscal";
+  origem: "pedido" | "nota_fiscal" | "duplicata";
   total_value: string;
   paid_value: string;
   balance_value: string;

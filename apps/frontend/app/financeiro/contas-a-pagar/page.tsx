@@ -171,6 +171,12 @@ function normalizeStatus(it: ContaPagar): ContaStatus {
   return "open";
 }
 
+function origemLabel(it: ContaPagar) {
+  if (it.origem === "nota_fiscal") return "Nota Fiscal";
+  if (it.origem === "pedido") return "Pedido";
+  return "Duplicata";
+}
+
 type PaymentState = {
   payment_date: string;
   payment_increment: string;
@@ -1033,10 +1039,11 @@ export default function ContasAPagarPage() {
             </div>
 
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden min-w-[1410px] grid-cols-[56px_110px_110px_100px_170px_170px_100px_110px_110px_110px_210px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid">
+              <div className="hidden min-w-[1510px] grid-cols-[56px_110px_110px_110px_100px_170px_170px_100px_110px_110px_110px_210px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid">
                 <div>Sel</div>
                 <div>Status</div>
                 <div>Venc.</div>
+                <div>Origem</div>
                 <div>NF</div>
                 <div>Fornecedor</div>
                 <div>Produtor</div>
@@ -1047,13 +1054,13 @@ export default function ContasAPagarPage() {
                 <div className="text-right">Ações</div>
               </div>
 
-              <div className="mt-3 space-y-2 xl:min-w-[1410px]">
+              <div className="mt-3 space-y-2 xl:min-w-[1510px]">
                 {filtered.map((it) => {
                   const st = normalizeStatus(it);
                   const meta = statusMeta(st);
                   return (
                     <div key={it.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3 hover:bg-white/5">
-                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[56px_110px_110px_100px_170px_170px_100px_110px_110px_110px_210px] xl:items-center xl:gap-3">
+                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[56px_110px_110px_110px_100px_170px_170px_100px_110px_110px_110px_210px] xl:items-center xl:gap-3">
                       <div>
                         <input
                           type="checkbox"
@@ -1067,6 +1074,7 @@ export default function ContasAPagarPage() {
                         <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>
                       </div>
                       <div className="text-sm font-semibold text-zinc-100">{prettyDate(it.due_date)}</div>
+                      <div className="text-sm font-semibold text-zinc-100">{origemLabel(it)}</div>
                       <div className="text-sm font-black text-zinc-100">{it.invoice_number || "-"}</div>
                       <div className="truncate text-sm font-semibold text-zinc-100">{it.fornecedor?.name ?? "-"}</div>
                       <div className="truncate text-sm font-semibold text-zinc-100">{it.produtor?.name ?? "-"}</div>
