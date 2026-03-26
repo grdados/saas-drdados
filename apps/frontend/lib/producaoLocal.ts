@@ -49,6 +49,7 @@ export type Romaneio = {
   propriedade_id: number | null;
   talhao_id: number | null;
   cliente_id: number | null;
+  transportador_id: number | null;
   deposito: string;
   plate: string;
   driver: string;
