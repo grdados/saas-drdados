@@ -576,10 +576,13 @@ export default function RomaneioPage() {
     </tbody></table></body></html>`;
     const w = window.open("", "_blank", "noopener,noreferrer,width=1000,height=720");
     if (!w) return;
+    w.document.open();
     w.document.write(html);
     w.document.close();
     w.focus();
-    w.print();
+    window.setTimeout(() => {
+      w.print();
+    }, 120);
   }
 
   function save() {
@@ -632,10 +635,13 @@ export default function RomaneioPage() {
   function openReport(title: string, body: string) {
     const win = window.open("", "_blank", "noopener,noreferrer,width=1180,height=760");
     if (!win) return;
+    win.document.open();
     win.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/><title>${title}</title><style>body{font-family:Arial,sans-serif;padding:16px;color:#111}.head{display:flex;justify-content:space-between;align-items:center;border:1px solid #ddd;padding:10px 12px;border-radius:10px}.muted{color:#666;font-size:12px}.kpi{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}.card{border:1px solid #ddd;border-radius:8px;padding:8px}.label{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.08em}.value{font-size:18px;font-weight:700;margin-top:4px}table{width:100%;border-collapse:collapse;margin-top:10px;font-size:12px}th,td{border:1px solid #e2e2e2;padding:6px 8px;text-align:left}th{background:#f7f7f7}.num{text-align:right;white-space:nowrap}</style></head><body><div class="head"><h1>${title}</h1><div class="muted">Emissão: ${new Date().toLocaleString("pt-BR")}</div></div>${body}</body></html>`);
     win.document.close();
     win.focus();
-    win.print();
+    window.setTimeout(() => {
+      win.print();
+    }, 120);
   }
 
   function reportResumoDiario() {
