@@ -136,6 +136,8 @@ export default function EmpreendimentosPage() {
   const [q, setQ] = useState("");
   const [safraFilter, setSafraFilter] = useState<number | "">("");
   const [statusFilter, setStatusFilter] = useState<"all" | Empreendimento["status"]>("all");
+  const [viewUnit, setViewUnit] = useState<"KG" | "SC">("KG");
+  const [sackWeight, setSackWeight] = useState<60 | 40>(60);
 
   useEffect(() => {
     const loaded = loadEmpreendimentos().map((x) => ({ ...x, status: normalizeEmpreendimentoStatus(x) }));
@@ -201,8 +203,21 @@ export default function EmpreendimentosPage() {
       realizadoKg += romaneios.filter((r) => r.empreendimento_id === it.id).reduce((acc, r) => acc + n(r.net_weight), 0);
     }
     const mediaPrevistaHaKg = areaTotalHa > 0 ? estimadoKg / areaTotalHa : 0;
-    return { faturamento, qty: filtered.length, estimadoKg, estimadoSc, realizadoKg, mediaPrevistaHaKg };
+    const saldoKg = estimadoKg - realizadoKg;
+    return { faturamento, qty: filtered.length, estimadoKg, estimadoSc, realizadoKg, saldoKg, mediaPrevistaHaKg };
   }, [filtered, romaneios]);
+
+  const viewUnitLabel = viewUnit === "KG" ? "KG" : `SC${sackWeight}`;
+  function toViewUnit(kgValue: number) {
+    if (viewUnit === "KG") return kgValue;
+    return kgValue / sackWeight;
+  }
+  function formatViewUnit(kgValue: number) {
+    return `${toViewUnit(kgValue).toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${viewUnitLabel}`;
+  }
+  function formatViewUnitPerHa(kgValuePerHa: number) {
+    return `${toViewUnit(kgValuePerHa).toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${viewUnitLabel}/ha`;
+  }
 
   const groupedArea = useMemo(() => {
     const map = new Map<number, number>();
@@ -242,6 +257,57 @@ export default function EmpreendimentosPage() {
       return { ...prev, code: autoCode };
     });
   }, [autoCode, codeTouched, editingId]);
+
+  function inferSafraIdFromCode(code: string): number | null {
+    const raw = (code || "").trim();
+    if (!raw || !safras.length) return null;
+    const normalized = normalizeText(raw);
+    let best: { id: number; len: number } | null = null;
+    for (const s of safras) {
+      const name = (s.name || "").trim();
+      if (!name) continue;
+      const needle = normalizeText(name);
+      if (!needle) continue;
+      if (normalized.includes(needle) && (!best || needle.length > best.len)) {
+        best = { id: s.id, len: needle.length };
+      }
+    }
+    return best?.id ?? null;
+  }
+
+  function inferPropriedadeIdFromCode(code: string): number | null {
+    const raw = (code || "").trim();
+    if (!raw || !propriedades.length) return null;
+    const normalized = normalizeText(raw);
+    let best: { id: number; len: number } | null = null;
+    for (const p of propriedades) {
+      const name = (p.name || "").trim();
+      if (!name) continue;
+      const needle = normalizeText(name);
+      if (!needle) continue;
+      if (normalized.includes(needle) && (!best || needle.length > best.len)) {
+        best = { id: p.id, len: needle.length };
+      }
+    }
+    return best?.id ?? null;
+  }
+
+  useEffect(() => {
+    if (!rows.length || (!safras.length && !propriedades.length)) return;
+    let changed = false;
+    const next = rows.map((it) => {
+      const safeSafraId = it.safra_id ? Number(it.safra_id) : null;
+      const safePropId = it.propriedade_id ? Number(it.propriedade_id) : null;
+      const inferredSafraId = safeSafraId || inferSafraIdFromCode(it.code);
+      const inferredPropId = safePropId || inferPropriedadeIdFromCode(it.code);
+      if (safeSafraId === inferredSafraId && safePropId === inferredPropId) return it;
+      changed = true;
+      return { ...it, safra_id: inferredSafraId, propriedade_id: inferredPropId };
+    });
+    if (!changed) return;
+    setRows(next);
+    saveEmpreendimentos(next);
+  }, [rows, safras, propriedades]);
 
   function filteredCultivaresByProduto(produtoId: string) {
     const LINK_KEY = "grdados.cultivares.links.v1";
@@ -541,6 +607,14 @@ export default function EmpreendimentosPage() {
                   {safras.map((s) => (<option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>))}
                 </select>
               </div>
+              <select value={viewUnit} onChange={(e) => setViewUnit(e.target.value as "KG" | "SC")} className="w-full min-w-[150px] rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-white/30">
+                <option value="KG" style={optionStyle}>Visualizar: KG</option>
+                <option value="SC" style={optionStyle}>Visualizar: Sacas</option>
+              </select>
+              <select value={String(sackWeight)} onChange={(e) => setSackWeight(Number(e.target.value) as 60 | 40)} disabled={viewUnit !== "SC"} className="w-full min-w-[160px] rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50">
+                <option value="60" style={optionStyle}>Saca 60 KG</option>
+                <option value="40" style={optionStyle}>Saca 40 KG</option>
+              </select>
               <button onClick={reportResumo} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10">Relatório resumo</button>
               <button onClick={reportAnalitico} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10">Relatório analítico</button>
               <button onClick={() => setCloseOpen(true)} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10">Evento de encerramento</button>
@@ -559,30 +633,29 @@ export default function EmpreendimentosPage() {
           <section className="grid gap-4 lg:grid-cols-3 xl:grid-cols-6">
             <div className="rounded-3xl border border-amber-400/30 bg-amber-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Faturamento R$</p><p className="mt-2 text-2xl font-black text-white">{formatCurrencyBRL(analytics.faturamento)}</p></div>
             <div className="rounded-3xl border border-white/15 bg-white/5 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Empreendimentos</p><p className="mt-2 text-2xl font-black text-white">{analytics.qty}</p></div>
-            <div className="rounded-3xl border border-sky-400/30 bg-sky-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Estimado (SC)</p><p className="mt-2 text-2xl font-black text-white">{formatSc(analytics.estimadoSc)}</p></div>
-            <div className="rounded-3xl border border-sky-400/30 bg-sky-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Estimado (KG)</p><p className="mt-2 text-2xl font-black text-white">{formatKg(analytics.estimadoKg)}</p></div>
-            <div className="rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Realizado (KG)</p><p className="mt-2 text-2xl font-black text-white">{formatKg(analytics.realizadoKg)}</p></div>
-            <div className="rounded-3xl border border-rose-400/30 bg-rose-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Média/ha prevista</p><p className="mt-2 text-2xl font-black text-white">{analytics.mediaPrevistaHaKg.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KG/ha</p></div>
+            <div className="rounded-3xl border border-sky-400/30 bg-sky-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Estimado ({viewUnitLabel})</p><p className="mt-2 text-2xl font-black text-white">{formatViewUnit(analytics.estimadoKg)}</p></div>
+            <div className="rounded-3xl border border-sky-400/30 bg-sky-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Realizado ({viewUnitLabel})</p><p className="mt-2 text-2xl font-black text-white">{formatViewUnit(analytics.realizadoKg)}</p></div>
+            <div className="rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Saldo ({viewUnitLabel})</p><p className="mt-2 text-2xl font-black text-white">{formatViewUnit(analytics.saldoKg)}</p></div>
+            <div className="rounded-3xl border border-rose-400/30 bg-rose-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Média/ha prevista</p><p className="mt-2 text-2xl font-black text-white">{formatViewUnitPerHa(analytics.mediaPrevistaHaKg)}</p></div>
           </section>
 
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4">
             <div className="flex items-center justify-between"><p className="text-sm font-black text-white">Lista</p><p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p></div>
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden min-w-[1780px] grid-cols-[120px_110px_240px_180px_130px_130px_130px_130px_140px_140px_170px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid">
-                <div>Status</div><div>Data</div><div>Código</div><div>Safra</div><div>Estimado SC</div><div>Estimado KG</div><div>Realizado KG</div><div>Média/ha (KG)</div><div>Preço produto</div><div>Faturamento</div><div className="text-right">Ações</div>
+              <div className="hidden min-w-[1660px] grid-cols-[120px_110px_240px_180px_160px_160px_170px_140px_140px_170px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid">
+                <div>Status</div><div>Data</div><div>Código</div><div>Safra</div><div>Estimado ({viewUnitLabel})</div><div>Realizado ({viewUnitLabel})</div><div>Média/ha ({viewUnitLabel})</div><div>Preço produto</div><div>Faturamento</div><div className="text-right">Ações</div>
               </div>
-              <div className="mt-3 space-y-2 xl:min-w-[1780px]">
+              <div className="mt-3 space-y-2 xl:min-w-[1660px]">
                 {filtered.map((it) => {
                   const status = normalizeEmpreendimentoStatus(it);
                   const meta = statusMeta(status);
-                  const estSc = it.items.reduce((acc, r) => acc + n(r.production_sc), 0);
                   const estKg = it.items.reduce((acc, r) => acc + n(r.production_kg), 0);
                   const areaHa = it.items.reduce((acc, r) => acc + n(r.area_ha), 0);
                   const mediaHa = areaHa > 0 ? estKg / areaHa : 0;
                   const precoProduto = n(it.sale_price);
                   const realKg = romaneios.filter((r) => r.empreendimento_id === it.id).reduce((acc, r) => acc + n(r.net_weight), 0);
-                  const safraName = safras.find((s) => s.id === it.safra_id)?.name ?? "-";
-                  return <div key={it.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3"><div className="grid grid-cols-1 gap-2 xl:grid-cols-[120px_110px_240px_180px_130px_130px_130px_130px_140px_140px_170px] xl:items-center xl:gap-3"><div><span className={`inline-flex rounded-full border px-2 py-1 text-[11px] font-black ${meta.cls}`}>{meta.label}</span></div><div className="text-sm text-zinc-100">{d(it.date)}</div><div className="text-sm font-black text-zinc-100 whitespace-nowrap truncate" title={it.code}>{it.code}</div><div className="text-sm text-zinc-100 truncate">{safraName}</div><div className="text-sm text-zinc-100">{formatSc(estSc)}</div><div className="text-sm text-zinc-100">{formatKg(estKg)}</div><div className="text-sm text-zinc-100">{formatKg(realKg)}</div><div className="text-sm text-zinc-100">{mediaHa.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KG</div><div className="text-sm text-zinc-100">{formatCurrencyBRL(precoProduto)}</div><div className="text-sm font-black text-zinc-100">{formatCurrencyBRL(it.billing_value)}</div><div className="text-right"><div className="flex w-full flex-nowrap justify-end gap-1.5 whitespace-nowrap"><button onClick={() => openEdit(it)} className="rounded-xl border border-sky-400/25 bg-sky-500/10 p-2 text-sky-200 hover:bg-sky-500/20" title="Editar" aria-label="Editar"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg></button><button onClick={() => removeItem(it.id)} className="rounded-xl border border-rose-400/25 bg-rose-500/10 p-2 text-rose-200 hover:bg-rose-500/20" title="Excluir" aria-label="Excluir"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg></button></div></div></div></div>;
+                  const safraName = safras.find((s) => s.id === Number(it.safra_id ?? 0))?.name ?? ((it.code || "").split(" - ")[0] || "-");
+                  return <div key={it.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3"><div className="grid grid-cols-1 gap-2 xl:grid-cols-[120px_110px_240px_180px_160px_160px_170px_140px_140px_170px] xl:items-center xl:gap-3"><div><span className={`inline-flex rounded-full border px-2 py-1 text-[11px] font-black ${meta.cls}`}>{meta.label}</span></div><div className="text-sm text-zinc-100">{d(it.date)}</div><div className="text-sm font-black text-zinc-100 whitespace-nowrap truncate" title={it.code}>{it.code}</div><div className="text-sm text-zinc-100 truncate">{safraName}</div><div className="text-sm text-zinc-100">{formatViewUnit(estKg)}</div><div className="text-sm text-zinc-100">{formatViewUnit(realKg)}</div><div className="text-sm text-zinc-100">{formatViewUnitPerHa(mediaHa)}</div><div className="text-sm text-zinc-100">{formatCurrencyBRL(precoProduto)}</div><div className="text-sm font-black text-zinc-100">{formatCurrencyBRL(it.billing_value)}</div><div className="text-right"><div className="flex w-full flex-nowrap justify-end gap-1.5 whitespace-nowrap"><button onClick={() => openEdit(it)} className="rounded-xl border border-sky-400/25 bg-sky-500/10 p-2 text-sky-200 hover:bg-sky-500/20" title="Editar" aria-label="Editar"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg></button><button onClick={() => removeItem(it.id)} className="rounded-xl border border-rose-400/25 bg-rose-500/10 p-2 text-rose-200 hover:bg-rose-500/20" title="Excluir" aria-label="Excluir"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg></button></div></div></div></div>;
                 })}
               </div>
             </div>
