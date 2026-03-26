@@ -107,6 +107,7 @@ export default function CultivaresPage() {
   const [formActive, setFormActive] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -185,6 +186,11 @@ export default function CultivaresPage() {
     setModalOpen(true);
   }
 
+  function requestSave() {
+    setSaveMessage("");
+    setConfirmOpen(true);
+  }
+
   async function onSave() {
     const token = getAccessToken();
     if (!token) return;
@@ -203,14 +209,16 @@ export default function CultivaresPage() {
       };
 
       if (!editingId) {
-        const created = await createCultivar(token, payload);
-        setItems((prev) => [...prev, created]);
+        await createCultivar(token, payload);
+        await refresh();
+        setConfirmOpen(false);
         setModalOpen(false);
         return;
       }
 
-      const updated = await updateCultivar(token, editingId, payload);
-      setItems((prev) => prev.map((i) => (i.id === editingId ? updated : i)));
+      await updateCultivar(token, editingId, payload);
+      await refresh();
+      setConfirmOpen(false);
       setModalOpen(false);
     } catch (err) {
       if (isApiError(err) && err.status === 401) {
@@ -394,11 +402,37 @@ export default function CultivaresPage() {
               {saveMessage ? <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm font-semibold text-zinc-200">{saveMessage}</div> : null}
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-                <button disabled={saving || formName.trim().length < 2} onClick={onSave} className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-5 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-60">{saving ? "Salvando..." : "Salvar"}</button>
+                <button disabled={saving || formName.trim().length < 2} onClick={requestSave} className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-5 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-60">{saving ? "Salvando..." : "Salvar"}</button>
                 <button disabled={saving} onClick={() => { setModalOpen(false); setSaveMessage(""); }} className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-zinc-100 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60">Cancelar</button>
               </div>
             </div>
           </Modal>
+
+          {confirmOpen ? (
+            <div className="fixed inset-0 z-[60] grid place-items-center px-4">
+              <button className="absolute inset-0 bg-zinc-950/60" onClick={() => setConfirmOpen(false)} />
+              <div className="relative w-full max-w-[560px] rounded-3xl border border-white/15 bg-zinc-900/95">
+                <div className="border-b border-white/10 p-5">
+                  <p className="text-lg font-black text-white">Confirmar alteração</p>
+                  <div className="mt-3 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-3">
+                    <p className="text-sm font-semibold text-emerald-100">
+                      {editingId
+                        ? "Deseja salvar as alterações deste cultivar?"
+                        : "Deseja confirmar o cadastro deste cultivar?"}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 p-5">
+                  <button onClick={() => setConfirmOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200">
+                    Não
+                  </button>
+                  <button onClick={() => void onSave()} disabled={saving} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-5 py-2.5 text-sm font-black text-emerald-100">
+                    {saving ? "Salvando..." : "Sim, confirmar"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
     </AuthedAdminShell>
