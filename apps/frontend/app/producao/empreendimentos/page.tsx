@@ -213,7 +213,7 @@ export default function EmpreendimentosPage() {
     return kgValue / sackWeight;
   }
   function formatViewUnit(kgValue: number) {
-    return `${toViewUnit(kgValue).toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${viewUnitLabel}`;
+    return `${toViewUnit(kgValue).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ${viewUnitLabel}`;
   }
   function formatViewUnitPerHa(kgValuePerHa: number) {
     return `${toViewUnit(kgValuePerHa).toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${viewUnitLabel}/ha`;
