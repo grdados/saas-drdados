@@ -84,7 +84,11 @@ type Kind = Operacao["kind"];
 function kindLabel(k: Kind) {
   if (k === "credit") return "Credito";
   if (k === "debit") return "Debito";
-  return "Transferencia";
+  if (k === "transfer") return "Transferencia";
+  if (k === "remessa_deposito") return "Remessa p/ Deposito";
+  if (k === "a_fixar") return "A Fixar";
+  if (k === "devolucao") return "Devolucao";
+  return "Venda";
 }
 
 export default function OperacoesPage() {
@@ -146,7 +150,7 @@ export default function OperacoesPage() {
   function openCreate() {
     setEditingId(null);
     setFormName("");
-    setFormKind("credit");
+    setFormKind("remessa_deposito");
     setFormActive(true);
     setSaveMessage("");
     setModalOpen(true);
@@ -197,7 +201,7 @@ export default function OperacoesPage() {
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Cadastros · Gerais</p>
               <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Operacoes</h1>
-              <p className="mt-1 text-sm text-zinc-300">Cadastre operacoes por tipo: Credito, Debito e Transferencia.</p>
+              <p className="mt-1 text-sm text-zinc-300">Cadastre operacoes por tipo: Remessa p/ Deposito, A Fixar, Devolucao e Venda.</p>
             </div>
 
             <button
@@ -241,6 +245,18 @@ export default function OperacoesPage() {
                 </option>
                 <option value="transfer" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
                   Transferencia
+                </option>
+                <option value="remessa_deposito" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
+                  Remessa p/ Deposito
+                </option>
+                <option value="a_fixar" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
+                  A Fixar
+                </option>
+                <option value="devolucao" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
+                  Devolucao
+                </option>
+                <option value="venda" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
+                  Venda
                 </option>
               </select>
               <select
@@ -290,7 +306,15 @@ export default function OperacoesPage() {
                       ? "bg-sky-500/10 text-sky-200 ring-sky-500/20"
                       : it.kind === "debit"
                         ? "bg-rose-500/10 text-rose-200 ring-rose-500/20"
-                        : "bg-amber-500/10 text-amber-200 ring-amber-500/20";
+                        : it.kind === "transfer"
+                          ? "bg-amber-500/10 text-amber-200 ring-amber-500/20"
+                          : it.kind === "remessa_deposito"
+                            ? "bg-cyan-500/10 text-cyan-200 ring-cyan-500/20"
+                            : it.kind === "a_fixar"
+                              ? "bg-indigo-500/10 text-indigo-200 ring-indigo-500/20"
+                              : it.kind === "devolucao"
+                                ? "bg-orange-500/10 text-orange-200 ring-orange-500/20"
+                                : "bg-emerald-500/10 text-emerald-200 ring-emerald-500/20";
 
                   return (
                     <div
@@ -368,6 +392,18 @@ export default function OperacoesPage() {
                     </option>
                     <option value="transfer" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
                       Transferencia
+                    </option>
+                    <option value="remessa_deposito" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
+                      Remessa p/ Deposito
+                    </option>
+                    <option value="a_fixar" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
+                      A Fixar
+                    </option>
+                    <option value="devolucao" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
+                      Devolucao
+                    </option>
+                    <option value="venda" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
+                      Venda
                     </option>
                   </select>
                 </div>

@@ -154,6 +154,39 @@ CentroCustoSerializer = _mk_serializer(models.CentroCusto)
 
 
 class OperacaoSerializer(serializers.ModelSerializer):
+    @staticmethod
+    def _normalize_kind(value: str) -> str:
+        raw = str(value or "").strip().lower()
+        alias = {
+            "credito": models.Operacao.Kind.CREDIT,
+            "crédito": models.Operacao.Kind.CREDIT,
+            "debito": models.Operacao.Kind.DEBIT,
+            "débito": models.Operacao.Kind.DEBIT,
+            "transferencia": models.Operacao.Kind.TRANSFER,
+            "transferência": models.Operacao.Kind.TRANSFER,
+            "remessa p/ deposito": models.Operacao.Kind.REMESSA_DEPOSITO,
+            "remessa p/ depósito": models.Operacao.Kind.REMESSA_DEPOSITO,
+            "remessa para deposito": models.Operacao.Kind.REMESSA_DEPOSITO,
+            "remessa para depósito": models.Operacao.Kind.REMESSA_DEPOSITO,
+            "afixar": models.Operacao.Kind.A_FIXAR,
+            "a fixar": models.Operacao.Kind.A_FIXAR,
+            "devolucao": models.Operacao.Kind.DEVOLUCAO,
+            "devolução": models.Operacao.Kind.DEVOLUCAO,
+        }
+        return alias.get(raw, raw)
+
+    def validate_kind(self, value):
+        normalized = self._normalize_kind(value)
+        allowed = {choice for choice, _ in models.Operacao.Kind.choices}
+        if normalized not in allowed:
+            raise serializers.ValidationError("Tipo de operacao invalido.")
+        return normalized
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["kind"] = self._normalize_kind(data.get("kind", ""))
+        return data
+
     class Meta:
         model = models.Operacao
         fields = ["id", "name", "kind", "is_active", "created_at", "updated_at"]

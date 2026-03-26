@@ -49,8 +49,10 @@ export type Romaneio = {
   propriedade_id: number | null;
   talhao_id: number | null;
   cliente_id: number | null;
+  deposito: string;
   plate: string;
   driver: string;
+  driver_cpf: string;
   weight: number;
   tare: number;
   gross_weight: number;
@@ -115,12 +117,13 @@ export function calcItemProduction(unit: UnidadeProducao, areaHa: number, produt
   return { production_sc: base, production_kg: base * 60 };
 }
 
-export function calcRomaneioNetWeight(grossWeight: number, tare: number, humidity: number, impurity: number, ardido: number, others: number) {
-  const gross = Number.isFinite(grossWeight) ? grossWeight : 0;
-  const ta = Number.isFinite(tare) ? tare : 0;
-  const base = Math.max(gross - ta, 0);
-  const disc = Math.max((Number.isFinite(humidity) ? humidity : 0) + (Number.isFinite(impurity) ? impurity : 0) + (Number.isFinite(ardido) ? ardido : 0) + (Number.isFinite(others) ? others : 0), 0);
-  const pct = Math.min(disc, 100);
-  return Math.max(base * (1 - pct / 100), 0);
+export function calcRomaneioNetWeight(weight: number, tare: number, humidity: number, impurity: number, ardido: number, others: number) {
+  const gross = Math.max((Number.isFinite(weight) ? weight : 0) - (Number.isFinite(tare) ? tare : 0), 0);
+  const disc =
+    Math.max(Number.isFinite(humidity) ? humidity : 0, 0) +
+    Math.max(Number.isFinite(impurity) ? impurity : 0, 0) +
+    Math.max(Number.isFinite(ardido) ? ardido : 0, 0) +
+    Math.max(Number.isFinite(others) ? others : 0, 0);
+  return Math.max(gross - disc, 0);
 }
 

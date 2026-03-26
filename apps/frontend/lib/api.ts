@@ -1385,7 +1385,14 @@ export function updateTalhao(
 export type Operacao = {
   id: number;
   name: string;
-  kind: "credit" | "debit" | "transfer";
+  kind:
+    | "credit"
+    | "debit"
+    | "transfer"
+    | "remessa_deposito"
+    | "a_fixar"
+    | "devolucao"
+    | "venda";
   is_active: boolean;
   created_at: string;
   updated_at: string;

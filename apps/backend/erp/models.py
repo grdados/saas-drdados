@@ -28,10 +28,15 @@ class CompanyNamedModel(models.Model):
         """
         Padroniza textos em CAIXA ALTA para evitar dados "misturados" (ex: Soja/soja/SOJA).
         Aplicamos em todos os CharField/TextField dos cadastros ERP, exceto URL/Email.
+        Campos com `choices` (chaves tecnicas) nao devem ser alterados.
         """
         for field in self._meta.fields:
             # EmailField/URLField herdam de CharField: nao devemos modificar.
             if isinstance(field, (models.EmailField, models.URLField)):
+                continue
+            # Campos de escolha usam chaves tecnicas (ex: debit/credit/in_progress).
+            # Se converter para maiusculo, quebra validacao e filtros no frontend.
+            if getattr(field, "choices", None):
                 continue
             if isinstance(field, (models.CharField, models.TextField)):
                 attr = field.attname  # ex: "name", "short_description", etc.
@@ -111,6 +116,10 @@ class Operacao(CompanyNamedModel):
         CREDIT = "credit", "Credito"
         DEBIT = "debit", "Debito"
         TRANSFER = "transfer", "Transferencia"
+        REMESSA_DEPOSITO = "remessa_deposito", "Remessa p/ Deposito"
+        A_FIXAR = "a_fixar", "A Fixar"
+        DEVOLUCAO = "devolucao", "Devolucao"
+        VENDA = "venda", "Venda"
 
     kind = models.CharField(max_length=16, choices=Kind.choices, default=Kind.CREDIT)
 
