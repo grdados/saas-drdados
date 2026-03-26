@@ -91,6 +91,23 @@ function Modal({
 
 type Status = "in_progress" | "finished";
 
+function normalizeStatus(value: unknown): Status {
+  const v = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  return v === "finished" ? "finished" : "in_progress";
+}
+
+function yearText(value: string | number | null | undefined): string {
+  return value == null ? "" : String(value);
+}
+
+function yearSortKey(value: string | number | null | undefined): number {
+  const text = yearText(value);
+  const match = text.match(/\d{4}/);
+  return match ? Number(match[0]) : 0;
+}
+
 export default function SafraPage() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Safra[]>([]);
@@ -119,22 +136,22 @@ export default function SafraPage() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const yearNum = yearFilter.trim() ? Number(yearFilter.trim()) : null;
+    const yearNeedle = yearFilter.trim().toLowerCase();
     return [...items]
       .filter((s) => {
-        if (statusFilter !== "all" && s.status !== statusFilter) return false;
+        if (statusFilter !== "all" && normalizeStatus(s.status) !== statusFilter) return false;
         if (culturaFilter !== "all" && (s.cultura?.id ?? -1) !== culturaFilter) return false;
-        if (yearNum && (s.year ?? -1) !== yearNum) return false;
+        if (yearNeedle && !yearText(s.year).toLowerCase().includes(yearNeedle)) return false;
         if (!q) return true;
         return (
           s.name.toLowerCase().includes(q) ||
           (s.cultura?.name ?? "").toLowerCase().includes(q) ||
-          String(s.year ?? "").includes(q)
+          yearText(s.year).toLowerCase().includes(q)
         );
       })
       .sort((a, b) => {
-        const ya = a.year ?? 0;
-        const yb = b.year ?? 0;
+        const ya = yearSortKey(a.year);
+        const yb = yearSortKey(b.year);
         if (ya !== yb) return yb - ya; // ano desc
         return a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" });
       });
@@ -183,11 +200,11 @@ export default function SafraPage() {
     if (!s) return;
     setEditingId(id);
     setFormName(s.name ?? "");
-    setFormYear(s.year ? String(s.year) : "");
+    setFormYear(yearText(s.year));
     setFormStart(s.start_date ?? "");
     setFormEnd(s.end_date ?? "");
     setFormCulturaId(s.cultura?.id ?? "");
-    setFormStatus(s.status);
+    setFormStatus(normalizeStatus(s.status));
     setFormActive(Boolean(s.is_active));
     setSaveMessage("");
     setModalOpen(true);
@@ -201,11 +218,11 @@ export default function SafraPage() {
     try {
       const payload = {
         name: formName.trim(),
-        year: formYear.trim() ? Number(formYear.trim()) : null,
+        year: formYear.trim() || null,
         start_date: formStart || null,
         end_date: formEnd || null,
         cultura_id: formCulturaId === "" ? null : Number(formCulturaId),
-        status: formStatus,
+        status: normalizeStatus(formStatus),
         is_active: formActive
       };
 
@@ -343,9 +360,10 @@ export default function SafraPage() {
             <div className={`mt-4 pr-1 ${filtered.length > 10 ? "max-h-[560px] overflow-auto" : ""}`}>
               <div className="space-y-2">
                 {filtered.map((s) => {
-                  const status = statusLabel(s.status);
+                  const normalized = normalizeStatus(s.status);
+                  const status = statusLabel(normalized);
                   const badge =
-                    s.status === "finished"
+                    normalized === "finished"
                       ? "bg-sky-500/10 text-sky-200 ring-sky-500/20"
                       : "bg-amber-500/10 text-amber-200 ring-amber-500/20";
 
@@ -419,8 +437,7 @@ export default function SafraPage() {
                   <input
                     value={formYear}
                     onChange={(e) => setFormYear(e.target.value)}
-                    placeholder="2026"
-                    inputMode="numeric"
+                    placeholder="2026/2027"
                     className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
                   />
                 </div>

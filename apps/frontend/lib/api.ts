@@ -239,10 +239,10 @@ export function updateCultura(token: string, id: number, payload: { name?: strin
 export type Safra = {
   id: number;
   name: string;
-  year: number | null;
+  year: string | number | null;
   start_date: string | null;
   end_date: string | null;
-  status: "in_progress" | "finished";
+  status: "in_progress" | "finished" | "IN_PROGRESS" | "FINISHED";
   cultura: { id: number; name: string } | null;
   is_active: boolean;
   created_at: string;
@@ -257,11 +257,11 @@ export function createSafra(
   token: string,
   payload: {
     name: string;
-    year?: number | null;
+    year?: string | number | null;
     start_date?: string | null;
     end_date?: string | null;
     cultura_id?: number | null;
-    status?: "in_progress" | "finished";
+    status?: "in_progress" | "finished" | "IN_PROGRESS" | "FINISHED";
     is_active?: boolean;
   }
 ) {
@@ -280,11 +280,11 @@ export function updateSafra(
   id: number,
   payload: Partial<{
     name: string;
-    year: number | null;
+    year: string | number | null;
     start_date: string | null;
     end_date: string | null;
     cultura_id: number | null;
-    status: "in_progress" | "finished";
+    status: "in_progress" | "finished" | "IN_PROGRESS" | "FINISHED";
     is_active: boolean;
   }>
 ) {
