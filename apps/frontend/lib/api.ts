@@ -972,6 +972,7 @@ export type ContaPagar = {
   operacao: { id: number; name: string; kind: string } | null;
   pedido: { id: number; code: string } | null;
   faturamento: { id: number; invoice_number: string } | null;
+  origem: "pedido" | "nota_fiscal";
   total_value: string;
   paid_value: string;
   balance_value: string;

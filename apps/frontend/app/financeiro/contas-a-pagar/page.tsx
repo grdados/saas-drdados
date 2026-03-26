@@ -332,8 +332,13 @@ export default function ContasAPagarPage() {
   }, [filtered]);
 
   const selectedPayItems = useMemo(() => items.filter((x) => selectedIds.includes(x.id)), [items, selectedIds]);
-  const paidFilteredIds = useMemo(
-    () => filtered.filter((x) => normalizeStatus(x) === "paid").map((x) => x.id),
+  const reversibleFilteredIds = useMemo(
+    () => filtered
+      .filter((x) => {
+        const st = normalizeStatus(x);
+        return st === "paid" || st === "partial";
+      })
+      .map((x) => x.id),
     [filtered]
   );
   const selectedPendingTotal = useMemo(
@@ -799,22 +804,24 @@ export default function ContasAPagarPage() {
   }
 
   function openBulkReversal() {
-    if (!paidFilteredIds.length) return;
-    requestEstorno(paidFilteredIds);
+    if (!reversibleFilteredIds.length) return;
+    requestEstorno(reversibleFilteredIds);
   }
 
   function requestEstorno(ids: number[]) {
-    const paidIds = ids.filter((id) => {
+    const reversibleIds = ids.filter((id) => {
       const row = items.find((x) => x.id === id);
-      return row && normalizeStatus(row) === "paid";
+      if (!row) return false;
+      const st = normalizeStatus(row);
+      return st === "paid" || st === "partial";
     });
-    if (!paidIds.length) {
-      setError("Somente faturas com status Pago podem ser estornadas.");
-      showToast("error", "Somente faturas com status Pago podem ser estornadas.");
+    if (!reversibleIds.length) {
+      setError("Somente faturas com status Pago ou Parcial podem ser estornadas.");
+      showToast("error", "Somente faturas com status Pago ou Parcial podem ser estornadas.");
       return;
     }
     setError("");
-    setEstornoIds(paidIds);
+    setEstornoIds(reversibleIds);
     setEstornoConfirmOpen(true);
   }
 
@@ -928,10 +935,10 @@ export default function ContasAPagarPage() {
               </button>
               <button
                 onClick={openBulkReversal}
-                disabled={!paidFilteredIds.length}
+                disabled={!reversibleFilteredIds.length}
                 className="rounded-2xl border border-zinc-400/25 bg-zinc-500/15 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-zinc-500/25 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Estornar pagos ({paidFilteredIds.length})
+                Estornar pagamentos ({reversibleFilteredIds.length})
               </button>
               <button
                 onClick={() => openPayFor(selectedIds)}
@@ -1026,7 +1033,7 @@ export default function ContasAPagarPage() {
             </div>
 
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden min-w-[1320px] grid-cols-[56px_110px_110px_100px_170px_170px_100px_110px_110px_110px_120px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid">
+              <div className="hidden min-w-[1410px] grid-cols-[56px_110px_110px_100px_170px_170px_100px_110px_110px_110px_210px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid">
                 <div>Sel</div>
                 <div>Status</div>
                 <div>Venc.</div>
@@ -1040,13 +1047,13 @@ export default function ContasAPagarPage() {
                 <div className="text-right">Ações</div>
               </div>
 
-              <div className="mt-3 space-y-2 xl:min-w-[1320px]">
+              <div className="mt-3 space-y-2 xl:min-w-[1410px]">
                 {filtered.map((it) => {
                   const st = normalizeStatus(it);
                   const meta = statusMeta(st);
                   return (
                     <div key={it.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3 hover:bg-white/5">
-                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[56px_110px_110px_100px_170px_170px_100px_110px_110px_110px_120px] xl:items-center xl:gap-3">
+                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[56px_110px_110px_100px_170px_170px_100px_110px_110px_110px_210px] xl:items-center xl:gap-3">
                       <div>
                         <input
                           type="checkbox"
@@ -1068,16 +1075,33 @@ export default function ContasAPagarPage() {
                       <div className="text-sm font-black text-zinc-100">{prettyMoney(it.paid_value)}</div>
                       <div className="text-sm font-black text-zinc-100">{prettyMoney(it.balance_value)}</div>
                       <div className="text-right whitespace-nowrap">
-                        <button
-                          onClick={() => (st === "paid" ? requestEstorno([it.id]) : openPayFor([it.id]))}
-                          className={`whitespace-nowrap rounded-xl px-3 py-1.5 text-[11px] font-black ${
-                            st === "paid"
-                              ? "border border-zinc-500/25 bg-zinc-500/15 text-zinc-200 hover:bg-zinc-500/25"
-                              : "border border-emerald-400/25 bg-emerald-500/15 text-emerald-100 hover:bg-emerald-500/25"
-                          }`}
-                        >
-                          {st === "paid" ? "Estornar" : "Pagar"}
-                        </button>
+                        {st === "partial" ? (
+                          <div className="inline-flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => openPayFor([it.id])}
+                              className="whitespace-nowrap rounded-xl border border-emerald-400/25 bg-emerald-500/15 px-3 py-1.5 text-[11px] font-black text-emerald-100 hover:bg-emerald-500/25"
+                            >
+                              Pagar
+                            </button>
+                            <button
+                              onClick={() => requestEstorno([it.id])}
+                              className="whitespace-nowrap rounded-xl border border-zinc-500/25 bg-zinc-500/15 px-3 py-1.5 text-[11px] font-black text-zinc-200 hover:bg-zinc-500/25"
+                            >
+                              Estornar
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => ((st === "paid") ? requestEstorno([it.id]) : openPayFor([it.id]))}
+                            className={`whitespace-nowrap rounded-xl px-3 py-1.5 text-[11px] font-black ${
+                              st === "paid"
+                                ? "border border-zinc-500/25 bg-zinc-500/15 text-zinc-200 hover:bg-zinc-500/25"
+                                : "border border-emerald-400/25 bg-emerald-500/15 text-emerald-100 hover:bg-emerald-500/25"
+                            }`}
+                          >
+                            {st === "paid" ? "Estornar" : "Pagar"}
+                          </button>
+                        )}
                       </div>
                     </div>
                     </div>

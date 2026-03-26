@@ -298,6 +298,10 @@ class FaturamentoCompraItem(models.Model):
 
 
 class ContaPagar(models.Model):
+    class Origem(models.TextChoices):
+        PEDIDO = "pedido", "Pedido"
+        NOTA_FISCAL = "nota_fiscal", "Nota Fiscal"
+
     class Status(models.TextChoices):
         OPEN = "open", "Em aberto"
         OVERDUE = "overdue", "Vencido"
@@ -318,6 +322,7 @@ class ContaPagar(models.Model):
 
     pedido = models.ForeignKey("erp.PedidoCompra", null=True, blank=True, on_delete=models.PROTECT)
     faturamento = models.ForeignKey("erp.FaturamentoCompra", null=True, blank=True, on_delete=models.PROTECT)
+    origem = models.CharField(max_length=20, choices=Origem.choices, default=Origem.NOTA_FISCAL)
 
     total_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     paid_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)

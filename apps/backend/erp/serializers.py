@@ -30,6 +30,18 @@ def _mk_serializer(model_cls):
 CulturaSerializer = _mk_serializer(models.Cultura)
 
 
+def _compute_status_for_conta(due_date, total_value: Decimal, paid_value: Decimal) -> str:
+    total = total_value if total_value > Decimal("0") else Decimal("0")
+    paid = paid_value if paid_value > Decimal("0") else Decimal("0")
+    if paid >= total and total > Decimal("0"):
+        return models.ContaPagar.Status.PAID
+    if paid > Decimal("0"):
+        return models.ContaPagar.Status.PARTIAL
+    if due_date and due_date < date.today():
+        return models.ContaPagar.Status.OVERDUE
+    return models.ContaPagar.Status.OPEN
+
+
 class SafraSerializer(serializers.ModelSerializer):
     cultura_id = serializers.PrimaryKeyRelatedField(
         source="cultura",
@@ -355,10 +367,64 @@ class PedidoCompraSerializer(serializers.ModelSerializer):
         pedido.total_value = total
         pedido.save(update_fields=["total_value", "updated_at"])
 
+    def _sync_conta_origem_pedido(self, pedido: models.PedidoCompra):
+        conta = (
+            models.ContaPagar.objects.filter(
+                pedido=pedido,
+                faturamento__isnull=True,
+                origem=models.ContaPagar.Origem.PEDIDO,
+            )
+            .order_by("id")
+            .first()
+        )
+        if conta is None:
+            conta = models.ContaPagar(
+                company=pedido.company,
+                pedido=pedido,
+                faturamento=None,
+                origem=models.ContaPagar.Origem.PEDIDO,
+                payment_method=models.FaturamentoCompra.PaymentMethod.PIX,
+                paid_value=Decimal("0"),
+                discount_value=Decimal("0"),
+                addition_value=Decimal("0"),
+            )
+
+        paid = conta.paid_value or Decimal("0")
+        total = pedido.total_value or Decimal("0")
+        faturado_total = (
+            models.FaturamentoCompra.objects.filter(pedido=pedido)
+            .exclude(status=models.FaturamentoCompra.Status.CANCELED)
+            .aggregate(v=Coalesce(Sum("total_value"), Decimal("0")))["v"]
+            or Decimal("0")
+        )
+        if paid <= 0:
+            remaining = total - faturado_total
+            total = remaining if remaining > 0 else Decimal("0")
+        if paid > total:
+            total = paid
+        conta.date = pedido.date
+        conta.due_date = pedido.due_date
+        conta.invoice_number = pedido.code or f"PED-{pedido.id}"
+        conta.grupo = pedido.grupo
+        conta.produtor = pedido.produtor
+        conta.fornecedor = pedido.fornecedor
+        conta.operacao = pedido.operacao
+        conta.total_value = total
+        conta.balance_value = max(Decimal("0"), total - paid)
+        conta.status = _compute_status_for_conta(conta.due_date, conta.total_value, paid)
+        if paid <= 0:
+            conta.payment_date = None
+        if (conta.total_value or Decimal("0")) <= 0 and paid <= 0:
+            if conta.pk:
+                conta.delete()
+            return
+        conta.save()
+
     def create(self, validated_data):
         items_data = validated_data.pop("items", [])
         pedido = models.PedidoCompra.objects.create(**validated_data)
         self._upsert_items(pedido, items_data)
+        self._sync_conta_origem_pedido(pedido)
         return pedido
 
     def update(self, instance, validated_data):
@@ -368,6 +434,7 @@ class PedidoCompraSerializer(serializers.ModelSerializer):
         instance.save()
         if items_data is not None:
             self._upsert_items(instance, items_data)
+        self._sync_conta_origem_pedido(instance)
         return instance
 
 CombustivelSerializer = _mk_serializer(models.Combustivel)
@@ -424,6 +491,7 @@ class ContaPagarSerializer(serializers.ModelSerializer):
             "pedido_id",
             "faturamento",
             "faturamento_id",
+            "origem",
             "total_value",
             "paid_value",
             "balance_value",
@@ -736,6 +804,137 @@ class FaturamentoCompraSerializer(serializers.ModelSerializer):
             pedido.status = models.PedidoCompra.Status.PENDING
         pedido.save(update_fields=["status", "updated_at"])
 
+    def _upsert_conta_origem_nf(self, fat: models.FaturamentoCompra):
+        conta = (
+            models.ContaPagar.objects.filter(faturamento=fat, origem=models.ContaPagar.Origem.NOTA_FISCAL)
+            .order_by("id")
+            .first()
+        )
+        if conta is None:
+            conta = models.ContaPagar(
+                company=fat.company,
+                faturamento=fat,
+                pedido=fat.pedido,
+                origem=models.ContaPagar.Origem.NOTA_FISCAL,
+                paid_value=Decimal("0"),
+                discount_value=Decimal("0"),
+                addition_value=Decimal("0"),
+            )
+        paid = conta.paid_value or Decimal("0")
+        total = fat.total_value or Decimal("0")
+        if paid > total:
+            total = paid
+        conta.date = fat.date
+        conta.due_date = fat.due_date
+        conta.invoice_number = fat.invoice_number
+        conta.grupo = fat.grupo
+        conta.produtor = fat.produtor
+        conta.fornecedor = fat.fornecedor
+        conta.operacao = fat.operacao
+        conta.payment_method = fat.payment_method
+        conta.pedido = fat.pedido
+        conta.total_value = total
+        conta.balance_value = max(Decimal("0"), total - paid)
+        conta.status = _compute_status_for_conta(conta.due_date, conta.total_value, paid)
+        if paid <= 0:
+            conta.payment_date = None
+        conta.save()
+
+    def _sync_contas_por_pedido(self, pedido: models.PedidoCompra):
+        pedido_contas = models.ContaPagar.objects.filter(
+            pedido=pedido,
+            faturamento__isnull=True,
+            origem=models.ContaPagar.Origem.PEDIDO,
+        ).order_by("id")
+        conta_pedido = pedido_contas.first()
+        if pedido_contas.count() > 1:
+            for extra in pedido_contas[1:]:
+                if (extra.paid_value or Decimal("0")) <= 0:
+                    extra.delete()
+
+        has_payment_on_pedido = bool(conta_pedido and (conta_pedido.paid_value or Decimal("0")) > 0)
+        faturamentos = models.FaturamentoCompra.objects.filter(pedido=pedido).exclude(
+            status=models.FaturamentoCompra.Status.CANCELED
+        )
+
+        if has_payment_on_pedido:
+            models.ContaPagar.objects.filter(
+                pedido=pedido,
+                origem=models.ContaPagar.Origem.NOTA_FISCAL,
+                paid_value__lte=0,
+            ).delete()
+            total = pedido.total_value or Decimal("0")
+            paid = conta_pedido.paid_value or Decimal("0")
+            if paid > total:
+                total = paid
+            conta_pedido.date = pedido.date
+            conta_pedido.due_date = pedido.due_date
+            conta_pedido.invoice_number = pedido.code or f"PED-{pedido.id}"
+            conta_pedido.grupo = pedido.grupo
+            conta_pedido.produtor = pedido.produtor
+            conta_pedido.fornecedor = pedido.fornecedor
+            conta_pedido.operacao = pedido.operacao
+            conta_pedido.total_value = total
+            conta_pedido.balance_value = max(Decimal("0"), total - paid)
+            conta_pedido.status = _compute_status_for_conta(conta_pedido.due_date, total, paid)
+            if paid <= 0:
+                conta_pedido.payment_date = None
+            conta_pedido.save()
+            return
+
+        for fat in faturamentos:
+            self._upsert_conta_origem_nf(fat)
+
+        faturado_total = (
+            faturamentos.aggregate(v=Coalesce(Sum("total_value"), Decimal("0")))["v"]
+            or Decimal("0")
+        )
+        remaining = (pedido.total_value or Decimal("0")) - faturado_total
+        if remaining < 0:
+            remaining = Decimal("0")
+
+        if remaining <= 0:
+            models.ContaPagar.objects.filter(
+                pedido=pedido,
+                faturamento__isnull=True,
+                origem=models.ContaPagar.Origem.PEDIDO,
+                paid_value__lte=0,
+            ).delete()
+        else:
+            if conta_pedido is None:
+                conta_pedido = models.ContaPagar(
+                    company=pedido.company,
+                    pedido=pedido,
+                    faturamento=None,
+                    origem=models.ContaPagar.Origem.PEDIDO,
+                    paid_value=Decimal("0"),
+                    discount_value=Decimal("0"),
+                    addition_value=Decimal("0"),
+                    payment_method=models.FaturamentoCompra.PaymentMethod.PIX,
+                )
+            paid = conta_pedido.paid_value or Decimal("0")
+            total = remaining if remaining > paid else paid
+            conta_pedido.date = pedido.date
+            conta_pedido.due_date = pedido.due_date
+            conta_pedido.invoice_number = pedido.code or f"PED-{pedido.id}"
+            conta_pedido.grupo = pedido.grupo
+            conta_pedido.produtor = pedido.produtor
+            conta_pedido.fornecedor = pedido.fornecedor
+            conta_pedido.operacao = pedido.operacao
+            conta_pedido.total_value = total
+            conta_pedido.balance_value = max(Decimal("0"), total - paid)
+            conta_pedido.status = _compute_status_for_conta(conta_pedido.due_date, total, paid)
+            if paid <= 0:
+                conta_pedido.payment_date = None
+            conta_pedido.save()
+
+        # remove contas de NF sem referência ativa e sem pagamento
+        models.ContaPagar.objects.filter(
+            pedido=pedido,
+            origem=models.ContaPagar.Origem.NOTA_FISCAL,
+            paid_value__lte=0,
+        ).exclude(faturamento__in=faturamentos).delete()
+
     def _apply_items(self, fat: models.FaturamentoCompra, items_data):
         # Aplica itens e atualiza saldos recebidos no pedido.
         total = Decimal("0")
@@ -787,26 +986,10 @@ class FaturamentoCompraSerializer(serializers.ModelSerializer):
         if fat.pedido_id:
             self._recalc_pedido_status(fat.pedido)
 
-        # gera/atualiza conta a pagar (1:1 por faturamento)
-        models.ContaPagar.objects.update_or_create(
-            faturamento=fat,
-            defaults={
-                "company": fat.company,
-                "date": fat.date,
-                "due_date": fat.due_date,
-                "invoice_number": fat.invoice_number,
-                "grupo": fat.grupo,
-                "produtor": fat.produtor,
-                "fornecedor": fat.fornecedor,
-                "operacao": fat.operacao,
-                "payment_method": fat.payment_method,
-                "pedido": fat.pedido,
-                "total_value": fat.total_value,
-                "paid_value": Decimal("0"),
-                "balance_value": fat.total_value,
-                "status": models.ContaPagar.Status.OPEN,
-            },
-        )
+        if fat.pedido_id:
+            self._sync_contas_por_pedido(fat.pedido)
+        else:
+            self._upsert_conta_origem_nf(fat)
         if fat.status != models.FaturamentoCompra.Status.PENDING:
             fat.status = models.FaturamentoCompra.Status.PENDING
             fat.save(update_fields=["status", "updated_at"])

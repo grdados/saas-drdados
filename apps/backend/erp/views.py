@@ -132,6 +132,17 @@ class PedidoCompraViewSet(CompanyScopedViewSet):
     )
     serializer_class = serializers.PedidoCompraSerializer
 
+    def perform_destroy(self, instance):
+        contas_pedido = models.ContaPagar.objects.filter(
+            pedido=instance,
+            faturamento__isnull=True,
+            origem=models.ContaPagar.Origem.PEDIDO,
+        )
+        if contas_pedido.filter(paid_value__gt=0).exists():
+            raise IntegrityError("Nao e permitido excluir pedido com pagamento registrado em Contas a Pagar.")
+        contas_pedido.delete()
+        super().perform_destroy(instance)
+
 
 class FaturamentoCompraViewSet(CompanyScopedViewSet):
     queryset = (
