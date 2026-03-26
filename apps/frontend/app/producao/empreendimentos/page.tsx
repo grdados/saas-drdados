@@ -226,7 +226,13 @@ export default function EmpreendimentosPage() {
   function filteredCultivaresByProduto(produtoId: string) {
     const baseId = Number(produtoId || form.produto_id || 0);
     if (!baseId) return cultivares;
-    const produtoName = produtos.find((p) => p.id === baseId)?.name ?? "";
+    const produto = produtos.find((p) => p.id === baseId);
+    const culturaId = produto?.cultura?.id ?? null;
+    if (culturaId) {
+      const linked = cultivares.filter((c) => c.cultura?.id === culturaId);
+      if (linked.length) return linked;
+    }
+    const produtoName = produto?.name ?? "";
     const needle = normalizeText(produtoName).split(" ")[0];
     if (!needle) return cultivares;
     const related = cultivares.filter((c) => normalizeText(c.name).includes(needle) || normalizeText(c.description || "").includes(needle));

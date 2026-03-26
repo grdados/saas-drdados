@@ -306,6 +306,8 @@ export type Cultivar = {
   maturity: string;
   region_indicated: string;
   brand: string;
+  cultura: { id: number; name: string } | null;
+  cultura_id?: number | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -317,7 +319,11 @@ export function listCultivares(token: string) {
 
 export function createCultivar(
   token: string,
-  payload: Partial<Pick<Cultivar, "name" | "description" | "cycle" | "maturity" | "region_indicated" | "brand" | "is_active">>
+  payload: Partial<
+    Pick<Cultivar, "name" | "description" | "cycle" | "maturity" | "region_indicated" | "brand" | "is_active"> & {
+      cultura_id: number | null;
+    }
+  >
 ) {
   return request<Cultivar>(
     "/api/erp/estoque/cultivares/",
@@ -332,7 +338,11 @@ export function createCultivar(
 export function updateCultivar(
   token: string,
   id: number,
-  payload: Partial<Pick<Cultivar, "name" | "description" | "cycle" | "maturity" | "region_indicated" | "brand" | "is_active">>
+  payload: Partial<
+    Pick<Cultivar, "name" | "description" | "cycle" | "maturity" | "region_indicated" | "brand" | "is_active"> & {
+      cultura_id: number | null;
+    }
+  >
 ) {
   return request<Cultivar>(
     `/api/erp/estoque/cultivares/${id}/`,

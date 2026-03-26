@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
-import { createCultivar, Cultivar, isApiError, listCultivares, updateCultivar } from "@/lib/api";
+import { createCultivar, Cultivar, Cultura, isApiError, listCultivares, listCulturas, updateCultivar } from "@/lib/api";
 import { toUpperText } from "@/lib/text";
 
 function prettyError(err: unknown): string {
@@ -84,11 +84,13 @@ function Modal({
 export default function CultivaresPage() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Cultivar[]>([]);
+  const [culturas, setCulturas] = useState<Cultura[]>([]);
   const [error, setError] = useState("");
 
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("all");
   const [brandFilter, setBrandFilter] = useState("");
+  const [culturaFilter, setCulturaFilter] = useState<string>("");
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -101,6 +103,7 @@ export default function CultivaresPage() {
   const [formMaturity, setFormMaturity] = useState("");
   const [formRegion, setFormRegion] = useState("");
   const [formBrand, setFormBrand] = useState("");
+  const [formCulturaId, setFormCulturaId] = useState<string>("");
   const [formActive, setFormActive] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
@@ -113,17 +116,19 @@ export default function CultivaresPage() {
         if (activeFilter === "active" && !c.is_active) return false;
         if (activeFilter === "inactive" && c.is_active) return false;
         if (bq && !c.brand.toLowerCase().includes(bq)) return false;
+        if (culturaFilter && String(c.cultura?.id ?? "") !== culturaFilter) return false;
         if (!q) return true;
         return (
           c.name.toLowerCase().includes(q) ||
           c.brand.toLowerCase().includes(q) ||
           c.region_indicated.toLowerCase().includes(q) ||
           c.maturity.toLowerCase().includes(q) ||
-          c.cycle.toLowerCase().includes(q)
+          c.cycle.toLowerCase().includes(q) ||
+          (c.cultura?.name ?? "").toLowerCase().includes(q)
         );
       })
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }));
-  }, [items, query, activeFilter, brandFilter]);
+  }, [items, query, activeFilter, brandFilter, culturaFilter]);
 
   async function refresh() {
     const token = getAccessToken();
@@ -131,8 +136,9 @@ export default function CultivaresPage() {
     setError("");
     setLoading(true);
     try {
-      const data = await listCultivares(token);
+      const [data, culturasData] = await Promise.all([listCultivares(token), listCulturas(token)]);
       setItems(data);
+      setCulturas(culturasData);
     } catch (err) {
       if (isApiError(err) && err.status === 401) {
         window.location.href = "/login";
@@ -157,6 +163,7 @@ export default function CultivaresPage() {
     setFormMaturity("");
     setFormRegion("");
     setFormBrand("");
+    setFormCulturaId("");
     setFormActive(true);
     setSaveMessage("");
     setModalOpen(true);
@@ -172,6 +179,7 @@ export default function CultivaresPage() {
     setFormMaturity(c.maturity ?? "");
     setFormRegion(c.region_indicated ?? "");
     setFormBrand(c.brand ?? "");
+    setFormCulturaId(c.cultura?.id ? String(c.cultura.id) : "");
     setFormActive(Boolean(c.is_active));
     setSaveMessage("");
     setModalOpen(true);
@@ -190,6 +198,7 @@ export default function CultivaresPage() {
         maturity: formMaturity,
         region_indicated: formRegion,
         brand: formBrand,
+        cultura_id: formCulturaId ? Number(formCulturaId) : null,
         is_active: formActive
       };
 
@@ -222,7 +231,7 @@ export default function CultivaresPage() {
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Cadastros · Gerais</p>
               <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Cultivares</h1>
-              <p className="mt-1 text-sm text-zinc-300">Cadastre cultivar com descricao, ciclo, maturidade, regiao e marca.</p>
+              <p className="mt-1 text-sm text-zinc-300">Cadastre cultivar com vínculo de cultura.</p>
             </div>
 
             <button
@@ -243,11 +252,11 @@ export default function CultivaresPage() {
               <div className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</div>
             </div>
 
-            <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_220px_180px]">
+            <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_220px_220px_180px]">
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar (cultivar/marca/regiao/ciclo)..."
+                placeholder="Buscar (cultivar/marca/cultura/ciclo)..."
                 className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
               />
               <input
@@ -257,27 +266,29 @@ export default function CultivaresPage() {
                 className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
               />
               <select
+                value={culturaFilter}
+                onChange={(e) => setCulturaFilter(e.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50"
+              >
+                <option value="" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>Todas culturas</option>
+                {culturas.map((c) => (
+                  <option key={c.id} value={c.id} style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <select
                 value={activeFilter}
                 onChange={(e) => setActiveFilter(e.target.value as "all" | "active" | "inactive")}
                 className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50"
               >
-                <option value="all" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
-                  Todos
-                </option>
-                <option value="active" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
-                  Ativos
-                </option>
-                <option value="inactive" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
-                  Inativos
-                </option>
+                <option value="all" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>Todos</option>
+                <option value="active" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>Ativos</option>
+                <option value="inactive" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>Inativos</option>
               </select>
             </div>
 
-            {error ? (
-              <div className="mt-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm font-semibold text-amber-200">
-                {error}
-              </div>
-            ) : null}
+            {error ? <div className="mt-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm font-semibold text-amber-200">{error}</div> : null}
           </section>
 
           <section className="h-fit rounded-3xl border border-white/10 bg-white/5 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl">
@@ -288,8 +299,8 @@ export default function CultivaresPage() {
 
             <div className="mt-3 hidden grid-cols-12 gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 sm:grid">
               <div className="col-span-3">Cultivar</div>
+              <div className="col-span-2">Cultura</div>
               <div className="col-span-2">Marca</div>
-              <div className="col-span-2">Regiao</div>
               <div className="col-span-2">Ciclo</div>
               <div className="col-span-2">Maturidade</div>
               <div className="col-span-1 text-right">Status</div>
@@ -298,178 +309,93 @@ export default function CultivaresPage() {
             <div className={`mt-4 pr-1 ${filtered.length > 10 ? "max-h-[560px] overflow-auto" : ""}`}>
               <div className="space-y-2">
                 {filtered.map((c) => {
-                  const badge = c.is_active
-                    ? "bg-emerald-500/10 text-emerald-200 ring-emerald-500/20"
-                    : "bg-zinc-500/10 text-zinc-300 ring-white/10";
+                  const badge = c.is_active ? "bg-emerald-500/10 text-emerald-200 ring-emerald-500/20" : "bg-zinc-500/10 text-zinc-300 ring-white/10";
 
                   return (
-                    <div
-                      key={c.id}
-                      className="group flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3 transition-colors hover:bg-white/5"
-                    >
+                    <div key={c.id} className="group flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3 transition-colors hover:bg-white/5">
                       <button onClick={() => openEdit(c.id)} className="grid min-w-0 flex-1 grid-cols-12 items-center gap-3 text-left">
                         <div className="col-span-3 min-w-0">
                           <p className="truncate text-sm font-black text-white">{c.name}</p>
                           <p className="mt-0.5 text-xs font-semibold text-zinc-400">ID: {c.id}</p>
                         </div>
-                        <div className="col-span-2 min-w-0">
-                          <p className="truncate text-sm font-semibold text-zinc-200">{c.brand || "—"}</p>
-                        </div>
-                        <div className="col-span-2 min-w-0">
-                          <p className="truncate text-sm font-semibold text-zinc-200">{c.region_indicated || "—"}</p>
-                        </div>
-                        <div className="col-span-2 min-w-0">
-                          <p className="truncate text-sm font-semibold text-zinc-200">{c.cycle || "—"}</p>
-                        </div>
-                        <div className="col-span-2 min-w-0">
-                          <p className="truncate text-sm font-semibold text-zinc-200">{c.maturity || "—"}</p>
-                        </div>
+                        <div className="col-span-2 min-w-0"><p className="truncate text-sm font-semibold text-zinc-200">{c.cultura?.name || "-"}</p></div>
+                        <div className="col-span-2 min-w-0"><p className="truncate text-sm font-semibold text-zinc-200">{c.brand || "-"}</p></div>
+                        <div className="col-span-2 min-w-0"><p className="truncate text-sm font-semibold text-zinc-200">{c.cycle || "-"}</p></div>
+                        <div className="col-span-2 min-w-0"><p className="truncate text-sm font-semibold text-zinc-200">{c.maturity || "-"}</p></div>
                         <div className="col-span-1 text-right">
-                          <span className={`inline-flex items-center rounded-full px-2 py-1 text-[11px] font-black ring-1 ${badge}`}>
-                            {c.is_active ? "Ativo" : "Inativo"}
-                          </span>
+                          <span className={`inline-flex items-center rounded-full px-2 py-1 text-[11px] font-black ring-1 ${badge}`}>{c.is_active ? "Ativo" : "Inativo"}</span>
                         </div>
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => openEdit(c.id)}
-                        className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-zinc-950/30 text-zinc-300 hover:bg-white/5"
-                        aria-label="Editar"
-                        title="Editar"
-                      >
+                      <button type="button" onClick={() => openEdit(c.id)} className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-zinc-950/30 text-zinc-300 hover:bg-white/5" aria-label="Editar" title="Editar">
                         <IconPencil />
                       </button>
                     </div>
                   );
                 })}
 
-                {!loading && filtered.length === 0 ? (
-                  <div className="rounded-2xl border border-white/10 bg-zinc-950/30 p-4 text-sm text-zinc-300">
-                    Nenhum cultivar encontrado.
-                  </div>
-                ) : null}
+                {!loading && filtered.length === 0 ? <div className="rounded-2xl border border-white/10 bg-zinc-950/30 p-4 text-sm text-zinc-300">Nenhum cultivar encontrado.</div> : null}
               </div>
             </div>
           </section>
 
-          <Modal
-            open={modalOpen}
-            title={editing ? "Editar cultivar" : "Novo cultivar"}
-            onClose={() => {
-              setModalOpen(false);
-              setSaveMessage("");
-            }}
-          >
+          <Modal open={modalOpen} title={editing ? "Editar cultivar" : "Novo cultivar"} onClose={() => { setModalOpen(false); setSaveMessage(""); }}>
             <div className="grid gap-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Cultivar</label>
-                  <input
-                    value={formName}
-                    onChange={(e) => setFormName(toUpperText(e.target.value))}
-                    placeholder="Ex: BRS 1010"
-                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
-                  />
+                  <input value={formName} onChange={(e) => setFormName(toUpperText(e.target.value))} placeholder="Ex: BRS 1010" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50" />
+                </div>
+
+                <div className="grid gap-2">
+                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Cultura</label>
+                  <select value={formCulturaId} onChange={(e) => setFormCulturaId(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                    <option value="" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>Selecione</option>
+                    {culturas.map((c) => <option key={c.id} value={c.id} style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>{c.name}</option>)}
+                  </select>
                 </div>
 
                 <div className="grid gap-2">
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Marca</label>
-                  <input
-                    value={formBrand}
-                    onChange={(e) => setFormBrand(toUpperText(e.target.value))}
-                    placeholder="Ex: Bayer"
-                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
-                  />
+                  <input value={formBrand} onChange={(e) => setFormBrand(toUpperText(e.target.value))} placeholder="Ex: Bayer" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50" />
                 </div>
 
                 <div className="grid gap-2">
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Ciclo</label>
-                  <input
-                    value={formCycle}
-                    onChange={(e) => setFormCycle(toUpperText(e.target.value))}
-                    placeholder="Ex: 120 dias"
-                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
-                  />
+                  <input value={formCycle} onChange={(e) => setFormCycle(toUpperText(e.target.value))} placeholder="Ex: 120 dias" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50" />
                 </div>
 
                 <div className="grid gap-2">
                   <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Maturidade</label>
-                  <input
-                    value={formMaturity}
-                    onChange={(e) => setFormMaturity(toUpperText(e.target.value))}
-                    placeholder="Ex: Precoce"
-                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
-                  />
+                  <input value={formMaturity} onChange={(e) => setFormMaturity(toUpperText(e.target.value))} placeholder="Ex: Precoce" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50" />
                 </div>
 
                 <div className="grid gap-2 md:col-span-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Regiao indicada</label>
-                  <input
-                    value={formRegion}
-                    onChange={(e) => setFormRegion(toUpperText(e.target.value))}
-                    placeholder="Ex: MS / MT"
-                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
-                  />
+                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Região indicada</label>
+                  <input value={formRegion} onChange={(e) => setFormRegion(toUpperText(e.target.value))} placeholder="Ex: MS / MT" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50" />
                 </div>
 
                 <div className="grid gap-2 md:col-span-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Descricao</label>
-                  <textarea
-                    value={formDesc}
-                    onChange={(e) => setFormDesc(toUpperText(e.target.value))}
-                    placeholder="Observacoes sobre o cultivar..."
-                    rows={4}
-                    className="w-full resize-none rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
-                  />
+                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Descrição</label>
+                  <textarea value={formDesc} onChange={(e) => setFormDesc(toUpperText(e.target.value))} placeholder="Observações sobre o cultivar..." rows={4} className="w-full resize-none rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50" />
                 </div>
               </div>
 
               <label className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-zinc-950/35 px-4 py-3">
                 <div>
                   <p className="text-sm font-black text-white">Ativo</p>
-                  <p className="text-xs text-zinc-400">Se desativado, nao aparece em novas operacoes.</p>
+                  <p className="text-xs text-zinc-400">Se desativado, não aparece em novas operações.</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setFormActive((v) => !v)}
-                  className={`relative h-7 w-12 rounded-full border transition-colors ${
-                    formActive ? "border-emerald-400/40 bg-emerald-500/25" : "border-white/10 bg-zinc-950/40"
-                  }`}
-                  aria-label="Alternar ativo"
-                >
-                  <span
-                    className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full transition-all ${
-                      formActive ? "left-6 bg-emerald-200" : "left-1 bg-zinc-300"
-                    }`}
-                  />
+                <button type="button" onClick={() => setFormActive((v) => !v)} className={`relative h-7 w-12 rounded-full border transition-colors ${formActive ? "border-emerald-400/40 bg-emerald-500/25" : "border-white/10 bg-zinc-950/40"}`} aria-label="Alternar ativo">
+                  <span className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full transition-all ${formActive ? "left-6 bg-emerald-200" : "left-1 bg-zinc-300"}`} />
                 </button>
               </label>
 
-              {saveMessage ? (
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm font-semibold text-zinc-200">
-                  {saveMessage}
-                </div>
-              ) : null}
+              {saveMessage ? <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm font-semibold text-zinc-200">{saveMessage}</div> : null}
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-                <button
-                  disabled={saving || formName.trim().length < 2}
-                  onClick={onSave}
-                  className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-5 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {saving ? "Salvando..." : "Salvar"}
-                </button>
-                <button
-                  disabled={saving}
-                  onClick={() => {
-                    setModalOpen(false);
-                    setSaveMessage("");
-                  }}
-                  className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-zinc-100 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Cancelar
-                </button>
+                <button disabled={saving || formName.trim().length < 2} onClick={onSave} className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-5 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-60">{saving ? "Salvando..." : "Salvar"}</button>
+                <button disabled={saving} onClick={() => { setModalOpen(false); setSaveMessage(""); }} className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-zinc-100 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60">Cancelar</button>
               </div>
             </div>
           </Modal>
