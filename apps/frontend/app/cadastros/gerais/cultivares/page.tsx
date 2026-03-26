@@ -92,10 +92,12 @@ function Modal({
 }
 
 export default function CultivaresPage() {
+  const LINK_KEY = "grdados.cultivares.links.v1";
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Cultivar[]>([]);
   const [culturas, setCulturas] = useState<Cultura[]>([]);
   const [fabricantes, setFabricantes] = useState<Fabricante[]>([]);
+  const [linksById, setLinksById] = useState<Record<number, { cultura_id?: number | null; fabricante_id?: number | null }>>({});
   const [error, setError] = useState("");
 
   const [query, setQuery] = useState("");
@@ -120,9 +122,39 @@ export default function CultivaresPage() {
   const [saveMessage, setSaveMessage] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(LINK_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Record<number, { cultura_id?: number | null; fabricante_id?: number | null }>;
+      setLinksById(parsed);
+    } catch {
+      // noop
+    }
+  }, []);
+
+  function persistLinks(next: Record<number, { cultura_id?: number | null; fabricante_id?: number | null }>) {
+    setLinksById(next);
+    try {
+      window.localStorage.setItem(LINK_KEY, JSON.stringify(next));
+    } catch {
+      // noop
+    }
+  }
+
+  function withFallback(it: Cultivar): Cultivar {
+    const links = linksById[it.id];
+    if (!links) return it;
+    const cultura = it.cultura ?? (links.cultura_id ? (culturas.find((c) => c.id === links.cultura_id) ?? null) : null);
+    const fabricante = it.fabricante ?? (links.fabricante_id ? (fabricantes.find((f) => f.id === links.fabricante_id) ?? null) : null);
+    return { ...it, cultura, fabricante };
+  }
+
+  const resolvedItems = useMemo(() => items.map(withFallback), [items, linksById, culturas, fabricantes]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return [...items]
+    return [...resolvedItems]
       .filter((c) => {
         if (activeFilter === "active" && !c.is_active) return false;
         if (activeFilter === "inactive" && c.is_active) return false;
@@ -139,7 +171,7 @@ export default function CultivaresPage() {
         );
       })
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }));
-  }, [items, query, activeFilter, fabricanteFilter, culturaFilter]);
+  }, [resolvedItems, query, activeFilter, fabricanteFilter, culturaFilter]);
 
   async function refresh() {
     const token = getAccessToken();
@@ -182,7 +214,7 @@ export default function CultivaresPage() {
   }
 
   function openEdit(id: number) {
-    const c = items.find((i) => i.id === id);
+    const c = resolvedItems.find((i) => i.id === id);
     if (!c) return;
     setEditingId(id);
     setFormName(c.name ?? "");
@@ -228,7 +260,14 @@ export default function CultivaresPage() {
       };
 
       if (!editingId) {
-        await createCultivar(token, payload);
+        const created = await createCultivar(token, payload);
+        persistLinks({
+          ...linksById,
+          [created.id]: {
+            cultura_id: formCulturaId ? Number(formCulturaId) : null,
+            fabricante_id: formFabricanteId ? Number(formFabricanteId) : null
+          }
+        });
         await refresh();
         setConfirmOpen(false);
         setModalOpen(false);
@@ -236,6 +275,13 @@ export default function CultivaresPage() {
       }
 
       await updateCultivar(token, editingId, payload);
+      persistLinks({
+        ...linksById,
+        [editingId]: {
+          cultura_id: formCulturaId ? Number(formCulturaId) : null,
+          fabricante_id: formFabricanteId ? Number(formFabricanteId) : null
+        }
+      });
       await refresh();
       setConfirmOpen(false);
       setModalOpen(false);

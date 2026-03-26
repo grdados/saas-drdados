@@ -178,6 +178,7 @@ export default function CulturaPage() {
   function openEdit(id: number) {
     setSelectedId(id);
     setMode("edit");
+    setCreateOpen(true);
   }
 
   async function onSave() {
@@ -357,7 +358,7 @@ export default function CulturaPage() {
 
           <Modal
             open={createOpen}
-            title="Nova cultura"
+            title={mode === "edit" ? "Editar cultura" : "Nova cultura"}
             onClose={() => {
               setCreateOpen(false);
               setMode("idle");
