@@ -1311,6 +1311,8 @@ export type Propriedade = {
   name: string;
   produtor: { id: number; name: string } | null;
   produtor_id?: number | null;
+  produtores?: Array<{ id: number; name: string }> | null;
+  produtores_ids?: number[] | null;
   area_ha: string;
   sicar: string;
   is_active: boolean;
@@ -1322,7 +1324,14 @@ export function listPropriedades(token: string) {
 }
 export function createPropriedade(
   token: string,
-  payload: Partial<{ name: string; produtor_id: number | null; area_ha: string | number; sicar: string; is_active: boolean }>
+  payload: Partial<{
+    name: string;
+    produtor_id: number | null;
+    produtores_ids: number[];
+    area_ha: string | number;
+    sicar: string;
+    is_active: boolean;
+  }>
 ) {
   return request<Propriedade>(
     "/api/erp/patrimonio/propriedades/",
@@ -1333,7 +1342,14 @@ export function createPropriedade(
 export function updatePropriedade(
   token: string,
   id: number,
-  payload: Partial<{ name: string; produtor_id: number | null; area_ha: string | number; sicar: string; is_active: boolean }>
+  payload: Partial<{
+    name: string;
+    produtor_id: number | null;
+    produtores_ids: number[];
+    area_ha: string | number;
+    sicar: string;
+    is_active: boolean;
+  }>
 ) {
   return request<Propriedade>(
     `/api/erp/patrimonio/propriedades/${id}/`,

@@ -1630,6 +1630,10 @@ class PropriedadeSerializer(serializers.ModelSerializer):
     produtor_id = serializers.PrimaryKeyRelatedField(
       source="produtor", queryset=models.Produtor.objects.all(), allow_null=True, required=False
     )
+    produtores = ProdutorSerializer(many=True, read_only=True)
+    produtores_ids = serializers.PrimaryKeyRelatedField(
+        source="produtores", queryset=models.Produtor.objects.all(), many=True, required=False
+    )
 
     class Meta:
         model = models.Propriedade
@@ -1638,12 +1642,41 @@ class PropriedadeSerializer(serializers.ModelSerializer):
             "name",
             "produtor",
             "produtor_id",
+            "produtores",
+            "produtores_ids",
             "area_ha",
             "sicar",
             "is_active",
             "created_at",
             "updated_at",
         ]
+
+    def validate(self, attrs):
+        company = get_current_company(self.context["request"].user) if self.context.get("request") else None
+        _validate_fk_company(attrs.get("produtor"), company, "produtor_id")
+        for idx, produtor in enumerate(attrs.get("produtores") or []):
+            _validate_fk_company(produtor, company, f"produtores_ids[{idx}]")
+        return attrs
+
+    def create(self, validated_data):
+        produtores = validated_data.pop("produtores", [])
+        obj = super().create(validated_data)
+        if produtores:
+            obj.produtores.set(produtores)
+        if not obj.produtor_id and produtores:
+            obj.produtor = produtores[0]
+            obj.save(update_fields=["produtor", "updated_at"])
+        return obj
+
+    def update(self, instance, validated_data):
+        produtores = validated_data.pop("produtores", None)
+        obj = super().update(instance, validated_data)
+        if produtores is not None:
+            obj.produtores.set(produtores)
+            if not obj.produtor_id and produtores:
+                obj.produtor = produtores[0]
+                obj.save(update_fields=["produtor", "updated_at"])
+        return obj
 
 
 class TalhaoSerializer(serializers.ModelSerializer):

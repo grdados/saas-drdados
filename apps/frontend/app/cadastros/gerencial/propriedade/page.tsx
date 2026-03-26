@@ -113,6 +113,7 @@ export default function PropriedadePage() {
   const [formArea, setFormArea] = useState("0");
   const [formSicar, setFormSicar] = useState("");
   const [formActive, setFormActive] = useState(true);
+  const [formAllowedProdutores, setFormAllowedProdutores] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
 
@@ -126,6 +127,7 @@ export default function PropriedadePage() {
         return (
           i.name.toLowerCase().includes(q) ||
           (i.produtor?.name ?? "").toLowerCase().includes(q) ||
+          (i.produtores ?? []).some((p) => (p.name || "").toLowerCase().includes(q)) ||
           (i.sicar || "").toLowerCase().includes(q)
         );
       })
@@ -138,9 +140,14 @@ export default function PropriedadePage() {
     setError("");
     setLoading(true);
     try {
-      const [props, prod] = await Promise.all([listPropriedades(token), listProdutores(token)]);
-      setItems(props);
-      setProdutores(prod);
+      const [propsRes, prodRes] = await Promise.allSettled([listPropriedades(token), listProdutores(token)]);
+      if (propsRes.status === "fulfilled") setItems(propsRes.value);
+      if (prodRes.status === "fulfilled") setProdutores(prodRes.value);
+      if (propsRes.status === "rejected" || prodRes.status === "rejected") {
+        const msgProps = propsRes.status === "rejected" ? prettyError(propsRes.reason) : "";
+        const msgProd = prodRes.status === "rejected" ? prettyError(prodRes.reason) : "";
+        setError([msgProps, msgProd].filter(Boolean).join(" | "));
+      }
     } catch (err) {
       if (isApiError(err) && err.status === 401) {
         window.location.href = "/login";
@@ -164,6 +171,7 @@ export default function PropriedadePage() {
     setFormArea("0");
     setFormSicar("");
     setFormActive(true);
+    setFormAllowedProdutores([]);
     setSaveMessage("");
     setModalOpen(true);
   }
@@ -177,6 +185,8 @@ export default function PropriedadePage() {
     setFormArea(String(it.area_ha ?? "0"));
     setFormSicar(it.sicar ?? "");
     setFormActive(it.is_active);
+    const linked = (it.produtores ?? []).map((p) => p.id).filter((x) => Number.isFinite(Number(x)));
+    setFormAllowedProdutores(linked.length ? linked : it.produtor?.id ? [it.produtor.id] : []);
     setSaveMessage("");
     setModalOpen(true);
   }
@@ -189,7 +199,11 @@ export default function PropriedadePage() {
     try {
       const payload = {
         name: formName.trim(),
-        produtor_id: formProdutorId === "" ? null : Number(formProdutorId),
+        produtor_id:
+          formProdutorId === ""
+            ? (formAllowedProdutores[0] ?? null)
+            : Number(formProdutorId),
+        produtores_ids: formAllowedProdutores,
         area_ha: formArea,
         sicar: formSicar.trim(),
         is_active: formActive
@@ -303,7 +317,13 @@ export default function PropriedadePage() {
                         <p className="mt-0.5 text-xs font-semibold text-zinc-400">ID: {it.id}</p>
                       </div>
                       <div className="col-span-12 min-w-0 lg:col-span-4">
-                        <p className="truncate text-sm font-semibold text-zinc-100">{it.produtor?.name ?? "-"}</p>
+                        <p className="truncate text-sm font-semibold text-zinc-100">
+                          {(() => {
+                            const names = (it.produtores ?? []).map((p) => p.name).filter(Boolean) as string[];
+                            if (names.length) return names.join(", ");
+                            return it.produtor?.name ?? "-";
+                          })()}
+                        </p>
                       </div>
                       <div className="col-span-12 min-w-0 lg:col-span-2">
                         <p className="truncate text-sm font-semibold text-zinc-100">{it.sicar || "-"}</p>
@@ -373,6 +393,32 @@ export default function PropriedadePage() {
                         </option>
                       ))}
                   </select>
+                </div>
+
+                <div className="grid gap-2 md:col-span-2">
+                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Produtores habilitados (Romaneio)</label>
+                  <div className="max-h-40 space-y-2 overflow-auto rounded-2xl border border-white/10 bg-zinc-950/35 p-3">
+                    {produtores
+                      .slice()
+                      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }))
+                      .map((p) => {
+                        const checked = formAllowedProdutores.includes(p.id);
+                        return (
+                          <label key={p.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100">
+                            <span className="truncate">{p.name}</span>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) =>
+                                setFormAllowedProdutores((prev) =>
+                                  e.target.checked ? Array.from(new Set([...prev, p.id])) : prev.filter((id) => id !== p.id)
+                                )
+                              }
+                            />
+                          </label>
+                        );
+                      })}
+                  </div>
                 </div>
 
                 <div className="grid gap-2">

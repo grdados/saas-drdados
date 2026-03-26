@@ -229,12 +229,12 @@ class FabricanteViewSet(CompanyScopedViewSet):
 
 
 class PropriedadeViewSet(CompanyScopedViewSet):
-    queryset = models.Propriedade.objects.select_related("company", "produtor")
+    queryset = models.Propriedade.objects.select_related("company", "produtor").prefetch_related("produtores")
     serializer_class = serializers.PropriedadeSerializer
 
 
 class TalhaoViewSet(CompanyScopedViewSet):
-    queryset = models.Talhao.objects.select_related("company", "propriedade", "propriedade__produtor")
+    queryset = models.Talhao.objects.select_related("company", "propriedade", "propriedade__produtor").prefetch_related("propriedade__produtores")
     serializer_class = serializers.TalhaoSerializer
 
 

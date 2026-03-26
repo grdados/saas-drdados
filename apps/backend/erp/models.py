@@ -542,6 +542,7 @@ class Fabricante(CompanyNamedModel):
 # Patrimonio
 class Propriedade(CompanyNamedModel):
     produtor = models.ForeignKey("erp.Produtor", null=True, blank=True, on_delete=models.PROTECT)
+    produtores = models.ManyToManyField("erp.Produtor", blank=True, related_name="propriedades")
     area_ha = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     sicar = models.CharField(max_length=80, blank=True, default="")
 
