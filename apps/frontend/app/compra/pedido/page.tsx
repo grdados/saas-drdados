@@ -91,6 +91,14 @@ function resolvePedidoStatus(
   return "partial";
 }
 
+function isPedidoLockedForChanges(
+  p: PedidoCompra,
+  billedByPedidoItem: Map<number, number>
+): boolean {
+  const status = resolvePedidoStatus(p, billedByPedidoItem);
+  return status === "delivered" || status === "partial";
+}
+
 export default function PedidoCompraPage() {
   const [loading, setLoading] = useState(true);
   const [pedidos, setPedidos] = useState<PedidoCompra[]>([]);
@@ -318,6 +326,10 @@ export default function PedidoCompraPage() {
   function openEdit(id: number) {
     const p = pedidos.find((x) => x.id === id);
     if (!p) return;
+    if (isPedidoLockedForChanges(p, billedByPedidoItem)) {
+      window.alert("Não é permitido editar pedido com status Faturado ou Fat. Parcial.");
+      return;
+    }
     setEditingId(id);
     setFormDate(p.date ?? "");
     setFormCode(p.code ?? "");
@@ -349,6 +361,14 @@ export default function PedidoCompraPage() {
   async function onSave() {
     const token = getAccessToken();
     if (!token) return;
+    if (!editingId) setFormStatus("pending");
+    if (editingId) {
+      const current = pedidos.find((p) => p.id === editingId);
+      if (current && isPedidoLockedForChanges(current, billedByPedidoItem)) {
+        window.alert("Não é permitido editar pedido com status Faturado ou Fat. Parcial.");
+        return;
+      }
+    }
     const confirmText = editingId ? "Confirmar edição do pedido?" : "Confirmar novo pedido?";
     if (!window.confirm(confirmText)) return;
     setSaving(true);
@@ -363,7 +383,7 @@ export default function PedidoCompraPage() {
         safra_id: formSafraId === "" ? null : Number(formSafraId),
         due_date: formDueDate || null,
         operacao_id: formOperacaoId === "" ? null : Number(formOperacaoId),
-        status: formStatus,
+        status: editingId ? formStatus : "pending",
         items: rows.map((r) => ({
           produto_id: r.produto_id,
           unit: r.unit,
@@ -396,6 +416,11 @@ export default function PedidoCompraPage() {
   async function onDelete(id: number) {
     const token = getAccessToken();
     if (!token) return;
+    const pedido = pedidos.find((p) => p.id === id);
+    if (pedido && isPedidoLockedForChanges(pedido, billedByPedidoItem)) {
+      window.alert("Não é permitido excluir pedido com status Faturado ou Fat. Parcial.");
+      return;
+    }
     const ok = window.confirm("Excluir este pedido?");
     if (!ok) return;
     try {
@@ -741,8 +766,21 @@ export default function PedidoCompraPage() {
           <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Compra</p>
           <h1 className="text-2xl font-black tracking-tight text-white">Pedido</h1>
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-            <div className="grid gap-3 lg:grid-cols-12">
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por pedido, fornecedor ou produtor..." className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50 lg:col-span-3" />
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-12">
+              <div className="relative w-full xl:col-span-3">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">
+                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 21l-4.3-4.3" />
+                    <path d="M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z" />
+                  </svg>
+                </span>
+                <input
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Localizar"
+                  className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 pl-10 pr-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
+                />
+              </div>
               <select value={reportSafraId} onChange={(e) => setReportSafraId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="" style={optionStyle}>Safra</option>
                 {safras.map((s) => (<option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>))}
@@ -766,14 +804,14 @@ export default function PedidoCompraPage() {
                 <option value="delivered" style={optionStyle}>Faturado</option>
                 <option value="canceled" style={optionStyle}>Cancelado</option>
               </select>
-              <div className="flex min-w-0 gap-2 lg:col-span-2">
+              <div className="flex min-w-0 gap-2 sm:col-span-2 xl:col-span-2">
                 <input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
                 <input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
               </div>
-              <div className="flex flex-wrap items-center justify-end gap-2 lg:col-span-2">
-                <button onClick={openResumoReport} className="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-xs font-black text-white hover:bg-white/10">Relatório resumo</button>
-                <button onClick={openAnaliticoReport} className="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-xs font-black text-white hover:bg-white/10">Relatório analítico</button>
-                <button onClick={openCreate} className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">Novo pedido</button>
+              <div className="flex items-center justify-end gap-2 sm:col-span-2 xl:col-span-3">
+                <button onClick={openResumoReport} className="inline-flex items-center justify-center whitespace-nowrap rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-xs font-black text-white hover:bg-white/10">Relatório resumo</button>
+                <button onClick={openAnaliticoReport} className="inline-flex items-center justify-center whitespace-nowrap rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-xs font-black text-white hover:bg-white/10">Relatório analítico</button>
+                <button onClick={openCreate} className="inline-flex items-center justify-center whitespace-nowrap rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">Novo pedido</button>
               </div>
             </div>
           </section>
@@ -813,7 +851,9 @@ export default function PedidoCompraPage() {
               </div>
             </div>
             <div className="mt-3 space-y-2 overflow-x-auto">
-              {filtered.map((p) => (
+              {filtered.map((p) => {
+                const locked = isPedidoLockedForChanges(p, billedByPedidoItem);
+                return (
                 <div key={p.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-4 py-3 hover:bg-white/5">
                   <div className="grid min-w-[1540px] grid-cols-1 gap-2 md:grid-cols-[120px_96px_130px_120px_150px_150px_150px_110px_110px_130px_160px] md:items-center md:gap-3">
                     <div>
@@ -824,7 +864,13 @@ export default function PedidoCompraPage() {
                     </div>
                     <div><p className="text-sm font-semibold text-zinc-100">{prettyDateBR(p.date)}</p></div>
                     <div>
-                      <button onClick={() => openEdit(p.id)} className="truncate text-left text-sm font-black text-white hover:text-accent-200">{p.code || `#${p.id}`}</button>
+                      <button
+                        onClick={() => openEdit(p.id)}
+                        disabled={locked}
+                        className={`truncate text-left text-sm font-black ${locked ? "cursor-not-allowed text-zinc-500" : "text-white hover:text-accent-200"}`}
+                      >
+                        {p.code || `#${p.id}`}
+                      </button>
                     </div>
                     <div><p className="text-sm font-semibold text-zinc-100">{prettyDateBR(p.due_date)}</p></div>
                     <div><p className="truncate text-sm font-semibold text-zinc-100">{p.grupo?.name ?? "-"}</p></div>
@@ -849,8 +895,13 @@ export default function PedidoCompraPage() {
                       <div className="flex w-full flex-nowrap justify-end gap-1.5 whitespace-nowrap">
                         <button
                           onClick={() => openEdit(p.id)}
-                          className="rounded-xl border border-sky-400/25 bg-sky-500/10 p-2 text-sky-200 hover:bg-sky-500/20"
-                          title="Editar"
+                          disabled={locked}
+                          className={`rounded-xl border p-2 ${
+                            locked
+                              ? "cursor-not-allowed border-zinc-500/25 bg-zinc-500/10 text-zinc-300"
+                              : "border-sky-400/25 bg-sky-500/10 text-sky-200 hover:bg-sky-500/20"
+                          }`}
+                          title={locked ? "Pedido já faturado/parcial não pode ser editado" : "Editar"}
                           aria-label="Editar"
                         >
                           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
@@ -860,8 +911,13 @@ export default function PedidoCompraPage() {
                         </button>
                         <button
                           onClick={() => onDelete(p.id)}
-                          className="rounded-xl border border-rose-400/25 bg-rose-500/10 p-2 text-rose-200 hover:bg-rose-500/20"
-                          title="Excluir"
+                          disabled={locked}
+                          className={`rounded-xl border p-2 ${
+                            locked
+                              ? "cursor-not-allowed border-zinc-500/25 bg-zinc-500/10 text-zinc-300"
+                              : "border-rose-400/25 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20"
+                          }`}
+                          title={locked ? "Pedido já faturado/parcial não pode ser excluído" : "Excluir"}
                           aria-label="Excluir"
                         >
                           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
@@ -883,7 +939,7 @@ export default function PedidoCompraPage() {
                     </div>
                   </div>
                 </div>
-              ))}
+              )})}
               {!loading && filtered.length === 0 ? (
                 <div className="rounded-2xl border border-white/10 bg-zinc-950/30 p-4 text-sm text-zinc-300">Nenhum pedido encontrado.</div>
               ) : null}
@@ -1052,13 +1108,11 @@ export default function PedidoCompraPage() {
                       <select
                         value={formStatus}
                         onChange={(e) => setFormStatus(e.target.value)}
+                        disabled={!editingId}
                         className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50"
                       >
                         <option value="pending" style={optionStyle}>
                           Pendente
-                        </option>
-                        <option value="draft" style={optionStyle}>
-                          Rascunho
                         </option>
                         <option value="open" style={optionStyle}>
                           Em aberto
