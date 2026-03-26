@@ -550,6 +550,8 @@ class ContaPagarSerializer(serializers.ModelSerializer):
         obj.balance_value = max(Decimal("0"), effective_total - paid)
         if paid > 0 and not obj.payment_date:
             obj.payment_date = date.today()
+        if paid <= 0:
+            obj.payment_date = None
         obj.save(update_fields=["status", "paid_value", "balance_value", "payment_date", "updated_at"])
 
         if obj.faturamento_id:

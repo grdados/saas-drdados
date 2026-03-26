@@ -55,15 +55,22 @@ function PriceTimelineChart({
   const h = 260;
   const p = 22;
   const max = Math.max(1, ...series.flatMap((s) => s.values));
+  const singleMonth = months.length === 1;
 
   const polyline = (values: number[]) =>
-    values
-      .map((v, i) => {
-        const x = p + (i * (w - p * 2)) / Math.max(1, months.length - 1);
-        const y = p + (1 - v / max) * (h - p * 2);
-        return `${x},${y}`;
-      })
-      .join(" ");
+    singleMonth
+      ? (() => {
+          const v = values[0] ?? 0;
+          const y = p + (1 - v / max) * (h - p * 2);
+          return `${p},${y} ${w - p},${y}`;
+        })()
+      : values
+          .map((v, i) => {
+            const x = p + (i * (w - p * 2)) / Math.max(1, months.length - 1);
+            const y = p + (1 - v / max) * (h - p * 2);
+            return `${x},${y}`;
+          })
+          .join(" ");
 
   return (
     <div className="rounded-3xl border border-white/10 bg-zinc-950/35 p-4">
@@ -74,6 +81,14 @@ function PriceTimelineChart({
         {series.map((s) => (
           <polyline key={s.label} points={polyline(s.values)} fill="none" stroke={s.color} strokeWidth="2.5" />
         ))}
+        {singleMonth
+          ? series.map((s) => {
+              const v = s.values[0] ?? 0;
+              const y = p + (1 - v / max) * (h - p * 2);
+              const x = w / 2;
+              return <circle key={`${s.label}-dot`} cx={x} cy={y} r="4" fill={s.color} />;
+            })
+          : null}
       </svg>
       <div className="mt-3 flex flex-wrap items-center gap-4">
         {series.map((s) => (

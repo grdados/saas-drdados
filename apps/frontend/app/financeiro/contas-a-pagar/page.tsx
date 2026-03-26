@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
@@ -181,6 +181,11 @@ type PaymentState = {
   status: ContaStatus;
 };
 
+type ToastState = {
+  kind: "success" | "error";
+  message: string;
+};
+
 const DEFAULT_PAYMENT: PaymentState = {
   payment_date: "",
   payment_increment: "",
@@ -215,10 +220,15 @@ export default function ContasAPagarPage() {
   const [payOpen, setPayOpen] = useState(false);
   const [payment, setPayment] = useState<PaymentState>(DEFAULT_PAYMENT);
   const [paying, setPaying] = useState(false);
+  const [estornoConfirmOpen, setEstornoConfirmOpen] = useState(false);
+  const [estornoIds, setEstornoIds] = useState<number[]>([]);
+  const [estornando, setEstornando] = useState(false);
+  const [toast, setToast] = useState<ToastState | null>(null);
   const [simPaymentDate, setSimPaymentDate] = useState("");
   const [simAntecipMonthPct, setSimAntecipMonthPct] = useState("0");
   const [simJurosMonthPct, setSimJurosMonthPct] = useState("0");
   const [simSacaPrice, setSimSacaPrice] = useState("0");
+  const toastTimerRef = useRef<number | null>(null);
 
   const faturamentoById = useMemo(() => {
     const map = new Map<number, FaturamentoCompra>();
@@ -330,11 +340,6 @@ export default function ContasAPagarPage() {
     () => selectedPayItems.reduce((acc, it) => acc + Math.max(parseNumber(it.balance_value), 0), 0),
     [selectedPayItems]
   );
-  const modalAllPaid = useMemo(
-    () => selectedPayItems.length > 0 && selectedPayItems.every((x) => normalizeStatus(x) === "paid"),
-    [selectedPayItems]
-  );
-  const isEstornoMode = modalAllPaid && payment.status !== "paid";
 
   const simulation = useMemo(() => {
     const paymentDate = simPaymentDate ? new Date(`${simPaymentDate}T00:00:00`) : null;
@@ -752,6 +757,20 @@ export default function ContasAPagarPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => () => {
+    if (toastTimerRef.current) {
+      window.clearTimeout(toastTimerRef.current);
+    }
+  }, []);
+
+  function showToast(kind: ToastState["kind"], message: string) {
+    setToast({ kind, message });
+    if (toastTimerRef.current) {
+      window.clearTimeout(toastTimerRef.current);
+    }
+    toastTimerRef.current = window.setTimeout(() => setToast(null), 4200);
+  }
+
   function toggleOne(id: number) {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
@@ -763,40 +782,80 @@ export default function ContasAPagarPage() {
 
   function openPayFor(ids: number[]) {
     if (!ids.length) return;
-    setSelectedIds(ids);
-    const first = items.find((x) => x.id === ids[0]);
-    const currentStatus = first ? normalizeStatus(first) : "open";
-    const canReopen = currentStatus === "paid";
+    const payableIds = ids.filter((id) => {
+      const row = items.find((x) => x.id === id);
+      return row && normalizeStatus(row) !== "paid";
+    });
+    if (!payableIds.length) {
+      setError("Selecione ao menos uma fatura pendente/parcial/vencida para pagar.");
+      return;
+    }
+    setSelectedIds(payableIds);
     setPayment({
       ...DEFAULT_PAYMENT,
-      status: canReopen ? "open" : "paid"
+      status: "paid"
     });
     setPayOpen(true);
   }
 
   function openBulkReversal() {
     if (!paidFilteredIds.length) return;
-    setSelectedIds(paidFilteredIds);
-    setPayment({
-      ...DEFAULT_PAYMENT,
-      status: "open"
+    requestEstorno(paidFilteredIds);
+  }
+
+  function requestEstorno(ids: number[]) {
+    const paidIds = ids.filter((id) => {
+      const row = items.find((x) => x.id === id);
+      return row && normalizeStatus(row) === "paid";
     });
-    setPayOpen(true);
+    if (!paidIds.length) {
+      setError("Somente faturas com status Pago podem ser estornadas.");
+      showToast("error", "Somente faturas com status Pago podem ser estornadas.");
+      return;
+    }
+    setError("");
+    setEstornoIds(paidIds);
+    setEstornoConfirmOpen(true);
+  }
+
+  async function confirmEstorno() {
+    const token = getAccessToken();
+    if (!token || !estornoIds.length) return;
+    setEstornando(true);
+    setError("");
+    try {
+      const payload = {
+        status: "open" as const,
+        paid_value: 0,
+        payment_increment: 0,
+        payment_date: null
+      };
+      await Promise.all(estornoIds.map((id) => updateContaPagarStatus(token, id, payload)));
+      setEstornoConfirmOpen(false);
+      setEstornoIds([]);
+      setSelectedIds((prev) => prev.filter((id) => !estornoIds.includes(id)));
+      await refresh();
+      showToast(
+        "success",
+        estornoIds.length > 1
+          ? `${estornoIds.length} faturas estornadas com sucesso.`
+          : "Fatura estornada com sucesso."
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao estornar pagamento.");
+      showToast("error", err instanceof Error ? err.message : "Falha ao estornar pagamento.");
+    } finally {
+      setEstornando(false);
+    }
   }
 
   async function runPayment() {
     const token = getAccessToken();
     if (!token || !selectedIds.length) return;
     const selected = items.filter((x) => selectedIds.includes(x.id));
-    const allPaid = selected.every((x) => normalizeStatus(x) === "paid");
-    const isReversal = allPaid && payment.status !== "paid";
-    const confirmText = isReversal
-      ? selectedIds.length > 1
-        ? "Confirmar estorno em lote?"
-        : "Confirmar estorno da fatura selecionada?"
-      : selectedIds.length > 1
-        ? "Confirmar pagamento em lote?"
-        : "Confirmar pagamento da fatura selecionada?";
+    const confirmText = selectedIds.length > 1
+      ? "Confirmar pagamento em lote?"
+      : "Confirmar pagamento da fatura selecionada?";
     if (!window.confirm(confirmText)) return;
     setPaying(true);
     setError("");
@@ -817,11 +876,6 @@ export default function ContasAPagarPage() {
         conta_id: payment.conta_id === "" ? null : Number(payment.conta_id),
         status: payment.status
       };
-      if (allPaid && payload.status === "paid" && (payload.payment_increment ?? 0) > 0) {
-        setError("Faturas pagas nao podem receber novo pagamento. Use status/valor para desfazer.");
-        setPaying(false);
-        return;
-      }
       await Promise.all(selectedIds.map((id) => updateContaPagarStatus(token, id, payload)));
       setPayOpen(false);
       await refresh();
@@ -838,6 +892,20 @@ export default function ContasAPagarPage() {
     <AuthedAdminShell>
       {() => (
         <div className="space-y-5">
+          {toast ? (
+            <div className="pointer-events-none fixed right-4 top-4 z-[70] w-full max-w-sm">
+              <div
+                className={`rounded-2xl border px-4 py-3 text-sm font-bold shadow-2xl backdrop-blur-xl ${
+                  toast.kind === "success"
+                    ? "border-emerald-400/35 bg-emerald-500/20 text-emerald-100"
+                    : "border-rose-400/35 bg-rose-500/20 text-rose-100"
+                }`}
+              >
+                {toast.message}
+              </div>
+            </div>
+          ) : null}
+
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Financeiro</p>
             <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Contas a pagar</h1>
@@ -1001,7 +1069,7 @@ export default function ContasAPagarPage() {
                       <div className="text-sm font-black text-zinc-100">{prettyMoney(it.balance_value)}</div>
                       <div className="text-right whitespace-nowrap">
                         <button
-                          onClick={() => openPayFor([it.id])}
+                          onClick={() => (st === "paid" ? requestEstorno([it.id]) : openPayFor([it.id]))}
                           className={`whitespace-nowrap rounded-xl px-3 py-1.5 text-[11px] font-black ${
                             st === "paid"
                               ? "border border-zinc-500/25 bg-zinc-500/15 text-zinc-200 hover:bg-zinc-500/25"
@@ -1074,10 +1142,8 @@ export default function ContasAPagarPage() {
               <div className="relative w-full max-w-[860px] overflow-hidden rounded-3xl border border-white/15 bg-zinc-900/90 shadow-2xl">
                 <div className="flex items-start justify-between gap-3 border-b border-white/10 p-5">
                   <div>
-                    <p className="text-sm font-black text-white">{isEstornoMode ? "Estorno" : "Pagamento"} ({selectedIds.length} conta(s))</p>
-                    <p className="mt-1 text-xs text-zinc-400">
-                      {isEstornoMode ? "Estorno individual ou em lote." : "Individual ou lote com data, descontos, acréscimos, forma e conta."}
-                    </p>
+                    <p className="text-sm font-black text-white">Pagamento ({selectedIds.length} conta(s))</p>
+                    <p className="mt-1 text-xs text-zinc-400">Individual ou lote com data, descontos, acréscimos, forma e conta.</p>
                   </div>
                   <button onClick={() => setPayOpen(false)} className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10">x</button>
                 </div>
@@ -1159,7 +1225,49 @@ export default function ContasAPagarPage() {
                 <div className="flex justify-end gap-2 border-t border-white/10 p-5">
                   <button onClick={() => setPayOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200 hover:bg-white/10">Cancelar</button>
                   <button type="button" onClick={runPayment} disabled={paying} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-5 py-2.5 text-sm font-black text-emerald-100 hover:bg-emerald-500/25 disabled:opacity-60">
-                    {paying ? "Processando..." : isEstornoMode ? "Efetuar estorno" : "Efetuar pagamento"}
+                    {paying ? "Processando..." : "Efetuar pagamento"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {estornoConfirmOpen ? (
+            <div className="fixed inset-0 z-50 grid place-items-center px-4">
+              <button
+                className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm"
+                onClick={() => {
+                  if (estornando) return;
+                  setEstornoConfirmOpen(false);
+                }}
+                aria-label="Fechar"
+              />
+              <div className="relative w-full max-w-[520px] overflow-hidden rounded-3xl border border-white/15 bg-zinc-900/90 shadow-2xl">
+                <div className="border-b border-white/10 p-5">
+                  <p className="text-lg font-black text-white">Confirmar estorno</p>
+                  <p className="mt-2 text-sm text-zinc-300">
+                    Deseja realmente estornar {estornoIds.length > 1 ? `${estornoIds.length} faturas` : "esta fatura"}?
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-400">
+                    O pagamento sera removido, o saldo pendente sera recalculado e o status voltara para Pendente ou Vencido.
+                  </p>
+                </div>
+                <div className="flex justify-end gap-2 p-5">
+                  <button
+                    type="button"
+                    onClick={() => setEstornoConfirmOpen(false)}
+                    disabled={estornando}
+                    className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200 hover:bg-white/10 disabled:opacity-60"
+                  >
+                    Nao
+                  </button>
+                  <button
+                    type="button"
+                    onClick={confirmEstorno}
+                    disabled={estornando}
+                    className="rounded-2xl border border-zinc-400/25 bg-zinc-500/15 px-5 py-2.5 text-sm font-black text-zinc-100 hover:bg-zinc-500/25 disabled:opacity-60"
+                  >
+                    {estornando ? "Estornando..." : "Sim, estornar"}
                   </button>
                 </div>
               </div>
