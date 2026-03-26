@@ -69,6 +69,12 @@ function statusLabel(status: string) {
   if (s === "canceled") return "Cancelado";
   return "Pendente";
 }
+function statusMeta(status: string) {
+  const s = (status || "").toLowerCase();
+  if (s === "delivered") return { label: "Entregue", cls: "border-emerald-400/30 bg-emerald-500/15 text-emerald-200" };
+  if (s === "canceled") return { label: "Cancelado", cls: "border-zinc-400/30 bg-zinc-500/15 text-zinc-200" };
+  return { label: "Pendente", cls: "border-amber-400/30 bg-amber-500/15 text-amber-200" };
+}
 
 export default function ContratoVendaPage() {
   const [loading, setLoading] = useState(true);
@@ -119,7 +125,13 @@ export default function ContratoVendaPage() {
   const chartData = useMemo(() => filtered.slice(0, 10).map((c) => {
     const qty = (c.items || []).reduce((acc, i) => acc + n(i.quantity), 0);
     const delivered = (c.items || []).reduce((acc, i) => acc + n(i.delivered_quantity), 0);
-    return { code: c.code || `#${c.id}`, qty, delivered };
+    return {
+      code: c.code || `#${c.id}`,
+      qty,
+      delivered,
+      cliente: c.cliente?.name ?? "-",
+      produtor: c.produtor?.name ?? "-"
+    };
   }), [filtered]);
 
   const totalForm = useMemo(() => form.rows.reduce((acc, r) => Math.max(0, acc + (n(r.quantity) * n(r.price) - n(r.discount))), 0), [form.rows]);
@@ -236,7 +248,7 @@ export default function ContratoVendaPage() {
                   const max = Math.max(r.qty, r.delivered, 1);
                   const qtyPct = (r.qty / max) * 100;
                   const delPct = (r.delivered / max) * 100;
-                  return <div key={r.code} className="rounded-2xl border border-white/10 bg-zinc-950/30 p-3"><p className="mb-2 text-xs font-black text-zinc-300">{r.code}</p><div className="space-y-1"><div className="h-2 rounded bg-zinc-800"><div className="h-2 rounded bg-amber-400" style={{ width: `${qtyPct}%` }} /></div><div className="h-2 rounded bg-zinc-800"><div className="h-2 rounded bg-emerald-400" style={{ width: `${delPct}%` }} /></div></div><p className="mt-2 text-xs text-zinc-400">Contratada: {r.qty.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KG · Entregue: {r.delivered.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KG</p></div>;
+                  return <div key={r.code} className="rounded-2xl border border-white/10 bg-zinc-950/30 p-3"><p className="mb-1 text-xs font-black text-zinc-300">{r.code}</p><p className="mb-2 text-[11px] font-semibold text-zinc-400">{r.cliente} / {r.produtor}</p><div className="space-y-1"><div className="h-2 rounded bg-zinc-800"><div className="h-2 rounded bg-amber-400" style={{ width: `${qtyPct}%` }} /></div><div className="h-2 rounded bg-zinc-800"><div className="h-2 rounded bg-emerald-400" style={{ width: `${delPct}%` }} /></div></div><p className="mt-2 text-xs text-zinc-400">Contratada: {r.qty.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KG · Entregue: {r.delivered.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KG</p></div>;
                 })}
               </div>
             </div>
@@ -245,12 +257,13 @@ export default function ContratoVendaPage() {
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4">
             <div className="flex items-center justify-between"><p className="text-sm font-black text-white">Lista</p><p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} contrato(s)`}</p></div>
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden min-w-[1480px] grid-cols-[110px_100px_170px_170px_120px_120px_120px_120px_160px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid"><div>Status</div><div>Data</div><div>Contrato</div><div>Cliente</div><div>Vencimento</div><div>Quantidade</div><div>Preço</div><div>Valor</div><div className="text-right">Ações</div></div>
-              <div className="mt-3 space-y-2 xl:min-w-[1480px]">
+              <div className="hidden min-w-[1600px] grid-cols-[110px_100px_150px_180px_180px_120px_120px_120px_120px_160px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid"><div>Status</div><div>Data</div><div>Contrato</div><div>Cliente</div><div>Produtor</div><div>Vencimento</div><div>Quantidade</div><div>Preço</div><div>Valor</div><div className="text-right">Ações</div></div>
+              <div className="mt-3 space-y-2 xl:min-w-[1600px]">
                 {filtered.map((c) => {
                   const qty = (c.items || []).reduce((acc, i) => acc + n(i.quantity), 0);
                   const avgPrice = qty > 0 ? n(c.total_value) / qty : 0;
-                  return <div key={c.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3"><div className="grid grid-cols-1 gap-2 xl:grid-cols-[110px_100px_170px_170px_120px_120px_120px_120px_160px] xl:items-center xl:gap-3"><div className="text-sm font-black text-zinc-100">{statusLabel(c.status)}</div><div className="text-sm text-zinc-100">{d(c.date)}</div><div className="text-sm font-black text-zinc-100">{c.code || `#${c.id}`}</div><div className="truncate text-sm text-zinc-100">{c.cliente?.name ?? "-"}</div><div className="text-sm text-zinc-100">{d(c.due_date)}</div><div className="text-sm text-zinc-100">{qty.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KG</div><div className="text-sm text-zinc-100">{brMoney(avgPrice)}</div><div className="text-sm font-black text-zinc-100">{brMoney(n(c.total_value))}</div><div className="text-right"><button onClick={() => openEdit(c)} className="mr-1 rounded-xl border border-sky-400/25 bg-sky-500/15 px-3 py-1.5 text-[11px] font-black text-sky-100">Editar</button><button onClick={() => void remove(c.id)} className="rounded-xl border border-rose-400/25 bg-rose-500/15 px-3 py-1.5 text-[11px] font-black text-rose-100">Excluir</button></div></div></div>;
+                  const st = statusMeta(c.status);
+                  return <div key={c.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3"><div className="grid grid-cols-1 gap-2 xl:grid-cols-[110px_100px_150px_180px_180px_120px_120px_120px_120px_160px] xl:items-center xl:gap-3"><div><span className={`inline-flex rounded-full border px-2 py-1 text-[11px] font-black ${st.cls}`}>{st.label}</span></div><div className="text-sm text-zinc-100">{d(c.date)}</div><div className="text-sm font-black text-zinc-100">{c.code || `#${c.id}`}</div><div className="truncate text-sm text-zinc-100">{c.cliente?.name ?? "-"}</div><div className="truncate text-sm text-zinc-100">{c.produtor?.name ?? "-"}</div><div className="text-sm text-zinc-100">{d(c.due_date)}</div><div className="text-sm text-zinc-100">{qty.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KG</div><div className="text-sm text-zinc-100">{brMoney(avgPrice)}</div><div className="text-sm font-black text-zinc-100">{brMoney(n(c.total_value))}</div><div className="text-right"><div className="flex w-full flex-nowrap justify-end gap-1.5 whitespace-nowrap"><button onClick={() => openEdit(c)} className="rounded-xl border border-sky-400/25 bg-sky-500/10 p-2 text-sky-200 hover:bg-sky-500/20" title="Editar" aria-label="Editar"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg></button><button onClick={() => void remove(c.id)} className="rounded-xl border border-rose-400/25 bg-rose-500/10 p-2 text-rose-200 hover:bg-rose-500/20" title="Excluir" aria-label="Excluir"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg></button></div></div></div></div>;
                 })}
               </div>
             </div>
