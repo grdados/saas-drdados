@@ -61,6 +61,15 @@ function fmtSc(vKg: number, bagKg = 60) {
   return `${(vKg / bagKg).toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} SC`;
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 type FormState = {
   date: string;
   code: string;
@@ -561,7 +570,7 @@ export default function RomaneioPage() {
     const empreendimento = empreendimentos.find((e) => e.id === row.empreendimento_id)?.code ?? "-";
     const transportador =
       placasAtivas.find((p) => p.plate === (row.plate || "").toUpperCase())?.transportador?.name ?? "-";
-    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/><title>Romaneio ${row.code}</title><style>body{font-family:Arial,sans-serif;padding:16px;color:#111}h1{font-size:18px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}th{background:#f6f6f6}</style></head><body><h1>Romaneio ${row.code}</h1><table><tbody>
+    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/><title>Romaneio ${escapeHtml(row.code)}</title><style>body{font-family:Arial,sans-serif;padding:16px;color:#111}h1{font-size:18px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}th{background:#f6f6f6}</style></head><body><h1>Romaneio ${escapeHtml(row.code)}</h1><table><tbody>
     <tr><th>Data</th><td>${d(row.date)}</td><th>NFP</th><td>${row.nfp || "-"}</td></tr>
     <tr><th>Safra</th><td>${safra}</td><th>Operação</th><td>${operacoes.find((o)=>o.id===row.operacao_id)?.name ?? "-"}</td></tr>
     <tr><th>Produtor</th><td>${produtor}</td><th>Cliente</th><td>${cliente}</td></tr>
@@ -574,15 +583,30 @@ export default function RomaneioPage() {
     <tr><th>Umidade</th><td>${toViewWeight(n(row.humidity))} (${((n(row.humidity)/Math.max(n(row.gross_weight),1))*100).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}%)</td><th>Impureza</th><td>${toViewWeight(n(row.impurity))}</td></tr>
     <tr><th>Ardido</th><td>${toViewWeight(n(row.ardido))}</td><th>Outros</th><td>${toViewWeight(n(row.others))}</td></tr>
     </tbody></table></body></html>`;
-    const w = window.open("", "_blank", "noopener,noreferrer,width=1000,height=720");
+    const w = window.open("about:blank", "_blank", "width=1000,height=720");
     if (!w) return;
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-    window.setTimeout(() => {
-      w.print();
-    }, 120);
+    try {
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+      w.focus();
+      window.setTimeout(() => {
+        w.print();
+      }, 180);
+    } catch {
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      w.location.href = url;
+      window.setTimeout(() => {
+        try {
+          w.focus();
+          w.print();
+        } catch {
+          // noop
+        }
+      }, 260);
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    }
   }
 
   function save() {
@@ -633,15 +657,20 @@ export default function RomaneioPage() {
   const optionStyle = { backgroundColor: "#e5e7eb", color: "#111827" } as const;
 
   function openReport(title: string, body: string) {
-    const win = window.open("", "_blank", "noopener,noreferrer,width=1180,height=760");
+    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/><title>${escapeHtml(title)}</title><style>body{font-family:Arial,sans-serif;padding:16px;color:#111}.head{display:flex;justify-content:space-between;align-items:center;border:1px solid #ddd;padding:10px 12px;border-radius:10px}.muted{color:#666;font-size:12px}.kpi{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}.card{border:1px solid #ddd;border-radius:8px;padding:8px}.label{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.08em}.value{font-size:18px;font-weight:700;margin-top:4px}table{width:100%;border-collapse:collapse;margin-top:10px;font-size:12px}th,td{border:1px solid #e2e2e2;padding:6px 8px;text-align:left}th{background:#f7f7f7}.num{text-align:right;white-space:nowrap}</style></head><body><div class="head"><h1>${escapeHtml(title)}</h1><div class="muted">Emissão: ${new Date().toLocaleString("pt-BR")}</div></div>${body}</body></html>`;
+    const win = window.open("about:blank", "_blank", "width=1180,height=760");
     if (!win) return;
-    win.document.open();
-    win.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"/><title>${title}</title><style>body{font-family:Arial,sans-serif;padding:16px;color:#111}.head{display:flex;justify-content:space-between;align-items:center;border:1px solid #ddd;padding:10px 12px;border-radius:10px}.muted{color:#666;font-size:12px}.kpi{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}.card{border:1px solid #ddd;border-radius:8px;padding:8px}.label{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.08em}.value{font-size:18px;font-weight:700;margin-top:4px}table{width:100%;border-collapse:collapse;margin-top:10px;font-size:12px}th,td{border:1px solid #e2e2e2;padding:6px 8px;text-align:left}th{background:#f7f7f7}.num{text-align:right;white-space:nowrap}</style></head><body><div class="head"><h1>${title}</h1><div class="muted">Emissão: ${new Date().toLocaleString("pt-BR")}</div></div>${body}</body></html>`);
-    win.document.close();
-    win.focus();
-    window.setTimeout(() => {
-      win.print();
-    }, 120);
+    try {
+      win.document.open();
+      win.document.write(html);
+      win.document.close();
+      win.focus();
+    } catch {
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      win.location.href = url;
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    }
   }
 
   function reportResumoDiario() {
