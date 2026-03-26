@@ -1259,6 +1259,7 @@ export type Produtor = {
   uf: string;
   grupo: { id: number; name: string; cpf_cnpj?: string } | null;
   grupo_id?: number | null;
+  propriedades?: Array<{ id: number; name: string }> | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;

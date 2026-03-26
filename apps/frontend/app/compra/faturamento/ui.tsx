@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
+import { produtorDisplayLabel } from "@/lib/produtorLabel";
 import {
   createFaturamentoCompra,
   deleteFaturamentoCompra,
@@ -921,7 +922,7 @@ export default function FaturamentoCompraPage() {
               </select>
               <select value={reportProdutorId} onChange={(e) => setReportProdutorId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="" style={optionStyle}>Produtor</option>
-                {produtores.map((p) => (<option key={p.id} value={p.id} style={optionStyle}>{p.name}</option>))}
+                {produtores.map((p) => (<option key={p.id} value={p.id} style={optionStyle}>{produtorDisplayLabel(p)}</option>))}
               </select>
               <select value={reportCategoria} onChange={(e) => setReportCategoria(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="" style={optionStyle}>Categoria</option>
@@ -1152,7 +1153,7 @@ export default function FaturamentoCompraPage() {
                       <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Produtor</label>
                       <select value={formProdutorId} onChange={(e) => { const next = e.target.value === "" ? "" : Number(e.target.value); setFormProdutorId(next); setFormPedidoId(""); }} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                         <option value="" style={optionStyle}>Selecione</option>
-                        {produtoresDoGrupo.map((p) => (<option key={p.id} value={p.id} style={optionStyle}>{p.name}</option>))}
+                        {produtoresDoGrupo.map((p) => (<option key={p.id} value={p.id} style={optionStyle}>{produtorDisplayLabel(p)}</option>))}
                       </select>
                     </div>
 

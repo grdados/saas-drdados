@@ -70,7 +70,7 @@ class GrupoProdutorViewSet(CompanyScopedViewSet):
 
 
 class ProdutorViewSet(CompanyScopedViewSet):
-    queryset = models.Produtor.objects.select_related("company", "grupo")
+    queryset = models.Produtor.objects.select_related("company", "grupo").prefetch_related("propriedade_set", "propriedades")
     serializer_class = serializers.ProdutorSerializer
 
 

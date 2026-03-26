@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
+import { produtorDisplayLabel } from "@/lib/produtorLabel";
 import { toUpperText } from "@/lib/text";
 import {
   createPropriedade,
@@ -389,7 +390,7 @@ export default function PropriedadePage() {
                       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }))
                       .map((p) => (
                         <option key={p.id} value={p.id} style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
-                          {p.name}
+                          {produtorDisplayLabel(p)}
                         </option>
                       ))}
                   </select>
@@ -405,7 +406,7 @@ export default function PropriedadePage() {
                         const checked = formAllowedProdutores.includes(p.id);
                         return (
                           <label key={p.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-zinc-100">
-                            <span className="truncate">{p.name}</span>
+                            <span className="truncate">{produtorDisplayLabel(p)}</span>
                             <input
                               type="checkbox"
                               checked={checked}

@@ -94,6 +94,7 @@ class ProdutorSerializer(serializers.ModelSerializer):
     grupo_id = serializers.PrimaryKeyRelatedField(
         source="grupo", queryset=models.GrupoProdutor.objects.all(), allow_null=True, required=False
     )
+    propriedades = serializers.SerializerMethodField()
 
     class Meta:
         model = models.Produtor
@@ -111,10 +112,19 @@ class ProdutorSerializer(serializers.ModelSerializer):
             "uf",
             "grupo",
             "grupo_id",
+            "propriedades",
             "is_active",
             "created_at",
             "updated_at",
         ]
+
+    def get_propriedades(self, obj):
+        by_fk = getattr(obj, "propriedade_set", models.Propriedade.objects.none()).all()
+        by_m2m = getattr(obj, "propriedades", models.Propriedade.objects.none()).all()
+        merged = {}
+        for p in list(by_fk) + list(by_m2m):
+            merged[p.id] = {"id": p.id, "name": p.name}
+        return sorted(merged.values(), key=lambda x: x["name"])
 class ClienteSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Cliente

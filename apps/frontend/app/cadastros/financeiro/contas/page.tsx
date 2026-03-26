@@ -4,10 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
+import { produtorDisplayLabel } from "@/lib/produtorLabel";
 import { toUpperText } from "@/lib/text";
 import {
   Banco,
   ContaFinanceira,
+  Produtor,
   createConta,
   isApiError,
   listBancos,
@@ -15,8 +17,6 @@ import {
   listProdutores,
   updateConta
 } from "@/lib/api";
-
-type Produtor = { id: number; name: string };
 
 function IconPencil({ className = "h-4 w-4" }: { className?: string }) {
   return (
@@ -331,7 +331,9 @@ export default function ContasPage() {
                         <p className="truncate text-sm font-semibold text-zinc-200">{it.banco?.name ?? "—"}</p>
                       </div>
                       <div className="col-span-2 min-w-0">
-                        <p className="truncate text-sm font-semibold text-zinc-200">{it.produtor?.name ?? "—"}</p>
+                        <p className="truncate text-sm font-semibold text-zinc-200">
+                          {it.produtor ? produtorDisplayLabel(it.produtor) : "—"}
+                        </p>
                       </div>
                       <div className="col-span-2 text-right text-sm font-black text-zinc-100">
                         {it.saldo_inicial} / {it.limite}
@@ -419,7 +421,7 @@ export default function ContasPage() {
                       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }))
                       .map((p) => (
                         <option key={p.id} value={p.id} style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
-                          {p.name}
+                          {produtorDisplayLabel(p)}
                         </option>
                       ))}
                   </select>
