@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
+import { produtorDisplayLabel } from "@/lib/produtorLabel";
 import {
   ClienteGerencial,
   Cultivar,
@@ -338,34 +339,15 @@ export default function RomaneioPage() {
     });
   }, [propriedades, form.produtor_id]);
 
-  const produtorOptions = useMemo(() => {
-    const raw: Array<{ produtorId: number; propriedadeId: number; label: string }> = [];
-    for (const prop of propriedades) {
-      const ids = new Set<number>();
-      if (prop.produtor?.id) ids.add(prop.produtor.id);
-      for (const linked of prop.produtores ?? []) ids.add(linked.id);
-      for (const produtorId of ids) {
-        const produtor = produtores.find((p) => p.id === produtorId);
-        if (!produtor) continue;
-        raw.push({
-          produtorId,
-          propriedadeId: prop.id,
-          label: `${(produtor.name || "").trim()} - ${(prop.name || "").trim()}`
-        });
-      }
+  const produtoresComPropriedade = useMemo(() => {
+    const ids = new Set<number>();
+    for (const p of propriedades) {
+      if (p.produtor?.id) ids.add(p.produtor.id);
+      const linked = (p.produtores ?? []).map((x) => x.id);
+      for (const id of linked) ids.add(id);
     }
-
-    const countByLabel = new Map<string, number>();
-    for (const item of raw) countByLabel.set(item.label, (countByLabel.get(item.label) ?? 0) + 1);
-
-    return raw
-      .map((item) => ({
-        ...item,
-        // Evita opções visualmente idênticas quando existir produtor duplicado com mesmo nome/fazenda.
-        label: (countByLabel.get(item.label) ?? 0) > 1 ? `${item.label} (#${item.produtorId})` : item.label
-      }))
-      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
-  }, [propriedades, produtores]);
+    return produtores.filter((p) => ids.has(p.id));
+  }, [produtores, propriedades]);
 
   const contratosDoProdutor = useMemo(
     () =>
@@ -379,13 +361,6 @@ export default function RomaneioPage() {
         .sort((a, b) => (a.code || "").localeCompare(b.code || "", "pt-BR")),
     [contratos, form.produtor_id, form.safra_id]
   );
-
-  const selectedProdutorOptionValue = useMemo(() => {
-    if (!form.produtor_id) return "";
-    if (form.propriedade_id) return `${form.produtor_id}|${form.propriedade_id}`;
-    const first = produtorOptions.find((o) => String(o.produtorId) === form.produtor_id);
-    return first ? `${first.produtorId}|${first.propriedadeId}` : "";
-  }, [form.produtor_id, form.propriedade_id, produtorOptions]);
 
   const empreendimentosFiltrados = useMemo(
     () =>
@@ -680,7 +655,7 @@ export default function RomaneioPage() {
                 <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-300">Dados da Colheita</p>
                   <div className="grid gap-3 lg:grid-cols-5">
-                    <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Produtor</label><select value={selectedProdutorOptionValue} onChange={(e) => { const raw = e.target.value; if (!raw) { setForm((prev) => ({ ...prev, produtor_id: "", propriedade_id: "", contrato_id: "", empreendimento_id: "", talhao_id: "" })); return; } const [produtorId, propriedadeId] = raw.split("|"); setForm((prev) => ({ ...prev, produtor_id: produtorId || "", propriedade_id: propriedadeId || "", contrato_id: "", empreendimento_id: "", talhao_id: "" })); }} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{produtorOptions.map((opt) => <option key={`${opt.produtorId}-${opt.propriedadeId}`} value={`${opt.produtorId}|${opt.propriedadeId}`} style={optionStyle}>{opt.label}</option>)}</select></div>
+                    <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Produtor</label><select value={form.produtor_id} onChange={(e) => setForm((prev) => ({ ...prev, produtor_id: e.target.value, propriedade_id: "", contrato_id: "", empreendimento_id: "", talhao_id: "" }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{produtoresComPropriedade.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{produtorDisplayLabel(p)}</option>)}</select></div>
                     <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Propriedade</label><select value={form.propriedade_id} onChange={(e) => setForm((prev) => ({ ...prev, propriedade_id: e.target.value, empreendimento_id: "", talhao_id: "" }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{propriedadesDoProdutor.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{p.name}</option>)}</select></div>
                     <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Contrato</label><select value={form.contrato_id} onChange={(e) => setField("contrato_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{contratosDoProdutor.map((c) => <option key={c.id} value={c.id} style={optionStyle}>{c.code}</option>)}</select></div>
                     <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Empreendimento</label><select value={form.empreendimento_id} onChange={(e) => setField("empreendimento_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{empreendimentosFiltrados.map((e) => <option key={e.id} value={e.id} style={optionStyle}>{e.code}</option>)}</select></div>

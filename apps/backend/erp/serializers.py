@@ -95,7 +95,6 @@ class ProdutorSerializer(serializers.ModelSerializer):
         source="grupo", queryset=models.GrupoProdutor.objects.all(), allow_null=True, required=False
     )
     propriedades = serializers.SerializerMethodField()
-    display_name = serializers.SerializerMethodField()
 
     class Meta:
         model = models.Produtor
@@ -114,30 +113,18 @@ class ProdutorSerializer(serializers.ModelSerializer):
             "grupo",
             "grupo_id",
             "propriedades",
-            "display_name",
             "is_active",
             "created_at",
             "updated_at",
         ]
 
-    @staticmethod
-    def _merged_propriedades(obj):
+    def get_propriedades(self, obj):
         by_fk = getattr(obj, "propriedade_set", models.Propriedade.objects.none()).all()
         by_m2m = getattr(obj, "propriedades", models.Propriedade.objects.none()).all()
         merged = {}
         for p in list(by_fk) + list(by_m2m):
             merged[p.id] = {"id": p.id, "name": p.name}
         return sorted(merged.values(), key=lambda x: x["name"])
-
-    def get_propriedades(self, obj):
-        return self._merged_propriedades(obj)
-
-    def get_display_name(self, obj):
-        props = self._merged_propriedades(obj)
-        base = (obj.name or "").strip()
-        if not props:
-            return base
-        return f"{base} - {props[0]['name']}"
 class ClienteSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Cliente
@@ -258,11 +245,7 @@ class ContaSerializer(serializers.ModelSerializer):
     def get_produtor(self, obj):
         if not getattr(obj, "produtor_id", None):
             return None
-        return {
-            "id": obj.produtor_id,
-            "name": obj.produtor.name,
-            "display_name": ProdutorSerializer().get_display_name(obj.produtor),
-        }
+        return {"id": obj.produtor_id, "name": obj.produtor.name}
 MoedaSerializer = _mk_serializer(models.Moeda)
 CaixaSerializer = _mk_serializer(models.Caixa)
 
