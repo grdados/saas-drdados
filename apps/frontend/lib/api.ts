@@ -742,6 +742,68 @@ export function createFornecedorGerencial(
     token
   );
 }
+
+export type Transportador = {
+  id: number;
+  name: string;
+  placas?: Array<{ id: number; plate: string; is_active: boolean }>;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export function listTransportadores(token: string) {
+  return request<Transportador[]>("/api/erp/transportadores/", { method: "GET" }, token);
+}
+
+export function createTransportador(token: string, payload: { name: string; is_active?: boolean }) {
+  return request<Transportador>("/api/erp/transportadores/", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+
+export function updateTransportador(token: string, id: number, payload: { name?: string; is_active?: boolean }) {
+  return request<Transportador>(
+    `/api/erp/transportadores/${id}/`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  );
+}
+
+export type TransportadorPlaca = {
+  id: number;
+  transportador: { id: number; name: string } | null;
+  transportador_id?: number;
+  plate: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export function listTransportadorPlacas(token: string) {
+  return request<TransportadorPlaca[]>("/api/erp/transportadores-placas/", { method: "GET" }, token);
+}
+
+export function createTransportadorPlaca(
+  token: string,
+  payload: { transportador_id: number; plate: string; is_active?: boolean }
+) {
+  return request<TransportadorPlaca>(
+    "/api/erp/transportadores-placas/",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  );
+}
+
+export function updateTransportadorPlaca(
+  token: string,
+  id: number,
+  payload: { transportador_id?: number; plate?: string; is_active?: boolean }
+) {
+  return request<TransportadorPlaca>(
+    `/api/erp/transportadores-placas/${id}/`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  );
+}
 export function updateFornecedorGerencial(
   token: string,
   id: number,

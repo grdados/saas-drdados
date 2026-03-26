@@ -13,6 +13,7 @@ router.register(r"produtores", views.ProdutorViewSet, basename="produtores")
 router.register(r"clientes", views.ClienteViewSet, basename="clientes")
 router.register(r"fornecedores", views.FornecedorViewSet, basename="fornecedores")
 router.register(r"transportadores", views.TransportadorViewSet, basename="transportadores")
+router.register(r"transportadores-placas", views.TransportadorPlacaViewSet, basename="transportadores_placas")
 router.register(r"centros-custo", views.CentroCustoViewSet, basename="centros_custo")
 router.register(r"operacoes", views.OperacaoViewSet, basename="operacoes")
 

@@ -7,6 +7,7 @@ import { getAccessToken } from "@/lib/auth";
 import { produtorDisplayLabel } from "@/lib/produtorLabel";
 import {
   ClienteGerencial,
+  Deposito,
   Cultivar,
   ContratoVenda,
   Operacao,
@@ -14,15 +15,18 @@ import {
   Propriedade,
   Safra,
   Talhao,
+  TransportadorPlaca,
   isApiError,
   listClientesGerencial,
   listContratosVenda,
   listCultivares,
+  listDepositos,
   listOperacoes,
   listProdutores,
   listPropriedades,
   listSafras,
-  listTalhoes
+  listTalhoes,
+  listTransportadorPlacas
 } from "@/lib/api";
 import { formatDateBR } from "@/lib/locale";
 import {
@@ -121,6 +125,8 @@ export default function RomaneioPage() {
   const [talhoes, setTalhoes] = useState<Talhao[]>([]);
   const [clientes, setClientes] = useState<ClienteGerencial[]>([]);
   const [cultivares, setCultivares] = useState<Cultivar[]>([]);
+  const [depositos, setDepositos] = useState<Deposito[]>([]);
+  const [placasTransportador, setPlacasTransportador] = useState<TransportadorPlaca[]>([]);
   const [filterSafra, setFilterSafra] = useState<number | "">("");
 
   useEffect(() => {
@@ -135,7 +141,7 @@ export default function RomaneioPage() {
     setLoading(true);
     setError("");
     try {
-      const [a, b, c, d, e, f, g, h] = await Promise.all([
+      const [a, b, c, d, e, f, g, h, i, j] = await Promise.all([
         listSafras(token),
         listProdutores(token),
         listContratosVenda(token),
@@ -143,7 +149,9 @@ export default function RomaneioPage() {
         listPropriedades(token),
         listTalhoes(token),
         listClientesGerencial(token),
-        listCultivares(token)
+        listCultivares(token),
+        listDepositos(token),
+        listTransportadorPlacas(token)
       ]);
       setSafras(a);
       setProdutores(b);
@@ -153,6 +161,8 @@ export default function RomaneioPage() {
       setTalhoes(f);
       setClientes(g);
       setCultivares(h);
+      setDepositos(i);
+      setPlacasTransportador(j);
     } catch (err) {
       if (isApiError(err) && err.status === 401) {
         window.location.href = "/login";
@@ -327,6 +337,22 @@ export default function RomaneioPage() {
         .filter((o) => o.kind === "remessa_deposito" || o.kind === "a_fixar")
         .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
     [operacoes]
+  );
+
+  const depositosGraos = useMemo(
+    () =>
+      depositos
+        .filter((d) => d.is_active && d.tipo === "graos")
+        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+    [depositos]
+  );
+
+  const placasAtivas = useMemo(
+    () =>
+      placasTransportador
+        .filter((p) => p.is_active)
+        .sort((a, b) => a.plate.localeCompare(b.plate, "pt-BR")),
+    [placasTransportador]
   );
 
   const propriedadesDoProdutor = useMemo(() => {
@@ -667,14 +693,14 @@ export default function RomaneioPage() {
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-300">Dados Depósito</p>
                   <div className="grid gap-3 lg:grid-cols-2">
                     <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Cliente</label><select value={form.cliente_id} onChange={(e) => setField("cliente_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{clientes.map((c) => <option key={c.id} value={c.id} style={optionStyle}>{c.name}</option>)}</select></div>
-                    <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Depósito</label><input value={form.deposito} onChange={(e) => setField("deposito", e.target.value.toUpperCase())} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100" /></div>
+                    <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Depósito</label><select value={form.deposito} onChange={(e) => setField("deposito", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{depositosGraos.map((dep) => <option key={dep.id} value={dep.name} style={optionStyle}>{dep.name}</option>)}</select></div>
                   </div>
                 </section>
 
                 <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-300">Dados do Transportador</p>
                   <div className="grid gap-3 lg:grid-cols-3">
-                    <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Placa</label><input value={form.plate} onChange={(e) => setField("plate", e.target.value.toUpperCase())} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100" /></div>
+                    <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Placa</label><select value={form.plate} onChange={(e) => setField("plate", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{placasAtivas.map((pl) => <option key={pl.id} value={pl.plate} style={optionStyle}>{pl.plate}</option>)}</select></div>
                     <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Motorista</label><input value={form.driver} onChange={(e) => setField("driver", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100" /></div>
                     <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">CPF</label><input value={form.driver_cpf} onChange={(e) => setField("driver_cpf", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100" /></div>
                   </div>

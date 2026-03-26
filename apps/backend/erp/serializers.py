@@ -159,7 +159,57 @@ class FornecedorSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-TransportadorSerializer = _mk_serializer(models.Transportador)
+
+
+class TransportadorPlacaSerializer(serializers.ModelSerializer):
+    transportador = serializers.SerializerMethodField()
+    transportador_id = serializers.PrimaryKeyRelatedField(
+        source="transportador",
+        queryset=models.Transportador.objects.all(),
+        allow_null=False,
+        required=True,
+    )
+
+    class Meta:
+        model = models.TransportadorPlaca
+        fields = [
+            "id",
+            "transportador",
+            "transportador_id",
+            "plate",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_transportador(self, obj):
+        if not getattr(obj, "transportador_id", None):
+            return None
+        return {"id": obj.transportador_id, "name": obj.transportador.name}
+
+    def validate(self, attrs):
+        company = get_current_company(self.context["request"].user) if self.context.get("request") else None
+        _validate_fk_company(attrs.get("transportador"), company, "transportador_id")
+        return attrs
+
+
+class TransportadorSerializer(serializers.ModelSerializer):
+    placas = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.Transportador
+        fields = ["id", "name", "placas", "is_active", "created_at", "updated_at"]
+
+    def get_placas(self, obj):
+        rel = getattr(obj, "placas", None)
+        if rel is None:
+            return []
+        return [
+            {"id": p.id, "plate": p.plate, "is_active": p.is_active}
+            for p in rel.all().order_by("plate")
+        ]
+
+
 CentroCustoSerializer = _mk_serializer(models.CentroCusto)
 
 

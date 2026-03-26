@@ -107,6 +107,30 @@ class Transportador(CompanyNamedModel):
     pass
 
 
+class TransportadorPlaca(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    transportador = models.ForeignKey("erp.Transportador", related_name="placas", on_delete=models.CASCADE)
+    plate = models.CharField(max_length=16)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["plate"]
+        constraints = [
+            models.UniqueConstraint(fields=["company", "plate"], name="erp_transportador_placa_company_plate_uniq"),
+        ]
+        indexes = [
+            models.Index(fields=["company", "plate"]),
+            models.Index(fields=["company", "transportador"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        if isinstance(self.plate, str) and self.plate:
+            self.plate = self.plate.strip().upper()
+        return super().save(*args, **kwargs)
+
+
 class CentroCusto(CompanyNamedModel):
     pass
 

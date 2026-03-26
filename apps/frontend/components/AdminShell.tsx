@@ -350,6 +350,7 @@ export function AdminShell({
                 { label: "Produtores", href: "/cadastros/gerencial/produtor" },
                 { label: "Propriedades", href: "/cadastros/gerencial/propriedade" },
                 { label: "Talhões", href: "/cadastros/gerencial/talhao" },
+                { label: "Transportadoras", href: "/cadastros/gerencial/transportadores" },
                 { label: "Clientes", href: "/cadastros/gerencial/clientes" },
                 { label: "Fornecedores", href: "/cadastros/gerencial/fornecedores" }
               ]

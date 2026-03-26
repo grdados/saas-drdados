@@ -85,7 +85,7 @@ class FornecedorViewSet(CompanyScopedViewSet):
 
 
 class TransportadorViewSet(CompanyScopedViewSet):
-    queryset = models.Transportador.objects.select_related("company")
+    queryset = models.Transportador.objects.select_related("company").prefetch_related("placas")
     serializer_class = serializers.TransportadorSerializer
 
 
@@ -256,3 +256,8 @@ class BombaCombustivelViewSet(CompanyScopedViewSet):
 class DepositoViewSet(CompanyScopedViewSet):
     queryset = models.Deposito.objects.select_related("company")
     serializer_class = serializers.DepositoSerializer
+
+
+class TransportadorPlacaViewSet(CompanyScopedViewSet):
+    queryset = models.TransportadorPlaca.objects.select_related("company", "transportador")
+    serializer_class = serializers.TransportadorPlacaSerializer
