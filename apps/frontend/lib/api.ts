@@ -308,6 +308,8 @@ export type Cultivar = {
   brand: string;
   cultura: { id: number; name: string } | null;
   cultura_id?: number | null;
+  fabricante: { id: number; name: string } | null;
+  fabricante_id?: number | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -322,6 +324,7 @@ export function createCultivar(
   payload: Partial<
     Pick<Cultivar, "name" | "description" | "cycle" | "maturity" | "region_indicated" | "brand" | "is_active"> & {
       cultura_id: number | null;
+      fabricante_id: number | null;
     }
   >
 ) {
@@ -341,6 +344,7 @@ export function updateCultivar(
   payload: Partial<
     Pick<Cultivar, "name" | "description" | "cycle" | "maturity" | "region_indicated" | "brand" | "is_active"> & {
       cultura_id: number | null;
+      fabricante_id: number | null;
     }
   >
 ) {

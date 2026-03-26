@@ -4,7 +4,17 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
-import { createCultivar, Cultivar, Cultura, isApiError, listCultivares, listCulturas, updateCultivar } from "@/lib/api";
+import {
+  createCultivar,
+  Cultivar,
+  Cultura,
+  Fabricante,
+  isApiError,
+  listCultivares,
+  listCulturas,
+  listFabricantes,
+  updateCultivar
+} from "@/lib/api";
 import { toUpperText } from "@/lib/text";
 
 function prettyError(err: unknown): string {
@@ -85,11 +95,12 @@ export default function CultivaresPage() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Cultivar[]>([]);
   const [culturas, setCulturas] = useState<Cultura[]>([]);
+  const [fabricantes, setFabricantes] = useState<Fabricante[]>([]);
   const [error, setError] = useState("");
 
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("all");
-  const [brandFilter, setBrandFilter] = useState("");
+  const [fabricanteFilter, setFabricanteFilter] = useState<string>("");
   const [culturaFilter, setCulturaFilter] = useState<string>("");
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -102,7 +113,7 @@ export default function CultivaresPage() {
   const [formCycle, setFormCycle] = useState("");
   const [formMaturity, setFormMaturity] = useState("");
   const [formRegion, setFormRegion] = useState("");
-  const [formBrand, setFormBrand] = useState("");
+  const [formFabricanteId, setFormFabricanteId] = useState<string>("");
   const [formCulturaId, setFormCulturaId] = useState<string>("");
   const [formActive, setFormActive] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -111,17 +122,16 @@ export default function CultivaresPage() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const bq = brandFilter.trim().toLowerCase();
     return [...items]
       .filter((c) => {
         if (activeFilter === "active" && !c.is_active) return false;
         if (activeFilter === "inactive" && c.is_active) return false;
-        if (bq && !c.brand.toLowerCase().includes(bq)) return false;
+        if (fabricanteFilter && String(c.fabricante?.id ?? "") !== fabricanteFilter) return false;
         if (culturaFilter && String(c.cultura?.id ?? "") !== culturaFilter) return false;
         if (!q) return true;
         return (
           c.name.toLowerCase().includes(q) ||
-          c.brand.toLowerCase().includes(q) ||
+          (c.fabricante?.name ?? c.brand ?? "").toLowerCase().includes(q) ||
           c.region_indicated.toLowerCase().includes(q) ||
           c.maturity.toLowerCase().includes(q) ||
           c.cycle.toLowerCase().includes(q) ||
@@ -129,7 +139,7 @@ export default function CultivaresPage() {
         );
       })
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }));
-  }, [items, query, activeFilter, brandFilter, culturaFilter]);
+  }, [items, query, activeFilter, fabricanteFilter, culturaFilter]);
 
   async function refresh() {
     const token = getAccessToken();
@@ -137,9 +147,10 @@ export default function CultivaresPage() {
     setError("");
     setLoading(true);
     try {
-      const [data, culturasData] = await Promise.all([listCultivares(token), listCulturas(token)]);
+      const [data, culturasData, fabricantesData] = await Promise.all([listCultivares(token), listCulturas(token), listFabricantes(token)]);
       setItems(data);
       setCulturas(culturasData);
+      setFabricantes(fabricantesData);
     } catch (err) {
       if (isApiError(err) && err.status === 401) {
         window.location.href = "/login";
@@ -163,7 +174,7 @@ export default function CultivaresPage() {
     setFormCycle("");
     setFormMaturity("");
     setFormRegion("");
-    setFormBrand("");
+    setFormFabricanteId("");
     setFormCulturaId("");
     setFormActive(true);
     setSaveMessage("");
@@ -179,7 +190,13 @@ export default function CultivaresPage() {
     setFormCycle(c.cycle ?? "");
     setFormMaturity(c.maturity ?? "");
     setFormRegion(c.region_indicated ?? "");
-    setFormBrand(c.brand ?? "");
+    setFormFabricanteId(
+      c.fabricante?.id
+        ? String(c.fabricante.id)
+        : fabricantes.find((f) => f.name.toLowerCase() === (c.brand ?? "").toLowerCase())?.id
+          ? String(fabricantes.find((f) => f.name.toLowerCase() === (c.brand ?? "").toLowerCase())?.id)
+          : ""
+    );
     setFormCulturaId(c.cultura?.id ? String(c.cultura.id) : "");
     setFormActive(Boolean(c.is_active));
     setSaveMessage("");
@@ -197,14 +214,16 @@ export default function CultivaresPage() {
     setSaving(true);
     setSaveMessage("");
     try {
+      const fabricanteName = fabricantes.find((f) => f.id === Number(formFabricanteId || 0))?.name ?? "";
       const payload = {
         name: formName.trim(),
         description: formDesc,
         cycle: formCycle,
         maturity: formMaturity,
         region_indicated: formRegion,
-        brand: formBrand,
+        brand: fabricanteName,
         cultura_id: formCulturaId ? Number(formCulturaId) : null,
+        fabricante_id: formFabricanteId ? Number(formFabricanteId) : null,
         is_active: formActive
       };
 
@@ -255,7 +274,7 @@ export default function CultivaresPage() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-black text-white">Filtros</p>
-                <p className="mt-1 text-xs text-zinc-400">Refine por nome/marca e status.</p>
+                <p className="mt-1 text-xs text-zinc-400">Refine por nome/fabricante/cultura e status.</p>
               </div>
               <div className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</div>
             </div>
@@ -264,15 +283,21 @@ export default function CultivaresPage() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar (cultivar/marca/cultura/ciclo)..."
+                placeholder="Buscar (cultivar/fabricante/cultura/ciclo)..."
                 className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
               />
-              <input
-                value={brandFilter}
-                onChange={(e) => setBrandFilter(e.target.value)}
-                placeholder="Filtrar por marca..."
-                className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
-              />
+              <select
+                value={fabricanteFilter}
+                onChange={(e) => setFabricanteFilter(e.target.value)}
+                className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50"
+              >
+                <option value="" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>Todos fabricantes</option>
+                {fabricantes.map((f) => (
+                  <option key={f.id} value={f.id} style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
+                    {f.name}
+                  </option>
+                ))}
+              </select>
               <select
                 value={culturaFilter}
                 onChange={(e) => setCulturaFilter(e.target.value)}
@@ -308,7 +333,7 @@ export default function CultivaresPage() {
             <div className="mt-3 hidden grid-cols-12 gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 sm:grid">
               <div className="col-span-3">Cultivar</div>
               <div className="col-span-2">Cultura</div>
-              <div className="col-span-2">Marca</div>
+              <div className="col-span-2">Fabricante</div>
               <div className="col-span-2">Ciclo</div>
               <div className="col-span-2">Maturidade</div>
               <div className="col-span-1 text-right">Status</div>
@@ -327,7 +352,7 @@ export default function CultivaresPage() {
                           <p className="mt-0.5 text-xs font-semibold text-zinc-400">ID: {c.id}</p>
                         </div>
                         <div className="col-span-2 min-w-0"><p className="truncate text-sm font-semibold text-zinc-200">{c.cultura?.name || "-"}</p></div>
-                        <div className="col-span-2 min-w-0"><p className="truncate text-sm font-semibold text-zinc-200">{c.brand || "-"}</p></div>
+                        <div className="col-span-2 min-w-0"><p className="truncate text-sm font-semibold text-zinc-200">{c.fabricante?.name ?? c.brand ?? "-"}</p></div>
                         <div className="col-span-2 min-w-0"><p className="truncate text-sm font-semibold text-zinc-200">{c.cycle || "-"}</p></div>
                         <div className="col-span-2 min-w-0"><p className="truncate text-sm font-semibold text-zinc-200">{c.maturity || "-"}</p></div>
                         <div className="col-span-1 text-right">
@@ -364,8 +389,11 @@ export default function CultivaresPage() {
                 </div>
 
                 <div className="grid gap-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Marca</label>
-                  <input value={formBrand} onChange={(e) => setFormBrand(toUpperText(e.target.value))} placeholder="Ex: Bayer" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50" />
+                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Fabricante</label>
+                  <select value={formFabricanteId} onChange={(e) => setFormFabricanteId(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                    <option value="" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>Selecione</option>
+                    {fabricantes.map((f) => <option key={f.id} value={f.id} style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>{f.name}</option>)}
+                  </select>
                 </div>
 
                 <div className="grid gap-2">
