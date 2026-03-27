@@ -259,38 +259,56 @@ export default function ContratoVendaPage() {
           </section>
 
           <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-            <div className="rounded-3xl border border-accent-400/30 bg-accent-500/10 p-3.5"><p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Valor total contratos</p><p className="mt-1.5 text-[30px] font-black leading-none text-white">{brMoney(cards.totalValue)}</p></div>
-            <div className="rounded-3xl border border-white/15 bg-white/5 p-3.5"><p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Quantidade de contratos</p><p className="mt-1.5 text-[30px] font-black leading-none text-white">{cards.qtyContracts}</p></div>
-            <div className="rounded-3xl border border-sky-400/30 bg-sky-500/10 p-3.5"><p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Quantidade ({viewUnitLabel})</p><p className="mt-1.5 text-[30px] font-black leading-tight text-white">{formatViewUnit(cards.qtyKg)}</p></div>
-            <div className="rounded-3xl border border-white/15 bg-white/5 p-3.5"><p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Nº de contratos</p><p className="mt-1.5 text-[30px] font-black leading-none text-white">{cards.qtyContracts}</p></div>
-            <div className="rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-3.5"><p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Nº contratos cumpridos</p><p className="mt-1.5 text-[30px] font-black leading-none text-white">{cards.done}</p></div>
-            <div className="rounded-3xl border border-amber-400/30 bg-amber-500/10 p-3.5"><p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Nº contratos pendentes</p><p className="mt-1.5 text-[30px] font-black leading-none text-white">{cards.pending}</p></div>
+            <div className="h-[112px] rounded-3xl border border-accent-400/30 bg-accent-500/10 p-3">
+              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">Valor total contratos</p>
+              <p className="mt-2 text-[20px] font-black leading-[1.02] text-white break-words">{brMoney(cards.totalValue)}</p>
+            </div>
+            <div className="h-[112px] rounded-3xl border border-white/15 bg-white/5 p-3">
+              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">Quantidade de contratos</p>
+              <p className="mt-2 text-[20px] font-black leading-[1.02] text-white">{cards.qtyContracts}</p>
+            </div>
+            <div className="h-[112px] rounded-3xl border border-sky-400/30 bg-sky-500/10 p-3">
+              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">Quantidade ({viewUnitLabel})</p>
+              <p className="mt-2 text-[20px] font-black leading-[1.04] text-white break-words">{formatViewUnit(cards.qtyKg)}</p>
+            </div>
+            <div className="h-[112px] rounded-3xl border border-white/15 bg-white/5 p-3">
+              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">Nº de contratos</p>
+              <p className="mt-2 text-[20px] font-black leading-[1.02] text-white">{cards.qtyContracts}</p>
+            </div>
+            <div className="h-[112px] rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-3">
+              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">Nº contratos cumpridos</p>
+              <p className="mt-2 text-[20px] font-black leading-[1.02] text-white">{cards.done}</p>
+            </div>
+            <div className="h-[112px] rounded-3xl border border-amber-400/30 bg-amber-500/10 p-3">
+              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">Nº contratos pendentes</p>
+              <p className="mt-2 text-[20px] font-black leading-[1.02] text-white">{cards.pending}</p>
+            </div>
           </section>
 
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-4">
-            <p className="text-sm font-black text-white">Quantidade contratada x entregue</p>
-            <div className="mt-3 overflow-x-auto">
+          <section className="rounded-3xl border border-white/10 bg-white/5 p-3.5">
+            <p className="text-[13px] font-black text-white">Quantidade contratada x entregue</p>
+            <div className="mt-2.5 overflow-x-auto">
               <div className="min-w-[760px] space-y-2">
                 {chartData.map((r) => {
                   const max = Math.max(r.qty, r.delivered, 1);
                   const qtyPct = (r.qty / max) * 100;
                   const delPct = (r.delivered / max) * 100;
-                  return <div key={r.code} className="rounded-2xl border border-white/10 bg-zinc-950/30 p-3"><p className="mb-1 text-xs font-black text-zinc-300">{r.code}</p><p className="mb-2 text-[11px] font-semibold text-zinc-400">{r.cliente} / {r.produtor}</p><div className="space-y-1"><div className="h-2 rounded bg-zinc-800"><div className="h-2 rounded bg-amber-400" style={{ width: `${qtyPct}%` }} /></div><div className="h-2 rounded bg-zinc-800"><div className="h-2 rounded bg-emerald-400" style={{ width: `${delPct}%` }} /></div></div><p className="mt-2 text-xs text-zinc-400">Contratada: {formatViewUnit(r.qty)} · Entregue: {formatViewUnit(r.delivered)}</p></div>;
+                  return <div key={r.code} className="rounded-2xl border border-white/10 bg-zinc-950/30 p-2.5"><p className="mb-1 text-[11px] font-black text-zinc-300">{r.code}</p><p className="mb-2 text-[10px] font-semibold text-zinc-400">{r.cliente} / {r.produtor}</p><div className="space-y-1"><div className="h-2 rounded bg-zinc-800"><div className="h-2 rounded bg-amber-400" style={{ width: `${qtyPct}%` }} /></div><div className="h-2 rounded bg-zinc-800"><div className="h-2 rounded bg-emerald-400" style={{ width: `${delPct}%` }} /></div></div><p className="mt-2 text-[11px] text-zinc-400">Contratada: {formatViewUnit(r.qty)} · Entregue: {formatViewUnit(r.delivered)}</p></div>;
                 })}
               </div>
             </div>
           </section>
 
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-4">
-            <div className="flex items-center justify-between"><p className="text-sm font-black text-white">Lista</p><p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} contrato(s)`}</p></div>
-            <div className="mt-3 overflow-x-auto">
-              <div className="hidden min-w-[1600px] grid-cols-[110px_100px_150px_180px_180px_120px_120px_120px_120px_160px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid"><div>Status</div><div>Data</div><div>Contrato</div><div>Cliente</div><div>Produtor</div><div>Vencimento</div><div>Quantidade</div><div>Preço</div><div>Valor</div><div className="text-right">Ações</div></div>
-              <div className="mt-3 space-y-2 xl:min-w-[1600px]">
+          <section className="rounded-3xl border border-white/10 bg-white/5 p-3.5">
+            <div className="flex items-center justify-between"><p className="text-[13px] font-black text-white">Lista</p><p className="text-[11px] font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} contrato(s)`}</p></div>
+            <div className="mt-2.5 overflow-x-auto">
+              <div className="hidden min-w-[1480px] grid-cols-[96px_88px_132px_170px_170px_110px_112px_110px_118px_110px] gap-2.5 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400 xl:grid"><div>Status</div><div>Data</div><div>Contrato</div><div>Cliente</div><div>Produtor</div><div>Vencimento</div><div>Quantidade</div><div>Preço</div><div>Valor</div><div className="text-right">Ações</div></div>
+              <div className="mt-2.5 space-y-2 xl:min-w-[1480px]">
                 {filtered.map((c) => {
                   const qty = (c.items || []).reduce((acc, i) => acc + n(i.quantity), 0);
                   const avgPrice = qty > 0 ? n(c.total_value) / qty : 0;
                   const st = statusMeta(c.status);
-                  return <div key={c.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3"><div className="grid grid-cols-1 gap-2 xl:grid-cols-[110px_100px_150px_180px_180px_120px_120px_120px_120px_160px] xl:items-center xl:gap-3"><div><span className={`inline-flex rounded-full border px-2 py-1 text-[11px] font-black ${st.cls}`}>{st.label}</span></div><div className="text-sm text-zinc-100">{d(c.date)}</div><div className="text-sm font-black text-zinc-100">{c.code || `#${c.id}`}</div><div className="truncate text-sm text-zinc-100">{c.cliente?.name ?? "-"}</div><div className="truncate text-sm text-zinc-100">{c.produtor?.name ?? "-"}</div><div className="text-sm text-zinc-100">{d(c.due_date)}</div><div className="text-sm text-zinc-100">{formatViewUnit(qty)}</div><div className="text-sm text-zinc-100">{brMoney(avgPrice)}</div><div className="text-sm font-black text-zinc-100">{brMoney(n(c.total_value))}</div><div className="text-right"><div className="flex w-full flex-nowrap justify-end gap-1.5 whitespace-nowrap"><button onClick={() => openEdit(c)} className="rounded-xl border border-sky-400/25 bg-sky-500/10 p-2 text-sky-200 hover:bg-sky-500/20" title="Editar" aria-label="Editar"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg></button><button onClick={() => void remove(c.id)} className="rounded-xl border border-rose-400/25 bg-rose-500/10 p-2 text-rose-200 hover:bg-rose-500/20" title="Excluir" aria-label="Excluir"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg></button></div></div></div></div>;
+                  return <div key={c.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5"><div className="grid grid-cols-1 gap-2 xl:grid-cols-[96px_88px_132px_170px_170px_110px_112px_110px_118px_110px] xl:items-center xl:gap-2.5"><div><span className={`inline-flex rounded-full border px-2 py-1 text-[10px] font-black ${st.cls}`}>{st.label}</span></div><div className="text-[13px] text-zinc-100">{d(c.date)}</div><div className="text-[13px] font-black text-zinc-100">{c.code || `#${c.id}`}</div><div className="truncate text-[13px] text-zinc-100">{c.cliente?.name ?? "-"}</div><div className="truncate text-[13px] text-zinc-100">{c.produtor?.name ?? "-"}</div><div className="text-[13px] text-zinc-100">{d(c.due_date)}</div><div className="text-[13px] text-zinc-100">{formatViewUnit(qty)}</div><div className="text-[13px] text-zinc-100">{brMoney(avgPrice)}</div><div className="text-[13px] font-black text-zinc-100">{brMoney(n(c.total_value))}</div><div className="text-right"><div className="flex w-full flex-nowrap justify-end gap-1.5 whitespace-nowrap"><button onClick={() => openEdit(c)} className="rounded-lg border border-sky-400/25 bg-sky-500/10 p-1.5 text-sky-200 hover:bg-sky-500/20" title="Editar" aria-label="Editar"><svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg></button><button onClick={() => void remove(c.id)} className="rounded-lg border border-rose-400/25 bg-rose-500/10 p-1.5 text-rose-200 hover:bg-rose-500/20" title="Excluir" aria-label="Excluir"><svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg></button></div></div></div></div>;
                 })}
               </div>
             </div>
