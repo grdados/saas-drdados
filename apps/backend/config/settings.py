@@ -91,6 +91,7 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+BACKUP_STORAGE_DIR = BASE_DIR / os.getenv("BACKUP_STORAGE_DIR", "backups")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

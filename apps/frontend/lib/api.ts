@@ -103,6 +103,42 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
   return (await response.json()) as T;
 }
 
+async function requestBlob(path: string, options: RequestInit = {}, token?: string): Promise<Response> {
+  let response = await rawRequest(path, options, token);
+
+  if (response.status === 401 && token) {
+    const newAccess = await tryRefreshToken();
+    if (newAccess) {
+      response = await rawRequest(path, options, newAccess);
+    } else {
+      clearTokens();
+    }
+  }
+
+  if (!response.ok) {
+    const errorPayload = await response.text();
+    throw new ApiError(extractErrorMessage(errorPayload), response.status);
+  }
+
+  return response;
+}
+
+function extractFilenameFromDisposition(contentDisposition: string | null, fallback: string): string {
+  if (!contentDisposition) return fallback;
+
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+
+  const quotedMatch = contentDisposition.match(/filename="([^"]+)"/i);
+  if (quotedMatch?.[1]) {
+    return quotedMatch[1];
+  }
+
+  return fallback;
+}
+
 export function login(payload: { username: string; password: string }) {
   return request<{ access: string; refresh: string }>("/api/auth/login/", {
     method: "POST",
@@ -121,6 +157,73 @@ export function getMe(token: string) {
   return request<{ id: number; name: string; email: string; company: JsonValue | null; profile?: JsonValue }>(
     "/api/accounts/me/",
     { method: "GET" },
+    token
+  );
+}
+
+export type BackupArchive = {
+  id: number;
+  source: "manual" | "scheduled";
+  filename: string;
+  file_size: number;
+  checksum_sha256: string;
+  payload_checksum_sha256: string;
+  manifest: {
+    version?: number;
+    generated_at?: string;
+    section_counts?: Record<string, number>;
+    notes?: string[];
+  };
+  restore_count: number;
+  last_restored_at: string | null;
+  latest_restore_status: "never" | "success" | "failed";
+  latest_restore_message: string;
+  created_at: string;
+  created_by_email?: string;
+};
+
+export type BackupSchedule = {
+  enabled: boolean;
+  frequency: "daily" | "weekly";
+  weekday: number;
+  run_hour: number;
+  run_minute: number;
+  keep_last_n: number;
+  last_run_at: string | null;
+  next_run_at: string | null;
+};
+
+export function listBackupArchives(token: string) {
+  return request<BackupArchive[]>("/api/backups/archives/", { method: "GET" }, token);
+}
+
+export function createBackupArchive(token: string) {
+  return request<BackupArchive>("/api/backups/archives/create/", { method: "POST" }, token);
+}
+
+export async function downloadBackupArchive(token: string, archiveId: number) {
+  const response = await requestBlob(`/api/backups/archives/${archiveId}/download/`, { method: "GET" }, token);
+  const blob = await response.blob();
+  const filename = extractFilenameFromDisposition(response.headers.get("content-disposition"), `backup-${archiveId}.zip`);
+
+  return { blob, filename };
+}
+
+export function restoreBackupArchive(token: string, archiveId: number) {
+  return request<BackupArchive>(`/api/backups/archives/${archiveId}/restore/`, { method: "POST" }, token);
+}
+
+export function getBackupSchedule(token: string) {
+  return request<BackupSchedule>("/api/backups/schedule/", { method: "GET" }, token);
+}
+
+export function updateBackupSchedule(token: string, payload: Partial<BackupSchedule>) {
+  return request<BackupSchedule>(
+    "/api/backups/schedule/",
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    },
     token
   );
 }
@@ -767,6 +870,7 @@ export function updateTransportador(token: string, id: number, payload: { name?:
     token
   );
 }
+
 
 export type TransportadorPlaca = {
   id: number;

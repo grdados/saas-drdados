@@ -1,10 +1,10 @@
 import os
 from datetime import date
 
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework import status
 
 from .serializers import ProjectInquirySerializer
 
@@ -81,6 +81,7 @@ def _format_whatsapp_message(data: dict, score: int, temperature: str) -> str:
     ]
     return "\n".join(lines).strip()
 
+
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def healthcheck(request):
@@ -136,3 +137,4 @@ def project_intake(request):
         },
         status=status.HTTP_201_CREATED,
     )
+

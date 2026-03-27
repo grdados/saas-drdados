@@ -1,4 +1,7 @@
+from django.conf import settings
 from django.db import models
+
+from accounts.models import Company
 
 
 class TimeStampedModel(models.Model):
@@ -77,3 +80,67 @@ class ProjectInquiry(TimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.name} - {self.company} ({self.solution})"
+
+
+class BackupArchive(TimeStampedModel):
+    class Source(models.TextChoices):
+        MANUAL = "manual", "Manual"
+        SCHEDULED = "scheduled", "Scheduled"
+
+    class RestoreStatus(models.TextChoices):
+        NEVER = "never", "Never"
+        SUCCESS = "success", "Success"
+        FAILED = "failed", "Failed"
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="backup_archives")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_backup_archives",
+    )
+    source = models.CharField(max_length=20, choices=Source.choices, default=Source.MANUAL)
+    filename = models.CharField(max_length=255)
+    storage_path = models.CharField(max_length=500)
+    file_size = models.PositiveBigIntegerField(default=0)
+    checksum_sha256 = models.CharField(max_length=64)
+    payload_checksum_sha256 = models.CharField(max_length=64)
+    manifest = models.JSONField(default=dict, blank=True)
+    restore_count = models.PositiveIntegerField(default=0)
+    last_restored_at = models.DateTimeField(null=True, blank=True)
+    latest_restore_status = models.CharField(
+        max_length=20, choices=RestoreStatus.choices, default=RestoreStatus.NEVER
+    )
+    latest_restore_message = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["company", "created_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return self.filename
+
+
+class BackupSchedule(TimeStampedModel):
+    class Frequency(models.TextChoices):
+        DAILY = "daily", "Daily"
+        WEEKLY = "weekly", "Weekly"
+
+    company = models.OneToOneField(Company, on_delete=models.CASCADE, related_name="backup_schedule")
+    enabled = models.BooleanField(default=False)
+    frequency = models.CharField(max_length=20, choices=Frequency.choices, default=Frequency.DAILY)
+    weekday = models.PositiveSmallIntegerField(default=0)
+    run_hour = models.PositiveSmallIntegerField(default=2)
+    run_minute = models.PositiveSmallIntegerField(default=0)
+    keep_last_n = models.PositiveSmallIntegerField(default=10)
+    last_run_at = models.DateTimeField(null=True, blank=True)
+    next_run_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["company_id"]
+
+    def __str__(self) -> str:
+        return f"backup-schedule:{self.company_id}"
