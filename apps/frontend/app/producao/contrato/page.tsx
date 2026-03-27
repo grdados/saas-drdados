@@ -49,6 +49,9 @@ function d(s?: string | null) {
 function brMoney(v: number) {
   return `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
+function formatCompactNumber(v: number) {
+  return v.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+}
 function escapeHtml(value: string) {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 }
@@ -129,6 +132,9 @@ export default function ContratoVendaPage() {
   }
   function formatViewUnit(kgValue: number) {
     return `${toViewUnit(kgValue).toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${viewUnitLabel}`;
+  }
+  function formatViewUnitValue(kgValue: number) {
+    return toViewUnit(kgValue).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
   }
 
   const chartData = useMemo(() => filtered.slice(0, 10).map((c) => {
@@ -259,29 +265,29 @@ export default function ContratoVendaPage() {
           </section>
 
           <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-            <div className="h-[88px] rounded-3xl border border-accent-400/30 bg-accent-500/10 p-3">
+            <div className="flex h-[88px] flex-col items-center justify-center rounded-3xl border border-accent-400/30 bg-accent-500/10 p-3 text-center">
               <p className="min-h-[24px] text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Valor total contratos</p>
               <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{brMoney(cards.totalValue)}</p>
             </div>
-            <div className="h-[88px] rounded-3xl border border-white/15 bg-white/5 p-3">
+            <div className="flex h-[88px] flex-col items-center justify-center rounded-3xl border border-white/15 bg-white/5 p-3 text-center">
               <p className="min-h-[24px] text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Qtd. de contratos</p>
-              <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{cards.qtyContracts}</p>
+              <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatCompactNumber(cards.qtyContracts)}</p>
             </div>
-            <div className="h-[88px] rounded-3xl border border-sky-400/30 bg-sky-500/10 p-3">
+            <div className="flex h-[88px] flex-col items-center justify-center rounded-3xl border border-sky-400/30 bg-sky-500/10 p-3 text-center">
               <p className="min-h-[24px] text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Quantidade ({viewUnitLabel})</p>
-              <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatViewUnit(cards.qtyKg)}</p>
+              <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatViewUnitValue(cards.qtyKg)}</p>
             </div>
-            <div className="h-[88px] rounded-3xl border border-white/15 bg-white/5 p-3">
+            <div className="flex h-[88px] flex-col items-center justify-center rounded-3xl border border-white/15 bg-white/5 p-3 text-center">
               <p className="min-h-[24px] text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Nº de contratos</p>
-              <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{cards.qtyContracts}</p>
+              <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatCompactNumber(cards.qtyContracts)}</p>
             </div>
-            <div className="h-[88px] rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-3">
+            <div className="flex h-[88px] flex-col items-center justify-center rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-3 text-center">
               <p className="min-h-[24px] text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Nº contratos cumpridos</p>
-              <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{cards.done}</p>
+              <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatCompactNumber(cards.done)}</p>
             </div>
-            <div className="h-[88px] rounded-3xl border border-amber-400/30 bg-amber-500/10 p-3">
+            <div className="flex h-[88px] flex-col items-center justify-center rounded-3xl border border-amber-400/30 bg-amber-500/10 p-3 text-center">
               <p className="min-h-[24px] text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Nº contratos pendentes</p>
-              <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{cards.pending}</p>
+              <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatCompactNumber(cards.pending)}</p>
             </div>
           </section>
 
@@ -308,7 +314,7 @@ export default function ContratoVendaPage() {
                   const qty = (c.items || []).reduce((acc, i) => acc + n(i.quantity), 0);
                   const avgPrice = qty > 0 ? n(c.total_value) / qty : 0;
                   const st = statusMeta(c.status);
-                  return <div key={c.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5"><div className="grid grid-cols-1 gap-2 xl:grid-cols-[96px_88px_132px_170px_170px_110px_112px_110px_118px_110px] xl:items-center xl:gap-2.5"><div><span className={`inline-flex rounded-full border px-2 py-1 text-[10px] font-black ${st.cls}`}>{st.label}</span></div><div className="text-[13px] text-zinc-100">{d(c.date)}</div><div className="text-[13px] font-black text-zinc-100">{c.code || `#${c.id}`}</div><div className="truncate text-[13px] text-zinc-100">{c.cliente?.name ?? "-"}</div><div className="truncate text-[13px] text-zinc-100">{c.produtor?.name ?? "-"}</div><div className="text-[13px] text-zinc-100">{d(c.due_date)}</div><div className="text-[13px] text-zinc-100">{formatViewUnit(qty)}</div><div className="text-[13px] text-zinc-100">{brMoney(avgPrice)}</div><div className="text-[13px] font-black text-zinc-100">{brMoney(n(c.total_value))}</div><div className="text-right"><div className="flex w-full flex-nowrap justify-end gap-1.5 whitespace-nowrap"><button onClick={() => openEdit(c)} className="rounded-lg border border-sky-400/25 bg-sky-500/10 p-1.5 text-sky-200 hover:bg-sky-500/20" title="Editar" aria-label="Editar"><svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg></button><button onClick={() => void remove(c.id)} className="rounded-lg border border-rose-400/25 bg-rose-500/10 p-1.5 text-rose-200 hover:bg-rose-500/20" title="Excluir" aria-label="Excluir"><svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg></button></div></div></div></div>;
+                  return <div key={c.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5"><div className="grid grid-cols-1 gap-2 xl:grid-cols-[96px_88px_132px_170px_170px_110px_112px_110px_118px_110px] xl:items-center xl:gap-2.5"><div><span className={`inline-flex rounded-full border px-2 py-1 text-[10px] font-black ${st.cls}`}>{st.label}</span></div><div className="text-[12px] text-zinc-100">{d(c.date)}</div><div className="text-[12px] font-black text-zinc-100">{c.code || `#${c.id}`}</div><div className="truncate text-[12px] text-zinc-100">{c.cliente?.name ?? "-"}</div><div className="truncate text-[12px] text-zinc-100">{c.produtor?.name ?? "-"}</div><div className="text-[12px] text-zinc-100">{d(c.due_date)}</div><div className="text-[12px] text-zinc-100">{formatViewUnit(qty)}</div><div className="text-[12px] text-zinc-100">{brMoney(avgPrice)}</div><div className="text-[12px] font-black text-zinc-100">{brMoney(n(c.total_value))}</div><div className="text-right"><div className="flex w-full flex-nowrap justify-end gap-1.5 whitespace-nowrap"><button onClick={() => openEdit(c)} className="rounded-lg border border-sky-400/25 bg-sky-500/10 p-1.5 text-sky-200 hover:bg-sky-500/20" title="Editar" aria-label="Editar"><svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg></button><button onClick={() => void remove(c.id)} className="rounded-lg border border-rose-400/25 bg-rose-500/10 p-1.5 text-rose-200 hover:bg-rose-500/20" title="Excluir" aria-label="Excluir"><svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg></button></div></div></div></div>;
                 })}
               </div>
             </div>
