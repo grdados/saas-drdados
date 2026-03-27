@@ -68,7 +68,7 @@ function TempPill({ temperature, score }: { temperature: Temperature; score: num
         ? "bg-amber-500/15 text-amber-200 border-amber-500/30"
         : "bg-sky-500/15 text-sky-200 border-sky-500/30";
   return (
-    <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-black ${cls}`}>
+    <div className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-black sm:px-3 sm:text-xs ${cls}`}>
       <span>{label}</span>
       <span className="text-white/70">{score}/100</span>
     </div>
@@ -76,7 +76,7 @@ function TempPill({ temperature, score }: { temperature: Temperature; score: num
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-300">{children}</p>;
+  return <p className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-300 sm:text-xs sm:tracking-[0.22em]">{children}</p>;
 }
 
 function InputBase(props: React.InputHTMLAttributes<HTMLInputElement>) {
@@ -85,7 +85,7 @@ function InputBase(props: React.InputHTMLAttributes<HTMLInputElement>) {
     <input
       {...rest}
       className={[
-        "w-full rounded-xl border border-zinc-800 bg-zinc-950/50 px-4 py-3 text-sm font-semibold text-zinc-100",
+        "w-full rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 py-2.5 text-[13px] font-semibold text-zinc-100 sm:px-4 sm:py-3 sm:text-sm",
         "placeholder:text-zinc-500 focus:border-accent-400 focus:outline-none focus:ring-2 focus:ring-accent-500/20",
         className ?? ""
       ].join(" ")}
@@ -99,7 +99,7 @@ function TextAreaBase(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) 
     <textarea
       {...rest}
       className={[
-        "min-h-[120px] w-full resize-none rounded-xl border border-zinc-800 bg-zinc-950/50 px-4 py-3 text-sm font-semibold text-zinc-100",
+        "min-h-[96px] w-full resize-none rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 py-2.5 text-[13px] font-semibold text-zinc-100 sm:min-h-[120px] sm:px-4 sm:py-3 sm:text-sm",
         "placeholder:text-zinc-500 focus:border-accent-400 focus:outline-none focus:ring-2 focus:ring-accent-500/20",
         className ?? ""
       ].join(" ")}
@@ -113,7 +113,7 @@ function SelectBase(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
     <select
       {...rest}
       className={[
-        "w-full rounded-xl border border-zinc-800 bg-zinc-950/50 px-4 py-3 text-sm font-semibold text-zinc-100",
+        "w-full rounded-xl border border-zinc-800 bg-zinc-950/50 px-3 py-2.5 text-[13px] font-semibold text-zinc-100 sm:px-4 sm:py-3 sm:text-sm",
         "focus:border-accent-400 focus:outline-none focus:ring-2 focus:ring-accent-500/20",
         className ?? ""
       ].join(" ")}
@@ -140,14 +140,14 @@ function Segmented<T extends string>({
             type="button"
             onClick={() => onChange(o.value)}
             className={[
-              "group rounded-2xl border p-4 text-left transition",
+              "group rounded-2xl border p-3 text-left transition sm:p-4",
               active
                 ? "border-accent-500/60 bg-accent-500/10 shadow-[0_0_0_1px_rgba(223,152,48,0.35),0_16px_50px_rgba(0,0,0,0.45)]"
                 : "border-zinc-800 bg-zinc-950/40 hover:border-zinc-700 hover:bg-zinc-950/70"
             ].join(" ")}
           >
-            <p className="text-sm font-black text-white">{o.label}</p>
-            {o.hint ? <p className="mt-1 text-xs font-semibold text-zinc-400">{o.hint}</p> : null}
+            <p className="text-[13px] font-black text-white sm:text-sm">{o.label}</p>
+            {o.hint ? <p className="mt-1 text-[11px] font-semibold text-zinc-400 sm:text-xs">{o.hint}</p> : null}
           </button>
         );
       })}
@@ -240,40 +240,40 @@ export function ProjectIntakeForm() {
 
   return (
     <section className="bg-zinc-950">
-      <div className="mx-auto w-full max-w-6xl px-6 py-14">
-        <div className="grid gap-10 md:grid-cols-12">
+      <div className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:py-12">
+        <div className="grid gap-6 lg:gap-8 xl:grid-cols-12">
           <div className="md:col-span-7">
-            <div className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/40 p-7">
-              <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-accent-500/20 blur-3xl" />
-              <div className="pointer-events-none absolute -bottom-28 -left-24 h-72 w-72 rounded-full bg-accent-500/10 blur-3xl" />
+            <div className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/40 p-4 sm:p-5 lg:p-6 xl:p-7">
+              <div className="pointer-events-none absolute -right-24 -top-24 h-52 w-52 rounded-full bg-accent-500/20 blur-3xl sm:h-72 sm:w-72" />
+              <div className="pointer-events-none absolute -bottom-28 -left-24 h-52 w-52 rounded-full bg-accent-500/10 blur-3xl sm:h-72 sm:w-72" />
 
               <div className="relative">
                 <p className="text-xs font-black uppercase tracking-[0.22em] text-accent-300">
                   Formulario inteligente
                 </p>
-                <h1 className="mt-3 text-3xl font-black leading-[1.08] tracking-tight text-white md:text-4xl">
+                <h1 className="mt-3 text-2xl font-black leading-[1.08] tracking-tight text-white sm:text-3xl md:text-4xl">
                   Iniciar um projeto com a GR Dados
                 </h1>
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-zinc-300">
+                <p className="mt-3 max-w-2xl text-xs leading-6 text-zinc-300 sm:text-sm sm:leading-7">
                   Responda em poucos minutos. O formulario adapta as perguntas conforme sua necessidade, calcula um score
                   do lead e ja deixa um resumo pronto para WhatsApp.
                 </p>
 
-                <div className="mt-6 flex flex-wrap items-center gap-3">
+                <div className="mt-5 flex flex-wrap items-center gap-2.5 sm:mt-6 sm:gap-3">
                   <TempPill temperature={scorePreview.temperature} score={scorePreview.score} />
-                  <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950/50 px-3 py-1 text-xs font-black text-zinc-200">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-950/50 px-2.5 py-1 text-[11px] font-black text-zinc-200 sm:px-3 sm:text-xs">
                     Etapa {step}/4
                   </div>
                   <Link
                     href="/#inicio"
-                    className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400 hover:text-zinc-200"
+                    className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400 hover:text-zinc-200 sm:text-xs sm:tracking-[0.22em]"
                   >
                     Voltar ao site
                   </Link>
                 </div>
 
                 {step === 1 ? (
-                  <div className="mt-8 space-y-6">
+                  <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <FieldLabel>Nome</FieldLabel>
@@ -334,7 +334,7 @@ export function ProjectIntakeForm() {
                       <button
                         type="button"
                         onClick={() => setStep(2)}
-                        className="rounded-2xl bg-accent-500 px-6 py-4 text-sm font-black text-zinc-950 hover:bg-accent-400"
+                        className="rounded-2xl bg-accent-500 px-5 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 sm:px-6 sm:py-4"
                       >
                         Continuar
                       </button>
@@ -343,7 +343,7 @@ export function ProjectIntakeForm() {
                 ) : null}
 
                 {step === 2 ? (
-                  <div className="mt-8 space-y-6">
+                  <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <FieldLabel>Quando deseja iniciar?</FieldLabel>
@@ -404,14 +404,14 @@ export function ProjectIntakeForm() {
                       <button
                         type="button"
                         onClick={() => setStep(1)}
-                        className="rounded-2xl border border-zinc-800 bg-zinc-950/40 px-6 py-4 text-sm font-black text-zinc-100 hover:bg-zinc-900"
+                        className="rounded-2xl border border-zinc-800 bg-zinc-950/40 px-5 py-3 text-sm font-black text-zinc-100 hover:bg-zinc-900 sm:px-6 sm:py-4"
                       >
                         Voltar
                       </button>
                       <button
                         type="button"
                         onClick={() => setStep(3)}
-                        className="rounded-2xl bg-accent-500 px-6 py-4 text-sm font-black text-zinc-950 hover:bg-accent-400"
+                        className="rounded-2xl bg-accent-500 px-5 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 sm:px-6 sm:py-4"
                       >
                         Continuar
                       </button>
@@ -420,7 +420,7 @@ export function ProjectIntakeForm() {
                 ) : null}
 
                 {step === 3 ? (
-                  <div className="mt-8 space-y-6">
+                  <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
                     {dataQuestionsEnabled ? (
                       <>
                         <div className="space-y-2">
@@ -486,9 +486,9 @@ export function ProjectIntakeForm() {
                         </div>
                       </>
                     ) : (
-                      <div className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-5">
-                        <p className="text-sm font-black text-white">Formulario inteligente</p>
-                        <p className="mt-2 text-sm leading-7 text-zinc-300">
+                      <div className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4 sm:p-5">
+                        <p className="text-[13px] font-black text-white sm:text-sm">Formulario inteligente</p>
+                        <p className="mt-2 text-[13px] leading-6 text-zinc-300 sm:text-sm sm:leading-7">
                           Como voce selecionou <span className="font-black">Landing Page</span>, vamos focar no essencial
                           para acelerar o orcamento e a entrega.
                         </p>
@@ -522,7 +522,7 @@ export function ProjectIntakeForm() {
                     </div>
 
                     {error ? (
-                      <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm font-semibold text-red-200">
+                      <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-[13px] font-semibold text-red-200 sm:p-4 sm:text-sm">
                         {error}
                       </div>
                     ) : null}
@@ -532,7 +532,7 @@ export function ProjectIntakeForm() {
                         <button
                           type="button"
                           onClick={() => setStep(2)}
-                          className="rounded-2xl border border-zinc-800 bg-zinc-950/40 px-6 py-4 text-sm font-black text-zinc-100 hover:bg-zinc-900"
+                        className="rounded-2xl border border-zinc-800 bg-zinc-950/40 px-5 py-3 text-sm font-black text-zinc-100 hover:bg-zinc-900 sm:px-6 sm:py-4"
                         >
                           Voltar
                         </button>
@@ -541,7 +541,7 @@ export function ProjectIntakeForm() {
                           disabled={!requiredOk || loading}
                           onClick={onSubmit}
                           className={[
-                            "rounded-2xl px-6 py-4 text-sm font-black transition",
+                            "rounded-2xl px-5 py-3 text-sm font-black transition sm:px-6 sm:py-4",
                             requiredOk && !loading
                               ? "bg-accent-500 text-zinc-950 hover:bg-accent-400"
                               : "cursor-not-allowed bg-zinc-800 text-zinc-400"
@@ -550,7 +550,7 @@ export function ProjectIntakeForm() {
                           {loading ? "Enviando..." : "Enviar e solicitar contato"}
                         </button>
                       </div>
-                      <label className="flex items-center gap-3 text-xs font-semibold text-zinc-400">
+                      <label className="flex items-center gap-3 text-[11px] font-semibold text-zinc-400 sm:text-xs">
                         <input
                           type="checkbox"
                           checked={autoWhatsApp}
@@ -564,14 +564,14 @@ export function ProjectIntakeForm() {
                 ) : null}
 
                 {step === 4 ? (
-                  <div className="mt-8 space-y-6">
-                    <div className="rounded-3xl border border-zinc-800 bg-zinc-950/40 p-6">
-                      <p className="text-sm font-black text-white">Tudo certo.</p>
-                      <p className="mt-2 text-sm leading-7 text-zinc-300">
+                  <div className="mt-6 space-y-5 sm:mt-8 sm:space-y-6">
+                    <div className="rounded-3xl border border-zinc-800 bg-zinc-950/40 p-4 sm:p-6">
+                      <p className="text-[13px] font-black text-white sm:text-sm">Tudo certo.</p>
+                      <p className="mt-2 text-[13px] leading-6 text-zinc-300 sm:text-sm sm:leading-7">
                         {successMessage || "Recebemos suas informacoes. Retornaremos seu contato."}
                       </p>
                       {whatsPopupBlocked ? (
-                        <div className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm font-semibold text-amber-200">
+                        <div className="mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3 text-[13px] font-semibold text-amber-200 sm:p-4 sm:text-sm">
                           Seu navegador bloqueou a abertura automatica do WhatsApp. Clique no botao abaixo para enviar o
                           resumo.
                         </div>
@@ -583,14 +583,14 @@ export function ProjectIntakeForm() {
                             href={formatWhatsAppLink(whatsMessage)}
                             target="_blank"
                             rel="noreferrer"
-                            className="rounded-2xl bg-zinc-950 px-6 py-3 text-sm font-black text-white hover:bg-zinc-900"
+                            className="rounded-2xl bg-zinc-950 px-5 py-2.5 text-sm font-black text-white hover:bg-zinc-900 sm:px-6 sm:py-3"
                           >
                             Enviar resumo no WhatsApp
                           </a>
                         ) : null}
                         <Link
                           href="/"
-                          className="rounded-2xl border border-zinc-800 bg-zinc-950/40 px-6 py-3 text-sm font-black text-zinc-100 hover:bg-zinc-900"
+                          className="rounded-2xl border border-zinc-800 bg-zinc-950/40 px-5 py-2.5 text-sm font-black text-zinc-100 hover:bg-zinc-900 sm:px-6 sm:py-3"
                         >
                           Voltar para o inicio
                         </Link>
@@ -598,11 +598,11 @@ export function ProjectIntakeForm() {
                     </div>
 
                     {whatsMessage ? (
-                      <div className="rounded-3xl border border-zinc-800 bg-zinc-950/40 p-6">
+                      <div className="rounded-3xl border border-zinc-800 bg-zinc-950/40 p-4 sm:p-6">
                         <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-300">
                           Resumo do cliente (WhatsApp)
                         </p>
-                        <pre className="mt-3 whitespace-pre-wrap rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4 text-xs font-semibold text-zinc-200">
+                        <pre className="mt-3 whitespace-pre-wrap rounded-2xl border border-zinc-800 bg-zinc-950/70 p-3 text-[11px] font-semibold text-zinc-200 sm:p-4 sm:text-xs">
                           {whatsMessage}
                         </pre>
                       </div>
@@ -614,14 +614,14 @@ export function ProjectIntakeForm() {
           </div>
 
           <div className="md:col-span-5">
-            <div className="sticky top-6 space-y-4">
+            <div className="space-y-4 xl:sticky xl:top-6">
               <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/40">
-                <div className="relative p-6">
-                  <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-accent-500/15 blur-3xl" />
+                <div className="relative p-4 sm:p-6">
+                  <div className="pointer-events-none absolute -right-24 -top-24 h-52 w-52 rounded-full bg-accent-500/15 blur-3xl sm:h-72 sm:w-72" />
                   <p className="relative text-xs font-black uppercase tracking-[0.22em] text-zinc-300">
                     Preview do lead
                   </p>
-                  <div className="relative mt-4 space-y-2 text-sm">
+                  <div className="relative mt-4 space-y-2 text-[13px] sm:text-sm">
                     <p className="font-black text-white">{form.name || "Seu nome"}</p>
                     <p className="text-zinc-300">{form.company || "Sua empresa"}</p>
                     <p className="text-zinc-400">{form.email || "voce@empresa.com"}</p>
@@ -629,18 +629,18 @@ export function ProjectIntakeForm() {
                   </div>
                   <div className="relative mt-5 flex flex-wrap items-center gap-2">
                     <TempPill temperature={scorePreview.temperature} score={scorePreview.score} />
-                    <span className="rounded-full border border-zinc-800 bg-zinc-950/50 px-3 py-1 text-xs font-black text-zinc-200">
+                    <span className="rounded-full border border-zinc-800 bg-zinc-950/50 px-2.5 py-1 text-[11px] font-black text-zinc-200 sm:px-3 sm:text-xs">
                       {form.solution ? `Solução: ${form.solution}` : "Selecione a solução"}
                     </span>
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-zinc-800 bg-zinc-950/40 p-6">
+              <div className="rounded-3xl border border-zinc-800 bg-zinc-950/40 p-4 sm:p-6">
                 <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-300">O que acontece ao enviar</p>
-                <div className="mt-4 space-y-3 text-sm text-zinc-300">
+                <div className="mt-4 space-y-3 text-[13px] text-zinc-300 sm:text-sm">
                   <p className="flex gap-3">
-                    <span className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950/60 text-accent-300">
+                    <span className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950/60 text-accent-300 sm:h-7 sm:w-7">
                       ✓
                     </span>
                     Integra no CRM automaticamente (Lead criado no painel).
@@ -660,9 +660,9 @@ export function ProjectIntakeForm() {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-zinc-800 bg-zinc-950/40 p-6">
+              <div className="rounded-3xl border border-zinc-800 bg-zinc-950/40 p-4 sm:p-6">
                 <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-300">Dicas</p>
-                <p className="mt-3 text-sm leading-7 text-zinc-400">
+                <p className="mt-3 text-[13px] leading-6 text-zinc-400 sm:text-sm sm:leading-7">
                   Se voce selecionar <span className="font-black text-zinc-200">Power BI</span>, o formulario pede
                   detalhes de dados/acesso para acelerar a proposta e estimativa.
                 </p>

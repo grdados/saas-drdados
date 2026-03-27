@@ -71,20 +71,20 @@ export default function DashboardPage() {
 
   return (
     <AdminShell user={{ name: name || "Usuario", email: email || "", company, avatarUrl }}>
-      <div className="space-y-6">
+      <div className="space-y-4 lg:space-y-6">
         {loading ? <p className="text-sm font-semibold text-zinc-300">Carregando dados...</p> : null}
 
         {!loading ? (
-          <div className="space-y-6">
+          <div className="space-y-4 lg:space-y-6">
             <KeyMetrics />
 
-            <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
-              <div className="space-y-6">
+            <div className="grid gap-4 lg:gap-6 xl:grid-cols-[1fr_320px] 2xl:grid-cols-[1fr_360px]">
+              <div className="space-y-4 lg:space-y-6">
                 <RevenueAndSales />
                 <TransactionHistory />
               </div>
 
-              <section className="h-fit rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl">
+              <section className="h-fit rounded-3xl border border-white/10 bg-white/5 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl sm:p-5">
                 <p className="text-sm font-black text-white">Licenca e acesso</p>
                 <p className="mt-2 text-sm text-zinc-300">
                   Status: <strong className="text-accent-300">{licenseStatus}</strong>
@@ -93,13 +93,13 @@ export default function DashboardPage() {
                 {accessMessage ? <p className="mt-2 text-xs font-semibold text-amber-200">{accessMessage}</p> : null}
 
                 <div className="mt-4 grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl border border-white/10 bg-zinc-950/40 p-4">
+                  <div className="rounded-2xl border border-white/10 bg-zinc-950/40 p-3 sm:p-4">
                     <p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Leads</p>
-                    <p className="mt-2 text-3xl font-black text-accent-200">{leadCount}</p>
+                    <p className="mt-2 text-2xl font-black text-accent-200 sm:text-3xl">{leadCount}</p>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-zinc-950/40 p-4">
+                  <div className="rounded-2xl border border-white/10 bg-zinc-950/40 p-3 sm:p-4">
                     <p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Tarefas</p>
-                    <p className="mt-2 text-3xl font-black text-accent-200">{taskCount}</p>
+                    <p className="mt-2 text-2xl font-black text-accent-200 sm:text-3xl">{taskCount}</p>
                   </div>
                 </div>
 
@@ -124,7 +124,7 @@ export default function DashboardPage() {
                       setBillingLoading(false);
                     }
                   }}
-                  className="mt-4 w-full rounded-2xl bg-accent-500 px-4 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:opacity-60"
+                  className="mt-4 w-full rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:opacity-60 sm:py-3"
                 >
                   {billingLoading ? "Criando..." : "Ativar licenca"}
                 </button>

@@ -5,10 +5,13 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 import { AuthLayout } from "@/components/AuthLayout";
+import { useLocale } from "@/components/LocaleProvider";
 import { register } from "@/lib/api";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { messages } = useLocale();
+  const copy = messages.auth.register;
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -26,7 +29,7 @@ export default function RegisterPage() {
       await register(form);
       router.push("/login");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Nao foi possivel criar a conta.";
+      const message = err instanceof Error ? err.message : copy.fallbackError;
       setError(message);
     } finally {
       setLoading(false);
@@ -34,11 +37,11 @@ export default function RegisterPage() {
   }
 
   return (
-    <AuthLayout title="Criar conta GR Dados" subtitle="Comece seu CRM agora.">
+    <AuthLayout title={copy.title} subtitle={copy.subtitle}>
       <form className="space-y-4" onSubmit={onSubmit}>
         <input
           required
-          placeholder="Seu nome"
+          placeholder={copy.name}
           value={form.name}
           onChange={(e) => setForm((old) => ({ ...old, name: e.target.value }))}
           className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-accent-200 caret-accent-400 placeholder:text-zinc-500 focus:border-accent-500 focus:outline-none"
@@ -46,14 +49,14 @@ export default function RegisterPage() {
         <input
           required
           type="email"
-          placeholder="E-mail"
+          placeholder={copy.email}
           value={form.email}
           onChange={(e) => setForm((old) => ({ ...old, email: e.target.value }))}
           className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-accent-200 caret-accent-400 placeholder:text-zinc-500 focus:border-accent-500 focus:outline-none"
         />
         <input
           required
-          placeholder="Empresa"
+          placeholder={copy.company}
           value={form.company_name}
           onChange={(e) => setForm((old) => ({ ...old, company_name: e.target.value }))}
           className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-accent-200 caret-accent-400 placeholder:text-zinc-500 focus:border-accent-500 focus:outline-none"
@@ -61,7 +64,7 @@ export default function RegisterPage() {
         <input
           required
           type="password"
-          placeholder="Senha (minimo 8 caracteres)"
+          placeholder={copy.password}
           value={form.password}
           onChange={(e) => setForm((old) => ({ ...old, password: e.target.value }))}
           className="w-full rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-accent-200 caret-accent-400 placeholder:text-zinc-500 focus:border-accent-500 focus:outline-none"
@@ -73,13 +76,13 @@ export default function RegisterPage() {
           disabled={loading}
           className="w-full rounded-xl bg-accent-500 px-4 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:opacity-60"
         >
-          {loading ? "Criando..." : "Criar conta"}
+          {loading ? copy.loading : copy.submit}
         </button>
 
         <p className="pt-2 text-sm text-zinc-400">
-          Ja possui conta?{" "}
+          {copy.hasAccount}{" "}
           <Link className="font-bold text-accent-300" href="/login">
-            Entrar
+            {copy.login}
           </Link>
         </p>
       </form>

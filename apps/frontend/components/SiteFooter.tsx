@@ -1,7 +1,13 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 
+import { useLocale } from "@/components/LocaleProvider";
+
 export function SiteFooter() {
+  const { messages } = useLocale();
+
   return (
     <footer className="border-t border-black/10 bg-white/70 backdrop-blur-xl">
       <div className="mx-auto w-full max-w-6xl px-6 py-14">
@@ -15,8 +21,7 @@ export function SiteFooter() {
               className="h-12 w-auto"
             />
             <p className="mt-5 max-w-md text-sm leading-7 text-zinc-900/90">
-              A GR Dados desenvolve sistemas sob medida para empresas que precisam
-              de mais controle, clareza operacional e base tecnologica para crescer.
+              {messages.footer.description}
             </p>
 
             <div className="mt-6 flex items-start gap-3 text-sm text-zinc-900">
@@ -43,8 +48,8 @@ export function SiteFooter() {
                 </svg>
               </span>
               <div>
-                <p className="font-black text-zinc-950">Base estrategica</p>
-                <p className="text-zinc-900/90 whitespace-nowrap">
+                <p className="font-black text-zinc-950">{messages.footer.strategicBase}</p>
+                <p className="whitespace-nowrap text-zinc-900/90">
                   AV 22 de abril, 519 - Centro - Laguna Carapa - MS
                 </p>
                 <p className="text-zinc-900/90">CEP 79920-000</p>
@@ -53,7 +58,7 @@ export function SiteFooter() {
           </div>
 
           <div className="md:col-span-3">
-            <p className="text-sm font-black text-zinc-950">Solucoes</p>
+            <p className="text-sm font-black text-zinc-950">{messages.footer.solutions}</p>
             <div className="mt-4 space-y-3 text-sm text-zinc-900/90">
               <Link className="block hover:text-zinc-950" href="/servicos/power-bi">
                 Power BI
@@ -71,47 +76,44 @@ export function SiteFooter() {
           </div>
 
           <div className="md:col-span-2">
-            <p className="text-sm font-black text-zinc-950">Institucional</p>
+            <p className="text-sm font-black text-zinc-950">{messages.footer.institutional}</p>
             <div className="mt-4 space-y-3 text-sm">
               <a className="block text-zinc-900/90 hover:text-zinc-950" href="/#inicio">
-                Inicio
+                {messages.header.nav.home}
               </a>
               <a className="block text-zinc-900/90 hover:text-zinc-950" href="/#problemas">
-                Problemas
+                {messages.header.nav.problems}
               </a>
               <a className="block text-zinc-900/90 hover:text-zinc-950" href="/#solucao">
-                Solucao
+                {messages.header.nav.solution}
               </a>
               <a className="block text-zinc-900/90 hover:text-zinc-950" href="/#modulos">
-                Modulos
+                {messages.header.nav.modules}
               </a>
               <a className="block text-zinc-900/90 hover:text-zinc-950" href="/#beneficios">
-                Beneficios
+                {messages.header.nav.benefits}
               </a>
               <a className="block text-zinc-900/90 hover:text-zinc-950" href="/#sobre">
-                Sobre
+                {messages.header.nav.about}
               </a>
               <a className="block text-zinc-900/90 hover:text-zinc-950" href="/#depoimentos">
-                Depoimentos
+                {messages.header.nav.testimonials}
               </a>
               <a className="block text-zinc-900/90 hover:text-zinc-950" href="/#quanto-custa">
-                Quanto custa?
+                {messages.header.nav.pricing}
               </a>
-              <a
-                className="block text-zinc-900/90 hover:text-zinc-950"
-                href="/#localizacao"
-              >
-                Localizacao
+              <a className="block text-zinc-900/90 hover:text-zinc-950" href="/#localizacao">
+                {messages.header.nav.location}
               </a>
             </div>
           </div>
 
           <div className="md:col-span-3">
-            <p className="text-sm font-black text-zinc-950">Canais Institucionais</p>
+            <p className="text-sm font-black text-zinc-950">{messages.footer.channels}</p>
             <div className="mt-4 space-y-4">
               <div className="w-full min-w-[260px] rounded-2xl border border-black/10 bg-white/70 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.08)] md:min-w-[320px]">
                 <p className="text-[11px] font-black uppercase tracking-[0.22em] text-zinc-700">
-                  WhatsApp Comercial
+                  {messages.footer.commercialWhatsapp}
                 </p>
                 <p className="mt-2 whitespace-nowrap text-sm font-black text-zinc-950">
                   <a
@@ -124,7 +126,7 @@ export function SiteFooter() {
               </div>
               <div className="w-full min-w-[260px] rounded-2xl border border-black/10 bg-white/70 p-5 shadow-[0_18px_60px_rgba(0,0,0,0.08)] md:min-w-[320px]">
                 <p className="text-[11px] font-black uppercase tracking-[0.22em] text-zinc-700">
-                  Endereco
+                  {messages.footer.address}
                 </p>
                 <p className="mt-2 whitespace-nowrap text-sm font-black text-zinc-950">
                   Laguna Carapa - MS
@@ -136,13 +138,13 @@ export function SiteFooter() {
         </div>
 
         <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-black/10 pt-8 text-sm text-zinc-900/80 md:flex-row md:items-center">
-          <p>(c) 2026 GR Dados. Todos os direitos reservados.</p>
+          <p>{messages.footer.rightsReserved}</p>
           <div className="flex gap-6">
             <a className="hover:text-zinc-950" href="#">
-              Politica de Privacidade
+              {messages.footer.privacy}
             </a>
             <a className="hover:text-zinc-950" href="#">
-              Termos de Uso
+              {messages.footer.terms}
             </a>
           </div>
         </div>

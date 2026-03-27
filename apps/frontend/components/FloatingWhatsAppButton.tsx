@@ -3,6 +3,8 @@
 import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 
+import { useLocale } from "@/components/LocaleProvider";
+
 function formatWhatsAppLink(message: string) {
   const phone = "5567998698159";
   const text = encodeURIComponent(message);
@@ -11,7 +13,8 @@ function formatWhatsAppLink(message: string) {
 
 export function FloatingWhatsAppButton() {
   const pathname = usePathname();
-  const href = useMemo(() => formatWhatsAppLink("Ola! Quero falar sobre um projeto com a GR Dados."), []);
+  const { messages } = useLocale();
+  const href = useMemo(() => formatWhatsAppLink(messages.whatsapp.message), [messages.whatsapp.message]);
   const isPanelRoute = useMemo(
     () =>
       [
@@ -40,8 +43,8 @@ export function FloatingWhatsAppButton() {
         "bg-accent-500 px-5 py-4 text-sm font-black text-zinc-950 shadow-[0_20px_50px_rgba(0,0,0,0.45)]",
         "transition hover:-translate-y-0.5 hover:bg-accent-400 focus:outline-none focus:ring-2 focus:ring-accent-500/30"
       ].join(" ")}
-      aria-label="Falar no WhatsApp"
-      title="Falar no WhatsApp"
+      aria-label={messages.whatsapp.ariaLabel}
+      title={messages.whatsapp.title}
     >
       <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/10">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -60,8 +63,7 @@ export function FloatingWhatsAppButton() {
           />
         </svg>
       </span>
-      <span className="hidden sm:block">WhatsApp</span>
+      <span className="hidden sm:block">{messages.whatsapp.button}</span>
     </a>
   );
 }
-

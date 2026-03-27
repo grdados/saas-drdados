@@ -14,13 +14,13 @@ function Card({
   right?: React.ReactNode;
 }) {
   return (
-    <section className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl">
+    <section className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-black text-white">{title}</p>
+          <p className="text-[13px] font-black text-white sm:text-sm">{title}</p>
           {subtitle ? <p className="mt-1 text-xs text-zinc-400">{subtitle}</p> : null}
         </div>
-        {right ? <div className="shrink-0">{right}</div> : null}
+        {right ? <div className="shrink-0 text-right">{right}</div> : null}
       </div>
       <div className="mt-4">{children}</div>
     </section>
@@ -47,7 +47,7 @@ export function KeyMetrics() {
             className="rounded-2xl border border-white/10 bg-zinc-950/40 p-4 hover:bg-zinc-950/55"
           >
             <div className={`h-10 w-10 rounded-2xl bg-gradient-to-b ${m.color} ring-1 ring-white/10`} />
-            <p className="mt-3 text-2xl font-black text-white">{m.value}</p>
+            <p className="mt-3 text-xl font-black text-white sm:text-2xl">{m.value}</p>
             <p className="mt-1 text-xs font-bold text-zinc-300">{m.label}</p>
             <p className="mt-2 text-[11px] text-zinc-500">{m.note}</p>
           </div>
@@ -75,7 +75,7 @@ function LineChart() {
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/40 p-4">
-      <svg viewBox={`0 0 ${w} ${h}`} className="h-40 w-full">
+      <svg viewBox={`0 0 ${w} ${h}`} className="h-32 w-full sm:h-40">
         <defs>
           <linearGradient id="grid" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0" stopColor="rgba(255,255,255,0.08)" />
@@ -109,7 +109,7 @@ function LineChart() {
         />
       </svg>
 
-      <div className="pointer-events-none absolute right-4 top-4 flex items-center gap-4 text-[11px] font-bold text-zinc-300">
+      <div className="pointer-events-none absolute bottom-3 left-4 right-4 flex flex-wrap items-center gap-3 text-[11px] font-bold text-zinc-300 sm:left-auto sm:right-4 sm:top-4 sm:bottom-auto sm:gap-4">
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-accent-400" />
           Last Week
@@ -134,7 +134,7 @@ function Gauge({ value }: { value: number }) {
 
   return (
     <div className="grid place-items-center rounded-2xl border border-white/10 bg-zinc-950/40 p-4">
-      <svg viewBox="0 0 180 110" className="h-28 w-full">
+      <svg viewBox="0 0 180 110" className="h-24 w-full sm:h-28">
         <path
           d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
           fill="none"
@@ -151,7 +151,7 @@ function Gauge({ value }: { value: number }) {
           strokeDasharray={`${dash} ${circumference}`}
         />
       </svg>
-      <p className="-mt-6 text-3xl font-black text-white">{pct}%</p>
+      <p className="-mt-5 text-2xl font-black text-white sm:-mt-6 sm:text-3xl">{pct}%</p>
       <p className="mt-1 text-xs text-zinc-400">Completed</p>
       <p className="mt-2 text-[11px] font-bold text-zinc-500">$125,000/$173,000</p>
     </div>
@@ -166,7 +166,7 @@ export function RevenueAndSales() {
   ];
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+    <div className="grid gap-4 lg:grid-cols-[1fr_320px] lg:gap-6 xl:grid-cols-[1fr_360px]">
       <Card
         title="Revenue Analytics"
         right={<span className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-1.5 text-xs font-black text-zinc-200">Weekly</span>}
@@ -174,7 +174,7 @@ export function RevenueAndSales() {
         <LineChart />
       </Card>
 
-      <div className="grid gap-6">
+      <div className="grid gap-4 lg:gap-6">
         <Card title="Your Goal">
           <Gauge value={72} />
         </Card>
@@ -225,8 +225,8 @@ export function TransactionHistory() {
 
   return (
     <Card title="Transaction History" subtitle="Resumo de transacoes recentes">
-      <div className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/40">
-        <table className="w-full text-left text-sm">
+      <div className="overflow-x-auto rounded-2xl border border-white/10 bg-zinc-950/40">
+        <table className="min-w-[640px] w-full text-left text-sm">
           <thead className="bg-zinc-950/60 text-zinc-300">
             <tr>
               <th className="px-4 py-3 text-xs font-black uppercase tracking-[0.2em]">No.</th>
@@ -254,4 +254,3 @@ export function TransactionHistory() {
     </Card>
   );
 }
-

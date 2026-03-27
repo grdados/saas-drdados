@@ -2,8 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+
+import { useLocale } from "@/components/LocaleProvider";
+import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 
 function NavLink({
   href,
@@ -37,6 +40,7 @@ export function SiteHeader() {
   const pathname = usePathname();
   const onHome = pathname === "/";
   const [scrolled, setScrolled] = useState(false);
+  const { messages } = useLocale();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 14);
@@ -60,36 +64,36 @@ export function SiteHeader() {
 
   return (
     <header className={["sticky top-0 z-50 transition-colors duration-300", headerClass].join(" ")}>
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
         <Link href="/" className="flex items-center">
           <Image
             src="/logo-2.svg"
             alt="GR Dados"
             width={220}
             height={56}
-            className="h-10 w-auto rounded-2xl md:h-11"
+            className="h-8 w-auto rounded-2xl sm:h-9 md:h-10 lg:h-11"
             priority
           />
         </Link>
 
-        <nav className="hidden items-center gap-2 md:flex" aria-label="Menu">
+        <nav className="hidden items-center gap-2 md:flex" aria-label={messages.header.ariaMenu}>
           <NavLink href={onHome ? "#inicio" : "/#inicio"} scrolled={scrolled}>
-            Inicio
+            {messages.header.nav.home}
           </NavLink>
           <NavLink href={onHome ? "#problemas" : "/#problemas"} scrolled={scrolled}>
-            Problemas
+            {messages.header.nav.problems}
           </NavLink>
           <NavLink href={onHome ? "#solucao" : "/#solucao"} scrolled={scrolled}>
-            Solucao
+            {messages.header.nav.solution}
           </NavLink>
           <NavLink href={onHome ? "#modulos" : "/#modulos"} scrolled={scrolled}>
-            Modulos
+            {messages.header.nav.modules}
           </NavLink>
           <NavLink href={onHome ? "#beneficios" : "/#beneficios"} scrolled={scrolled}>
-            Beneficios
+            {messages.header.nav.benefits}
           </NavLink>
           <NavLink href={onHome ? "#sobre" : "/#sobre"} scrolled={scrolled}>
-            Sobre
+            {messages.header.nav.about}
           </NavLink>
 
           <details className="group relative">
@@ -100,7 +104,7 @@ export function SiteHeader() {
               ].join(" ")}
             >
               <span className="inline-flex items-center gap-2">
-                Mais
+                {messages.header.more}
                 <svg
                   className={[
                     "h-4 w-4 transition group-open:rotate-180",
@@ -118,48 +122,53 @@ export function SiteHeader() {
                 </svg>
               </span>
             </summary>
-            <div className={["absolute left-0 top-[calc(100%+10px)] z-30 w-64 overflow-hidden rounded-2xl", menuPanelClass].join(" ")}>
+            <div
+              className={[
+                "absolute left-0 top-[calc(100%+10px)] z-30 w-64 overflow-hidden rounded-2xl",
+                menuPanelClass
+              ].join(" ")}
+            >
               <Link
                 href={onHome ? "#depoimentos" : "/#depoimentos"}
                 className={["block px-4 py-3 text-sm font-black transition-colors", menuItemClass].join(" ")}
               >
-                Depoimentos
+                {messages.header.nav.testimonials}
               </Link>
               <Link
                 href="/iniciar-projeto"
                 className={["block px-4 py-3 text-sm font-black transition-colors", menuItemClass].join(" ")}
               >
-                Iniciar um projeto
+                {messages.header.startProject}
               </Link>
               <Link
                 href={onHome ? "#quanto-custa" : "/#quanto-custa"}
                 className={["block px-4 py-3 text-sm font-black transition-colors", menuItemClass].join(" ")}
               >
-                Quanto custa?
+                {messages.header.nav.pricing}
               </Link>
               <Link
                 href={onHome ? "#localizacao" : "/#localizacao"}
                 className={["block px-4 py-3 text-sm font-black transition-colors", menuItemClass].join(" ")}
               >
-                Localizacao
+                {messages.header.nav.location}
               </Link>
             </div>
           </details>
 
           <NavLink href={onHome ? "#localizacao" : "/#localizacao"} scrolled={scrolled}>
-            Localizacao
+            {messages.header.nav.location}
           </NavLink>
         </nav>
 
-        <Link
-          href="/login"
-          className={[
-            "rounded-2xl px-6 py-3 text-sm font-black transition",
-            scrolled ? "bg-accent-500 text-zinc-950 hover:bg-accent-400" : "bg-accent-500 text-zinc-950 hover:bg-accent-400"
-          ].join(" ")}
-        >
-          Login
-        </Link>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <LocaleSwitcher />
+          <Link
+            href="/login"
+            className="rounded-2xl bg-accent-500 px-4 py-2.5 text-xs font-black text-zinc-950 transition hover:bg-accent-400 sm:px-5 sm:text-sm md:px-6 md:py-3"
+          >
+            {messages.header.login}
+          </Link>
+        </div>
       </div>
     </header>
   );
