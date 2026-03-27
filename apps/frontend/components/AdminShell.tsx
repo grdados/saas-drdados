@@ -203,26 +203,26 @@ function SidebarLink({
 }) {
   const base =
     "group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition-colors";
-  const activeCls = "bg-accent-500/22 text-white ring-1 ring-accent-400/40 shadow-[0_0_0_1px_rgba(251,191,36,0.08)_inset]";
-  const idleCls = "text-zinc-300 hover:bg-white/5 hover:text-white";
+  const activeCls = "bg-[#FFB30D]/18 text-white ring-1 ring-[#FFB30D]/35";
+  const idleCls = "text-white/78 hover:bg-[#085454]/18 hover:text-white";
 
   if (item.disabled) {
     return (
       <div className={`${base} cursor-not-allowed opacity-60`}>
         <span className="text-zinc-400">{icon}</span>
         <span className="flex-1">{item.label}</span>
-        <span className="text-xs text-zinc-500">Em breve</span>
+        <span className="text-xs text-[#7A7A7A]">Em breve</span>
       </div>
     );
   }
 
   return (
     <Link href={item.href} onClick={onNavigate} className={`${base} ${active ? activeCls : idleCls}`}>
-      <span className={active ? "text-accent-300" : "text-zinc-400 group-hover:text-accent-300"}>{icon}</span>
-      {depth > 0 ? <span className="h-4 w-px bg-accent-500/35" /> : null}
+      <span className={active ? "text-[#FFB30D]" : "text-[#7A7A7A] group-hover:text-[#FFB30D]"}>{icon}</span>
+      {depth > 0 ? <span className="h-4 w-px bg-[#085454]/55" /> : null}
       <span className="flex-1">{item.label}</span>
       {typeof item.badge === "number" ? (
-        <span className="rounded-full bg-accent-500/15 px-2 py-0.5 text-xs font-black text-accent-200 ring-1 ring-accent-500/20">
+        <span className="rounded-full bg-[#FFB30D]/15 px-2 py-0.5 text-xs font-black text-[#FFB30D] ring-1 ring-[#FFB30D]/20">
           {item.badge}
         </span>
       ) : null}
@@ -291,8 +291,8 @@ function SidebarTreeNode({
 
   const base =
     "group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-semibold transition-colors";
-  const activeCls = "bg-accent-500/22 text-white ring-1 ring-accent-400/40 shadow-[0_0_0_1px_rgba(251,191,36,0.08)_inset]";
-  const idleCls = "text-zinc-300 hover:bg-white/5 hover:text-white";
+  const activeCls = "bg-[#FFB30D]/18 text-white ring-1 ring-[#FFB30D]/35";
+  const idleCls = "text-white/78 hover:bg-[#085454]/18 hover:text-white";
 
   if (!hasChildren) {
     const item: NavItem = { label: node.label, href: node.href || "#", badge: node.badge, disabled: node.disabled };
@@ -303,7 +303,7 @@ function SidebarTreeNode({
         depth={depth}
         onNavigate={onNavigate}
         icon={
-          <span className={active ? "text-accent-300" : "text-zinc-400 group-hover:text-accent-300"}>
+          <span className={active ? "text-[#FFB30D]" : "text-[#7A7A7A] group-hover:text-[#FFB30D]"}>
             {node.icon || <span className="h-4 w-4" />}
           </span>
         }
@@ -319,7 +319,7 @@ function SidebarTreeNode({
         className={`${base} ${active ? activeCls : idleCls}`}
         aria-expanded={open}
       >
-        <span className={active ? "text-accent-300" : "text-zinc-400 group-hover:text-accent-300"}>
+        <span className={active ? "text-[#FFB30D]" : "text-[#7A7A7A] group-hover:text-[#FFB30D]"}>
           {node.icon || <span className="h-4 w-4" />}
         </span>
         <span className="flex-1">{node.label}</span>
@@ -330,7 +330,7 @@ function SidebarTreeNode({
         className={`grid transition-[grid-template-rows] duration-300 ease-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
       >
         <div className="min-h-0 overflow-hidden pt-1">
-          <p className="px-3 pb-1 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500">
+          <p className="px-3 pb-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#7A7A7A]">
             {parentLabel ? `${parentLabel} · ${node.label}` : node.label}
           </p>
           <SidebarTree
@@ -374,35 +374,35 @@ function SidebarContent({
         </div>
         <div className="leading-tight">
           <p className="text-sm font-black tracking-tight">GR Dados</p>
-          <p className="text-xs text-zinc-400">ERP</p>
+          <p className="text-xs text-[#7A7A7A]">ERP</p>
         </div>
       </div>
 
       <div className="mt-4">
-        <p className="px-2 text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Dashboard</p>
-        <nav className="mt-2 rounded-[26px] border border-white/8 bg-white/[0.03] p-2 shadow-[0_0_0_1px_rgba(255,255,255,0.02)_inset]">
+        <p className="px-2 text-[11px] font-black uppercase tracking-[0.24em] text-[#7A7A7A]">Dashboard</p>
+        <nav className="mt-2 rounded-[26px] bg-[#085454]/10 p-2">
           <SidebarTree nodes={navTree.dashboard} pathname={pathname} onNavigate={onNavigate} />
         </nav>
       </div>
 
-      <div className="mt-6">
-        <p className="px-2 text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Advanced</p>
-        <nav className="mt-2 rounded-[26px] border border-white/8 bg-white/[0.03] p-2 shadow-[0_0_0_1px_rgba(255,255,255,0.02)_inset]">
+      <div className="mt-5">
+        <p className="px-2 text-[11px] font-black uppercase tracking-[0.24em] text-[#7A7A7A]">Advanced</p>
+        <nav className="mt-2 rounded-[26px] bg-[#085454]/10 p-2">
           <SidebarTree nodes={navTree.advanced} pathname={pathname} onNavigate={onNavigate} />
         </nav>
       </div>
 
       <div className="mt-auto space-y-3 px-2 pb-2">
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-accent-500/15 to-transparent p-4">
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-accent-200">Upgrade</p>
+        <div className="rounded-2xl border border-[#085454]/40 bg-gradient-to-b from-[#085454]/30 to-transparent p-4">
+          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#FFB30D]">Upgrade</p>
           <p className="mt-2 text-sm font-semibold text-zinc-100">Desbloqueie recursos premium</p>
-          <button className="mt-3 w-full rounded-xl bg-accent-500 px-3 py-2 text-sm font-black text-zinc-950 hover:bg-accent-400">
+          <button className="mt-3 w-full rounded-xl bg-[#FFB30D] px-3 py-2 text-sm font-black text-[#001542] hover:bg-[#ffc13a]">
             Upgrade agora
           </button>
         </div>
 
-        <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
-          <div className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-2xl bg-zinc-950/60 ring-1 ring-white/10">
+        <div className="flex items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.04] p-3">
+          <div className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-2xl bg-[#001542] ring-1 ring-white/10">
             {avatarUrl && avatarOk ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -413,12 +413,12 @@ function SidebarContent({
                 onError={() => setAvatarOk(false)}
               />
             ) : (
-              <span className="text-xs font-black text-accent-200">{avatar}</span>
+              <span className="text-xs font-black text-[#FFB30D]">{avatar}</span>
             )}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-black text-white">{user?.name || "Usuário"}</p>
-            <p className="truncate text-xs text-zinc-400">{user?.email || "-"}</p>
+            <p className="truncate text-xs text-[#7A7A7A]">{user?.email || "-"}</p>
           </div>
         </div>
       </div>
@@ -585,9 +585,9 @@ export function AdminShell({
               className="absolute inset-0 bg-black/70 backdrop-blur-[2px]"
               onClick={() => setMobileNavOpen(false)}
             />
-            <aside className="absolute inset-y-0 left-0 flex w-[86vw] max-w-[340px] flex-col border-r border-emerald-950/50 bg-[linear-gradient(180deg,rgba(7,18,16,0.98),rgba(5,12,14,0.98))] p-4 shadow-[0_20px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+            <aside className="absolute inset-y-0 left-0 flex w-[86vw] max-w-[340px] flex-col border-r border-[#085454]/40 bg-[linear-gradient(180deg,rgba(0,21,66,0.98),rgba(8,84,84,0.82))] p-4 shadow-[0_20px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl">
               <div className="mb-3 flex items-center justify-between">
-                <p className="text-xs font-black uppercase tracking-[0.24em] text-zinc-400">Menu</p>
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-[#7A7A7A]">Menu</p>
                 <HamburgerButton open={mobileNavOpen} onClick={() => setMobileNavOpen(false)} />
               </div>
               <SidebarContent
@@ -605,7 +605,7 @@ export function AdminShell({
         ) : null}
 
         <div className="relative grid w-full grid-cols-1 gap-0 md:grid-cols-[248px_1fr] lg:grid-cols-[268px_1fr] xl:grid-cols-[288px_1fr]">
-          <aside className="sticky top-0 hidden h-screen flex-col border-r border-emerald-950/45 bg-[linear-gradient(180deg,rgba(8,20,18,0.94),rgba(5,10,12,0.98))] p-3 shadow-[inset_-1px_0_0_rgba(6,78,59,0.42),12px_0_36px_rgba(0,0,0,0.18),0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-xl md:flex lg:p-4">
+          <aside className="sticky top-0 hidden h-screen flex-col border-r border-[#085454]/40 bg-[linear-gradient(180deg,rgba(0,21,66,0.96),rgba(8,84,84,0.72))] p-3 shadow-[inset_-1px_0_0_rgba(8,84,84,0.45),12px_0_36px_rgba(0,0,0,0.18),0_0_0_1px_rgba(255,255,255,0.03)] backdrop-blur-xl md:flex lg:p-4">
             <SidebarContent
               pathname={pathname}
               navTree={navTree}
