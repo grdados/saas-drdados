@@ -392,15 +392,7 @@ function SidebarContent({
         </nav>
       </div>
 
-      <div className="mt-auto space-y-3 px-2 pb-2">
-        <div className="rounded-2xl border border-[#085454]/40 bg-gradient-to-b from-[#085454]/30 to-transparent p-4">
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#FFB30D]">Upgrade</p>
-          <p className="mt-2 text-sm font-semibold text-zinc-100">Desbloqueie recursos premium</p>
-          <button className="mt-3 w-full rounded-xl bg-[#FFB30D] px-3 py-2 text-sm font-black text-[#001542] hover:bg-[#ffc13a]">
-            Upgrade agora
-          </button>
-        </div>
-
+      <div className="mt-auto space-y-3 px-2 pb-2 pt-3">
         <div className="flex items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.04] p-3">
           <div className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-2xl bg-[#001542] ring-1 ring-white/10">
             {avatarUrl && avatarOk ? (
@@ -585,7 +577,7 @@ export function AdminShell({
               className="absolute inset-0 bg-black/70 backdrop-blur-[2px]"
               onClick={() => setMobileNavOpen(false)}
             />
-            <aside className="absolute inset-y-0 left-0 flex w-[86vw] max-w-[340px] flex-col overflow-y-auto border-r border-[#085454]/40 bg-[linear-gradient(180deg,rgba(0,21,66,0.98),rgba(8,84,84,0.92))] p-4 shadow-[0_20px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+            <aside className="absolute inset-y-0 left-0 flex w-[86vw] max-w-[340px] flex-col overflow-y-auto border-r border-[#085454]/40 bg-[#083a4a] p-4 shadow-[0_20px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl">
               <div className="mb-3 flex items-center justify-between">
                 <p className="text-xs font-black uppercase tracking-[0.24em] text-[#7A7A7A]">Menu</p>
                 <HamburgerButton open={mobileNavOpen} onClick={() => setMobileNavOpen(false)} />
@@ -605,7 +597,7 @@ export function AdminShell({
         ) : null}
 
         <div className="relative grid w-full grid-cols-1 gap-0 md:grid-cols-[248px_1fr] lg:grid-cols-[268px_1fr] xl:grid-cols-[288px_1fr]">
-          <aside className="sticky top-0 hidden h-screen flex-col overflow-y-auto border-r border-[#085454]/40 bg-[linear-gradient(180deg,rgba(0,21,66,0.96),rgba(8,84,84,0.92))] p-3 shadow-[inset_-1px_0_0_rgba(8,84,84,0.45),12px_0_36px_rgba(0,0,0,0.18),0_0_0_1px_rgba(255,255,255,0.03)] backdrop-blur-xl md:flex lg:p-4">
+          <aside className="hidden min-h-screen flex-col border-r border-[#085454]/40 bg-[#083a4a] p-3 shadow-[inset_-1px_0_0_rgba(8,84,84,0.45),12px_0_36px_rgba(0,0,0,0.18),0_0_0_1px_rgba(255,255,255,0.03)] backdrop-blur-xl md:flex lg:p-4">
             <SidebarContent
               pathname={pathname}
               navTree={navTree}
