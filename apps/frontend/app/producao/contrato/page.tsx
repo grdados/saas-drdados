@@ -259,29 +259,29 @@ export default function ContratoVendaPage() {
           </section>
 
           <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-            <div className="h-[112px] rounded-3xl border border-accent-400/30 bg-accent-500/10 p-3">
-              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">Valor total contratos</p>
-              <p className="mt-2 text-[20px] font-black leading-[1.02] text-white break-words">{brMoney(cards.totalValue)}</p>
+            <div className="h-[88px] rounded-3xl border border-accent-400/30 bg-accent-500/10 p-3">
+              <p className="min-h-[24px] text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Valor total contratos</p>
+              <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{brMoney(cards.totalValue)}</p>
             </div>
-            <div className="h-[112px] rounded-3xl border border-white/15 bg-white/5 p-3">
-              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">Quantidade de contratos</p>
-              <p className="mt-2 text-[20px] font-black leading-[1.02] text-white">{cards.qtyContracts}</p>
+            <div className="h-[88px] rounded-3xl border border-white/15 bg-white/5 p-3">
+              <p className="min-h-[24px] text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Qtd. de contratos</p>
+              <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{cards.qtyContracts}</p>
             </div>
-            <div className="h-[112px] rounded-3xl border border-sky-400/30 bg-sky-500/10 p-3">
-              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">Quantidade ({viewUnitLabel})</p>
-              <p className="mt-2 text-[20px] font-black leading-[1.04] text-white break-words">{formatViewUnit(cards.qtyKg)}</p>
+            <div className="h-[88px] rounded-3xl border border-sky-400/30 bg-sky-500/10 p-3">
+              <p className="min-h-[24px] text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Quantidade ({viewUnitLabel})</p>
+              <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatViewUnit(cards.qtyKg)}</p>
             </div>
-            <div className="h-[112px] rounded-3xl border border-white/15 bg-white/5 p-3">
-              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">Nº de contratos</p>
-              <p className="mt-2 text-[20px] font-black leading-[1.02] text-white">{cards.qtyContracts}</p>
+            <div className="h-[88px] rounded-3xl border border-white/15 bg-white/5 p-3">
+              <p className="min-h-[24px] text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Nº de contratos</p>
+              <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{cards.qtyContracts}</p>
             </div>
-            <div className="h-[112px] rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-3">
-              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">Nº contratos cumpridos</p>
-              <p className="mt-2 text-[20px] font-black leading-[1.02] text-white">{cards.done}</p>
+            <div className="h-[88px] rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-3">
+              <p className="min-h-[24px] text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Nº contratos cumpridos</p>
+              <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{cards.done}</p>
             </div>
-            <div className="h-[112px] rounded-3xl border border-amber-400/30 bg-amber-500/10 p-3">
-              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-zinc-400">Nº contratos pendentes</p>
-              <p className="mt-2 text-[20px] font-black leading-[1.02] text-white">{cards.pending}</p>
+            <div className="h-[88px] rounded-3xl border border-amber-400/30 bg-amber-500/10 p-3">
+              <p className="min-h-[24px] text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Nº contratos pendentes</p>
+              <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{cards.pending}</p>
             </div>
           </section>
 

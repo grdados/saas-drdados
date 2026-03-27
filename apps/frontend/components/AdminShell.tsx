@@ -585,7 +585,7 @@ export function AdminShell({
               className="absolute inset-0 bg-black/70 backdrop-blur-[2px]"
               onClick={() => setMobileNavOpen(false)}
             />
-            <aside className="absolute inset-y-0 left-0 flex w-[86vw] max-w-[340px] flex-col border-r border-white/10 bg-zinc-950/95 p-4 shadow-[0_20px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+            <aside className="absolute inset-y-0 left-0 flex w-[86vw] max-w-[340px] flex-col border-r border-emerald-950/50 bg-[linear-gradient(180deg,rgba(7,18,16,0.98),rgba(5,12,14,0.98))] p-4 shadow-[0_20px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl">
               <div className="mb-3 flex items-center justify-between">
                 <p className="text-xs font-black uppercase tracking-[0.24em] text-zinc-400">Menu</p>
                 <HamburgerButton open={mobileNavOpen} onClick={() => setMobileNavOpen(false)} />
@@ -605,7 +605,7 @@ export function AdminShell({
         ) : null}
 
         <div className="relative grid w-full grid-cols-1 gap-0 md:grid-cols-[248px_1fr] lg:grid-cols-[268px_1fr] xl:grid-cols-[288px_1fr]">
-          <aside className="sticky top-0 hidden h-screen flex-col border-r border-white/10 bg-zinc-950/40 p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl md:flex lg:p-4">
+          <aside className="sticky top-0 hidden h-screen flex-col border-r border-emerald-950/45 bg-[linear-gradient(180deg,rgba(8,20,18,0.94),rgba(5,10,12,0.98))] p-3 shadow-[inset_-1px_0_0_rgba(6,78,59,0.28),0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-xl md:flex lg:p-4">
             <SidebarContent
               pathname={pathname}
               navTree={navTree}
