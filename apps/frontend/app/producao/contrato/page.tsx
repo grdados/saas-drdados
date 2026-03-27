@@ -88,7 +88,6 @@ export default function ContratoVendaPage() {
   const [operacoes, setOperacoes] = useState<Operacao[]>([]);
   const [produtos, setProdutos] = useState<ProdutoItem[]>([]);
 
-  const [q, setQ] = useState("");
   const [filterSafra, setFilterSafra] = useState<number | "">("");
   const [filterGrupo, setFilterGrupo] = useState<number | "">("");
   const [filterProdutor, setFilterProdutor] = useState<number | "">("");
@@ -104,16 +103,14 @@ export default function ContratoVendaPage() {
   const [form, setForm] = useState({ date: "", code: "", grupo_id: "", produtor_id: "", cliente_id: "", safra_id: "", due_date: "", operacao_id: "", status: "pending", notes: "", rows: [{ produto_id: "", unit: "KG", quantity: "0", price: "0", discount: "0" }] });
 
   const filtered = useMemo(() => contracts.filter((c) => {
-    const needle = q.trim().toLowerCase();
     if (filterSafra !== "" && (c.safra?.id ?? null) !== Number(filterSafra)) return false;
     if (filterGrupo !== "" && (c.grupo?.id ?? null) !== Number(filterGrupo)) return false;
     if (filterProdutor !== "" && (c.produtor?.id ?? null) !== Number(filterProdutor)) return false;
     if (filterFornecedor !== "" && (c.cliente?.id ?? null) !== Number(filterFornecedor)) return false;
     if (filterFrom && c.date && c.date < filterFrom) return false;
     if (filterTo && c.date && c.date > filterTo) return false;
-    if (!needle) return true;
-    return (c.code || "").toLowerCase().includes(needle) || (c.cliente?.name ?? "").toLowerCase().includes(needle) || (c.produtor?.name ?? "").toLowerCase().includes(needle);
-  }), [contracts, q, filterSafra, filterGrupo, filterProdutor, filterFornecedor, filterFrom, filterTo]);
+    return true;
+  }), [contracts, filterSafra, filterGrupo, filterProdutor, filterFornecedor, filterFrom, filterTo]);
 
   const cards = useMemo(() => {
     const totalValue = filtered.reduce((acc, c) => acc + n(c.total_value), 0);
@@ -223,51 +220,51 @@ export default function ContratoVendaPage() {
             <p className="mt-1 text-sm text-zinc-300">Contrato de venda com geração automática em Contas a Receber.</p>
           </div>
 
-          <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+          <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative">
                   <span className="pointer-events-none absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-emerald-400/80 shadow-[0_0_0_4px_rgba(16,185,129,0.16)]" />
-                  <select value={filterSafra} onChange={(e) => setFilterSafra(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[220px] rounded-2xl border border-accent-500/40 bg-accent-500/15 pl-8 pr-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-400">
+                  <select value={filterSafra} onChange={(e) => setFilterSafra(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[200px] rounded-2xl border border-accent-500/40 bg-accent-500/15 pl-8 pr-8 py-2 text-[13px] font-semibold text-zinc-100 outline-none focus:border-accent-400">
                     <option value="" style={optionStyle}>Selecione a safra</option>
                     {safras.map((s) => (<option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>))}
                   </select>
                 </div>
-                <select value={viewUnit} onChange={(e) => setViewUnit(e.target.value as "KG" | "SC")} className="min-w-[130px] rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-white/30">
+                <select value={viewUnit} onChange={(e) => setViewUnit(e.target.value as "KG" | "SC")} className="min-w-[112px] rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-[13px] font-semibold text-zinc-100 outline-none focus:border-white/30">
                   <option value="KG" style={optionStyle}>KG</option>
                   <option value="SC" style={optionStyle}>Sacas</option>
                 </select>
-                <select value={String(sackWeight)} onChange={(e) => setSackWeight(Number(e.target.value) as 60 | 40)} disabled={viewUnit !== "SC"} className="min-w-[130px] rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50">
+                <select value={String(sackWeight)} onChange={(e) => setSackWeight(Number(e.target.value) as 60 | 40)} disabled={viewUnit !== "SC"} className="min-w-[132px] rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-[13px] font-semibold text-zinc-100 outline-none focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50">
                   <option value="60" style={optionStyle}>Saca 60</option>
                   <option value="40" style={optionStyle}>Saca 40</option>
                 </select>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
-              <button onClick={reportResumo} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10">Relatório resumido</button>
-              <button onClick={reportAnalitico} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10">Relatório analítico</button>
-              <button onClick={openCreate} className="rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">Novo contrato</button>
+              <button onClick={reportResumo} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-[13px] font-black text-zinc-100 hover:bg-white/10">Relatório resumido</button>
+              <button onClick={reportAnalitico} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-[13px] font-black text-zinc-100 hover:bg-white/10">Relatório analítico</button>
+              <button onClick={openCreate} className="rounded-2xl bg-accent-500 px-4 py-2 text-[13px] font-black text-zinc-950 hover:bg-accent-400">Novo contrato</button>
               </div>
             </div>
           </section>
 
-          <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-4">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-12">
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por contrato, cliente ou produtor..." className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 xl:col-span-3" />
-              <select value={filterGrupo} onChange={(e) => setFilterGrupo(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Grupo</option>{grupos.map((g) => <option key={g.id} value={g.id} style={optionStyle}>{g.name}</option>)}</select>
-              <select value={filterProdutor} onChange={(e) => setFilterProdutor(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Produtor</option>{produtores.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{produtorDisplayLabel(p)}</option>)}</select>
-              <select value={filterFornecedor} onChange={(e) => setFilterFornecedor(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Fornecedor</option>{clientes.map((c) => <option key={c.id} value={c.id} style={optionStyle}>{c.name}</option>)}</select>
-              <div className="flex gap-2 sm:col-span-2 xl:col-span-2"><input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark]" /><input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark]" /></div>
+          <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-3.5">
+            <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-5">
+              <select value={filterGrupo} onChange={(e) => setFilterGrupo(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-0 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Grupo</option>{grupos.map((g) => <option key={g.id} value={g.id} style={optionStyle}>{g.name}</option>)}</select>
+              <select value={filterProdutor} onChange={(e) => setFilterProdutor(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-0 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Produtor</option>{produtores.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{produtorDisplayLabel(p)}</option>)}</select>
+              <select value={filterFornecedor} onChange={(e) => setFilterFornecedor(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-0 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Fornecedor</option>{clientes.map((c) => <option key={c.id} value={c.id} style={optionStyle}>{c.name}</option>)}</select>
+              <input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100 [color-scheme:dark]" />
+              <input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100 [color-scheme:dark]" />
             </div>
             {error ? <div className="mt-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm font-semibold text-amber-200">{error}</div> : null}
           </section>
 
-          <section className="grid gap-4 lg:grid-cols-3 xl:grid-cols-6">
-            <div className="rounded-3xl border border-accent-400/30 bg-accent-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Valor total contratos</p><p className="mt-2 text-2xl font-black text-white">{brMoney(cards.totalValue)}</p></div>
-            <div className="rounded-3xl border border-white/15 bg-white/5 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Quantidade de contratos</p><p className="mt-2 text-2xl font-black text-white">{cards.qtyContracts}</p></div>
-            <div className="rounded-3xl border border-sky-400/30 bg-sky-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Quantidade ({viewUnitLabel})</p><p className="mt-2 text-2xl font-black text-white">{formatViewUnit(cards.qtyKg)}</p></div>
-            <div className="rounded-3xl border border-white/15 bg-white/5 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Nº de contratos</p><p className="mt-2 text-2xl font-black text-white">{cards.qtyContracts}</p></div>
-            <div className="rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Nº contratos cumpridos</p><p className="mt-2 text-2xl font-black text-white">{cards.done}</p></div>
-            <div className="rounded-3xl border border-amber-400/30 bg-amber-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Nº contratos pendentes</p><p className="mt-2 text-2xl font-black text-white">{cards.pending}</p></div>
+          <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+            <div className="rounded-3xl border border-accent-400/30 bg-accent-500/10 p-3.5"><p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Valor total contratos</p><p className="mt-1.5 text-[30px] font-black leading-none text-white">{brMoney(cards.totalValue)}</p></div>
+            <div className="rounded-3xl border border-white/15 bg-white/5 p-3.5"><p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Quantidade de contratos</p><p className="mt-1.5 text-[30px] font-black leading-none text-white">{cards.qtyContracts}</p></div>
+            <div className="rounded-3xl border border-sky-400/30 bg-sky-500/10 p-3.5"><p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Quantidade ({viewUnitLabel})</p><p className="mt-1.5 text-[30px] font-black leading-tight text-white">{formatViewUnit(cards.qtyKg)}</p></div>
+            <div className="rounded-3xl border border-white/15 bg-white/5 p-3.5"><p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Nº de contratos</p><p className="mt-1.5 text-[30px] font-black leading-none text-white">{cards.qtyContracts}</p></div>
+            <div className="rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-3.5"><p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Nº contratos cumpridos</p><p className="mt-1.5 text-[30px] font-black leading-none text-white">{cards.done}</p></div>
+            <div className="rounded-3xl border border-amber-400/30 bg-amber-500/10 p-3.5"><p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Nº contratos pendentes</p><p className="mt-1.5 text-[30px] font-black leading-none text-white">{cards.pending}</p></div>
           </section>
 
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4">
