@@ -203,7 +203,7 @@ function SidebarLink({
 }) {
   const base =
     "group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition-colors";
-  const activeCls = "bg-accent-500/16 text-accent-100 ring-1 ring-accent-400/25";
+  const activeCls = "bg-accent-500/22 text-white ring-1 ring-accent-400/40 shadow-[0_0_0_1px_rgba(251,191,36,0.08)_inset]";
   const idleCls = "text-zinc-300 hover:bg-white/5 hover:text-white";
 
   if (item.disabled) {
@@ -291,7 +291,7 @@ function SidebarTreeNode({
 
   const base =
     "group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-semibold transition-colors";
-  const activeCls = "bg-accent-500/16 text-accent-100 ring-1 ring-accent-400/25";
+  const activeCls = "bg-accent-500/22 text-white ring-1 ring-accent-400/40 shadow-[0_0_0_1px_rgba(251,191,36,0.08)_inset]";
   const idleCls = "text-zinc-300 hover:bg-white/5 hover:text-white";
 
   if (!hasChildren) {
@@ -380,14 +380,14 @@ function SidebarContent({
 
       <div className="mt-4">
         <p className="px-2 text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Dashboard</p>
-        <nav className="mt-2">
+        <nav className="mt-2 rounded-[26px] border border-white/8 bg-white/[0.03] p-2 shadow-[0_0_0_1px_rgba(255,255,255,0.02)_inset]">
           <SidebarTree nodes={navTree.dashboard} pathname={pathname} onNavigate={onNavigate} />
         </nav>
       </div>
 
       <div className="mt-6">
         <p className="px-2 text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Advanced</p>
-        <nav className="mt-2">
+        <nav className="mt-2 rounded-[26px] border border-white/8 bg-white/[0.03] p-2 shadow-[0_0_0_1px_rgba(255,255,255,0.02)_inset]">
           <SidebarTree nodes={navTree.advanced} pathname={pathname} onNavigate={onNavigate} />
         </nav>
       </div>
@@ -605,7 +605,7 @@ export function AdminShell({
         ) : null}
 
         <div className="relative grid w-full grid-cols-1 gap-0 md:grid-cols-[248px_1fr] lg:grid-cols-[268px_1fr] xl:grid-cols-[288px_1fr]">
-          <aside className="sticky top-0 hidden h-screen flex-col border-r border-emerald-950/45 bg-[linear-gradient(180deg,rgba(8,20,18,0.94),rgba(5,10,12,0.98))] p-3 shadow-[inset_-1px_0_0_rgba(6,78,59,0.28),0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-xl md:flex lg:p-4">
+          <aside className="sticky top-0 hidden h-screen flex-col border-r border-emerald-950/45 bg-[linear-gradient(180deg,rgba(8,20,18,0.94),rgba(5,10,12,0.98))] p-3 shadow-[inset_-1px_0_0_rgba(6,78,59,0.42),12px_0_36px_rgba(0,0,0,0.18),0_0_0_1px_rgba(255,255,255,0.04)] backdrop-blur-xl md:flex lg:p-4">
             <SidebarContent
               pathname={pathname}
               navTree={navTree}
