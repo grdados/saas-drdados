@@ -242,40 +242,46 @@ export default function ContratoVendaPage() {
     <AuthedAdminShell hideHeader>
       {() => (
         <div className="space-y-5">
-          <section className="grid gap-3 xl:grid-cols-[minmax(0,420px)_1fr] xl:items-start">
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Produção</p>
-              <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Contratos</h1>
-              <p className="mt-1 text-sm text-zinc-300">Contrato de venda com geração automática em Contas a Receber.</p>
-            </div>
+            <section className="grid gap-3 xl:grid-cols-[minmax(0,420px)_1fr] xl:items-start">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Produção</p>
+                <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Contratos</h1>
+                <p className="mt-1 text-sm text-zinc-300">Contrato de venda com geração automática em Contas a Receber.</p>
+              </div>
 
-            <div className="rounded-3xl border border-white/15 bg-zinc-900/55 p-3.5">
-              <div className="grid gap-2.5">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="relative">
-                    <span className="pointer-events-none absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-emerald-400/80 shadow-[0_0_0_4px_rgba(16,185,129,0.16)]" />
-                    <select value={filterSafra} onChange={(e) => setFilterSafra(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[200px] rounded-2xl border border-accent-500/40 bg-accent-500/15 pl-8 pr-8 py-2 text-[13px] font-semibold text-zinc-100 outline-none focus:border-accent-400">
-                      <option value="" style={optionStyle}>Selecione a safra</option>
-                      {safras.map((s) => (<option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>))}
-                    </select>
+              <div className="rounded-3xl border border-white/15 bg-zinc-900/55 p-3">
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-stretch">
+                  <div className="flex h-full flex-col justify-between gap-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Filtros</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="relative">
+                        <span className="pointer-events-none absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-emerald-400/80 shadow-[0_0_0_4px_rgba(16,185,129,0.16)]" />
+                        <select value={filterSafra} onChange={(e) => setFilterSafra(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[200px] rounded-2xl border border-accent-500/40 bg-accent-500/15 pl-8 pr-8 py-2 text-[13px] font-semibold text-zinc-100 outline-none focus:border-accent-400">
+                          <option value="" style={optionStyle}>Safra</option>
+                          {safras.map((s) => (<option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>))}
+                        </select>
+                      </div>
+                      <select value={viewUnit} onChange={(e) => setViewUnit(e.target.value as "KG" | "SC")} className="min-w-[112px] rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-[13px] font-semibold text-zinc-100 outline-none focus:border-white/30">
+                        <option value="KG" style={optionStyle}>Unidade</option>
+                        <option value="SC" style={optionStyle}>Sacas</option>
+                      </select>
+                      <select value={String(sackWeight)} onChange={(e) => setSackWeight(Number(e.target.value) as 60 | 40)} disabled={viewUnit !== "SC"} className="min-w-[132px] rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-[13px] font-semibold text-zinc-100 outline-none focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50">
+                        <option value="60" style={optionStyle}>Sacas 60</option>
+                        <option value="40" style={optionStyle}>Sacas 40</option>
+                      </select>
+                    </div>
                   </div>
-                  <select value={viewUnit} onChange={(e) => setViewUnit(e.target.value as "KG" | "SC")} className="min-w-[112px] rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-[13px] font-semibold text-zinc-100 outline-none focus:border-white/30">
-                    <option value="KG" style={optionStyle}>KG</option>
-                    <option value="SC" style={optionStyle}>Sacas</option>
-                  </select>
-                  <select value={String(sackWeight)} onChange={(e) => setSackWeight(Number(e.target.value) as 60 | 40)} disabled={viewUnit !== "SC"} className="min-w-[132px] rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-[13px] font-semibold text-zinc-100 outline-none focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50">
-                    <option value="60" style={optionStyle}>Saca 60</option>
-                    <option value="40" style={optionStyle}>Saca 40</option>
-                  </select>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                <button onClick={reportResumo} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-[13px] font-black text-zinc-100 hover:bg-white/10">Relatório resumido</button>
-                <button onClick={reportAnalitico} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-[13px] font-black text-zinc-100 hover:bg-white/10">Relatório analítico</button>
-                <button onClick={openCreate} className="rounded-2xl bg-accent-500 px-4 py-2 text-[13px] font-black text-zinc-950 hover:bg-accent-400">Novo contrato</button>
+                  <div className="flex h-full flex-col justify-between gap-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Relatórios</p>
+                    <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                      <button onClick={reportResumo} className="min-h-[40px] rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-[13px] font-black text-zinc-100 hover:bg-white/10">Resumo</button>
+                      <button onClick={reportAnalitico} className="min-h-[40px] rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-[13px] font-black text-zinc-100 hover:bg-white/10">Analítico</button>
+                      <button onClick={openCreate} className="min-h-[40px] rounded-2xl bg-accent-500 px-4 py-2 text-[13px] font-black text-zinc-950 hover:bg-accent-400">Novo contrato</button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </section>
+            </section>
 
           <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-3.5">
             <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-5">
