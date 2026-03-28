@@ -5,6 +5,7 @@ from collections import defaultdict, deque
 from datetime import timedelta
 from pathlib import Path
 from uuid import uuid4
+import re
 
 from django.apps import apps
 from django.conf import settings
@@ -282,11 +283,34 @@ def reset_sequences(models: list[type]) -> None:
             cursor.execute(statement)
 
 
+def normalize_company_document(value: str | None) -> str:
+    return re.sub(r"\D+", "", value or "")
+
+
+def normalize_company_name(value: str | None) -> str:
+    return re.sub(r"\s+", " ", (value or "").strip()).upper()
+
+
 def restore_company_backup(archive: BackupArchive, target_company: Company) -> BackupArchive:
     manifest, payload = read_archive_payload(archive)
     backup_company = payload.get("company") or {}
 
-    if int(backup_company.get("id", 0) or 0) != target_company.id:
+    backup_company_id = int(backup_company.get("id", 0) or 0)
+    same_id = backup_company_id == target_company.id
+
+    backup_document = normalize_company_document(backup_company.get("document"))
+    target_document = normalize_company_document(target_company.document)
+    same_document = bool(backup_document and target_document and backup_document == target_document)
+
+    backup_name = normalize_company_name(backup_company.get("name"))
+    target_name = normalize_company_name(target_company.name)
+    backup_trade_name = normalize_company_name(backup_company.get("trade_name"))
+    target_trade_name = normalize_company_name(target_company.trade_name)
+    same_name_fallback = bool(backup_name and target_name and backup_name == target_name)
+    if backup_trade_name and target_trade_name:
+        same_name_fallback = same_name_fallback and backup_trade_name == target_trade_name
+
+    if not (same_id or same_document or same_name_fallback):
         raise ValueError("Este backup pertence a outra empresa e nao pode ser restaurado nesta conta.")
 
     sections: dict[str, list] = payload.get("sections") or {}
