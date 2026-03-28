@@ -239,10 +239,10 @@ export default function ContratoVendaPage() {
   const optionStyle = { backgroundColor: "#e5e7eb", color: "#111827" } as const;
 
   return (
-    <AuthedAdminShell>
+    <AuthedAdminShell hideHeader>
       {() => (
         <div className="space-y-5">
-          <section className="grid gap-3 xl:grid-cols-[minmax(0,360px)_1fr] xl:items-start">
+          <section className="grid gap-3 xl:grid-cols-[minmax(0,420px)_1fr] xl:items-start">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Produção</p>
               <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Contratos</h1>
@@ -250,7 +250,7 @@ export default function ContratoVendaPage() {
             </div>
 
             <div className="rounded-3xl border border-white/15 bg-zinc-900/55 p-3.5">
-              <div className="flex flex-wrap items-center justify-between gap-2.5">
+              <div className="grid gap-2.5">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="relative">
                     <span className="pointer-events-none absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-emerald-400/80 shadow-[0_0_0_4px_rgba(16,185,129,0.16)]" />
@@ -268,7 +268,7 @@ export default function ContratoVendaPage() {
                     <option value="40" style={optionStyle}>Saca 40</option>
                   </select>
                 </div>
-                <div className="flex flex-wrap items-center justify-end gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                 <button onClick={reportResumo} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-[13px] font-black text-zinc-100 hover:bg-white/10">Relatório resumido</button>
                 <button onClick={reportAnalitico} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-[13px] font-black text-zinc-100 hover:bg-white/10">Relatório analítico</button>
                 <button onClick={openCreate} className="rounded-2xl bg-accent-500 px-4 py-2 text-[13px] font-black text-zinc-950 hover:bg-accent-400">Novo contrato</button>
@@ -384,13 +384,13 @@ export default function ContratoVendaPage() {
           <section className="rounded-3xl border border-white/10 bg-white/5 p-3.5">
             <div className="flex items-center justify-between"><p className="text-[13px] font-black text-white">Lista</p><p className="text-[11px] font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} contrato(s)`}</p></div>
             <div className="mt-2.5 overflow-x-auto">
-              <div className="hidden min-w-[1240px] grid-cols-[76px_82px_98px_142px_160px_96px_100px_78px_100px_52px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.15em] text-zinc-400 xl:grid"><div>Status</div><div>Data</div><div>Contrato</div><div>Cliente</div><div>Produtor</div><div>Vencimento</div><div>Quantidade</div><div>Preço</div><div>Valor</div><div className="text-right">Ações</div></div>
-              <div className="mt-2.5 space-y-2 xl:min-w-[1240px]">
+              <div className="hidden min-w-[1210px] grid-cols-[76px_82px_98px_142px_160px_96px_100px_78px_100px_44px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.15em] text-zinc-400 xl:grid"><div>Status</div><div>Data</div><div>Contrato</div><div>Cliente</div><div>Produtor</div><div>Vencimento</div><div>Quantidade</div><div>Preço</div><div>Valor</div><div className="text-right">Ações</div></div>
+              <div className="mt-2.5 space-y-2 xl:min-w-[1210px]">
                 {filtered.map((c) => {
                   const qty = (c.items || []).reduce((acc, i) => acc + n(i.quantity), 0);
                   const avgPrice = qty > 0 ? n(c.total_value) / qty : 0;
                   const st = statusMeta(c.status);
-                  return <div key={c.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5"><div className="grid grid-cols-1 gap-2 xl:grid-cols-[76px_82px_98px_142px_160px_96px_100px_78px_100px_52px] xl:items-center xl:gap-2"><div><span className={`inline-flex rounded-full border px-2 py-1 text-[10px] font-black ${st.cls}`}>{st.label}</span></div><div className="text-[12px] text-zinc-100">{d(c.date)}</div><div className="text-[12px] font-black text-zinc-100">{c.code || `#${c.id}`}</div><div className="truncate text-[12px] text-zinc-100">{c.cliente?.name ?? "-"}</div><div className="truncate text-[12px] text-zinc-100">{c.produtor?.name ?? "-"}</div><div className="text-[12px] text-zinc-100">{d(c.due_date)}</div><div className="text-[12px] text-zinc-100">{formatViewUnitRow(qty)}</div><div className="text-[12px] text-zinc-100">{brMoney(avgPrice)}</div><div className="text-[12px] font-black text-zinc-100">{brMoney(n(c.total_value))}</div><div className="text-right"><div className="flex w-full flex-nowrap justify-end gap-1 whitespace-nowrap"><button onClick={() => openEdit(c)} className="rounded-lg border border-sky-400/25 bg-sky-500/10 p-1 text-sky-200 hover:bg-sky-500/20" title="Editar" aria-label="Editar"><svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg></button><button onClick={() => void remove(c.id)} className="rounded-lg border border-rose-400/25 bg-rose-500/10 p-1 text-rose-200 hover:bg-rose-500/20" title="Excluir" aria-label="Excluir"><svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg></button></div></div></div></div>;
+                  return <div key={c.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5"><div className="grid grid-cols-1 gap-2 xl:grid-cols-[76px_82px_98px_142px_160px_96px_100px_78px_100px_44px] xl:items-center xl:gap-2"><div><span className={`inline-flex rounded-full border px-2 py-1 text-[10px] font-black ${st.cls}`}>{st.label}</span></div><div className="text-[12px] text-zinc-100">{d(c.date)}</div><div className="text-[12px] font-black text-zinc-100">{c.code || `#${c.id}`}</div><div className="truncate text-[12px] text-zinc-100">{c.cliente?.name ?? "-"}</div><div className="truncate text-[12px] text-zinc-100">{c.produtor?.name ?? "-"}</div><div className="text-[12px] text-zinc-100">{d(c.due_date)}</div><div className="text-[12px] text-zinc-100">{formatViewUnitRow(qty)}</div><div className="text-[12px] text-zinc-100">{brMoney(avgPrice)}</div><div className="text-[12px] font-black text-zinc-100">{brMoney(n(c.total_value))}</div><div className="text-right"><div className="flex w-full flex-nowrap justify-end gap-0.5 whitespace-nowrap"><button onClick={() => openEdit(c)} className="rounded-md border border-sky-400/25 bg-sky-500/10 p-1 text-sky-200 hover:bg-sky-500/20" title="Editar" aria-label="Editar"><svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg></button><button onClick={() => void remove(c.id)} className="rounded-md border border-rose-400/25 bg-rose-500/10 p-1 text-rose-200 hover:bg-rose-500/20" title="Excluir" aria-label="Excluir"><svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg></button></div></div></div></div>;
                 })}
               </div>
             </div>

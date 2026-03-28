@@ -420,10 +420,12 @@ function SidebarContent({
 
 export function AdminShell({
   children,
-  user
+  user,
+  hideHeader = false
 }: {
   children: ReactNode;
   user?: { name: string; email: string; company?: string; avatarUrl?: string };
+  hideHeader?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -610,7 +612,7 @@ export function AdminShell({
           </aside>
 
           <div className="min-w-0 px-2 py-4 pb-24 sm:px-3 md:px-4 md:pb-4 lg:px-5 xl:px-6">
-            <header className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-white/5 p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between lg:p-4">
+            {!hideHeader ? <header className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-white/5 p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between lg:p-4">
               <div className="flex items-center gap-3">
                 <HamburgerButton open={mobileNavOpen} onClick={() => setMobileNavOpen((v) => !v)} />
                 <div className="leading-tight">
@@ -721,9 +723,9 @@ export function AdminShell({
                   </div>
                 </div>
               </div>
-            </header>
+            </header> : null}
 
-            <div className="mt-4 sm:mt-6">{children}</div>
+            <div className={hideHeader ? "" : "mt-4 sm:mt-6"}>{children}</div>
           </div>
         </div>
 

@@ -10,10 +10,12 @@ type AdminUser = { name: string; email: string; company?: string; avatarUrl?: st
 
 export function AuthedAdminShell({
   children,
-  requireAuth = true
+  requireAuth = true,
+  hideHeader = false
 }: {
   children: (ctx: { loading: boolean; user: AdminUser }) => ReactNode;
   requireAuth?: boolean;
+  hideHeader?: boolean;
 }) {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<AdminUser>({ name: "Usuario", email: "" });
@@ -44,6 +46,5 @@ export function AuthedAdminShell({
       .finally(() => setLoading(false));
   }, [requireAuth]);
 
-  return <AdminShell user={user}>{children({ loading, user })}</AdminShell>;
+  return <AdminShell user={user} hideHeader={hideHeader}>{children({ loading, user })}</AdminShell>;
 }
-
