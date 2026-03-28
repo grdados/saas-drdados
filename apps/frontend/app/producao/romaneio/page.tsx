@@ -10,6 +10,7 @@ import {
   Deposito,
   Cultivar,
   ContratoVenda,
+  EmpreendimentoApi,
   Operacao,
   Produtor,
   Propriedade,
@@ -21,6 +22,7 @@ import {
   listContratosVenda,
   listCultivares,
   listDepositos,
+  listEmpreendimentos,
   listOperacoes,
   listProdutores,
   listPropriedades,
@@ -65,12 +67,14 @@ function CardIcon({
   tone,
   children
 }: {
-  tone: "slate" | "sky" | "emerald";
+  tone: "slate" | "sky" | "emerald" | "violet";
   children: ReactNode;
 }) {
   const toneClass =
     tone === "sky"
       ? "bg-sky-500/18 text-sky-300 ring-sky-400/25"
+      : tone === "violet"
+        ? "bg-violet-500/18 text-violet-300 ring-violet-400/25"
       : tone === "emerald"
         ? "bg-emerald-500/18 text-emerald-300 ring-emerald-400/25"
         : "bg-white/10 text-zinc-200 ring-white/10";
@@ -84,6 +88,38 @@ function escapeHtml(value: string) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function fromApiEmpreendimento(e: EmpreendimentoApi): Empreendimento {
+  return {
+    id: String(e.id),
+    created_at: e.created_at,
+    updated_at: e.updated_at,
+    date: e.date ?? "",
+    code: e.code ?? "",
+    safra_id: e.safra_id ?? e.safra?.id ?? null,
+    propriedade_id: e.propriedade_id ?? e.propriedade?.id ?? null,
+    produto_id: e.produto_id ?? e.produto?.id ?? null,
+    centro_custo_id: e.centro_custo_id ?? e.centro_custo?.id ?? null,
+    unit: String(e.unit || "SC").toUpperCase().startsWith("KG") ? "KG" : "SC",
+    sale_price: n(e.sale_price),
+    billing_value: n(e.billing_value),
+    status: e.status === "closed" ? "closed" : "in_progress",
+    notes: e.notes ?? "",
+    items: (e.items || []).map((it) => ({
+      id: String(it.id),
+      talhao_id: it.talhao_id ?? it.talhao?.id ?? null,
+      produto_id: it.produto_id ?? it.produto?.id ?? null,
+      cultivar_id: it.cultivar_id ?? it.cultivar?.id ?? null,
+      unit: String(it.unit || "SC").toUpperCase().startsWith("KG") ? "KG" : "SC",
+      area_ha: n(it.area_ha),
+      produtividade: n(it.produtividade),
+      plant_date: it.plant_date ?? "",
+      close_date: it.close_date ?? "",
+      production_sc: n(it.production_sc),
+      production_kg: n(it.production_kg)
+    }))
+  };
 }
 
 type FormState = {
@@ -143,6 +179,7 @@ export default function RomaneioPage() {
 
   const [open, setOpen] = useState(false);
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
+  const [formStep, setFormStep] = useState(0);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
   const [rows, setRows] = useState<Romaneio[]>([]);
@@ -184,7 +221,7 @@ export default function RomaneioPage() {
     setLoading(true);
     setError("");
     try {
-      const [a, b, c, d, e, f, g, h, i, j] = await Promise.all([
+      const [a, b, c, d, e, f, g, h, i, j, emps] = await Promise.all([
         listSafras(token),
         listProdutores(token),
         listContratosVenda(token),
@@ -194,7 +231,8 @@ export default function RomaneioPage() {
         listClientesGerencial(token),
         listCultivares(token),
         listDepositos(token),
-        listTransportadorPlacas(token)
+        listTransportadorPlacas(token),
+        listEmpreendimentos(token)
       ]);
       setSafras(a);
       setProdutores(b);
@@ -206,6 +244,7 @@ export default function RomaneioPage() {
       setCultivares(h);
       setDepositos(i);
       setPlacasTransportador(j);
+      setEmpreendimentos(emps.map(fromApiEmpreendimento));
     } catch (err) {
       if (isApiError(err) && err.status === 401) {
         window.location.href = "/login";
@@ -551,6 +590,7 @@ export default function RomaneioPage() {
     setEditingId(null);
     setForm(EMPTY_FORM);
     setConfirmSaveOpen(false);
+    setFormStep(0);
     setOpen(true);
   }
 
@@ -584,6 +624,7 @@ export default function RomaneioPage() {
       others: String(row.others ?? 0)
     });
     setConfirmSaveOpen(false);
+    setFormStep(0);
     setOpen(true);
   }
 
@@ -690,6 +731,7 @@ export default function RomaneioPage() {
       saveRomaneios(next);
       setConfirmSaveOpen(false);
       setEditingId(null);
+      setFormStep(0);
       setOpen(false);
     } finally {
       setSaving(false);
@@ -879,8 +921,8 @@ export default function RomaneioPage() {
                 </div>
               </div>
             </div>
-            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-3">
-              <CardIcon tone="emerald">
+            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-violet-400/30 bg-violet-500/10 p-3">
+              <CardIcon tone="violet">
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="m5 12 4 4L19 6" />
                 </svg>
@@ -920,7 +962,12 @@ export default function RomaneioPage() {
             <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-black text-white">Colheita por dia (safra)</p>
-                <p className="text-xs font-semibold text-zinc-400">{fmtKg(temporalMeta.avg)}/dia</p>
+                <p className="text-xs font-semibold text-zinc-400">
+                  {`${toViewValue(temporalMeta.avg).toLocaleString("pt-BR", {
+                    minimumFractionDigits: 3,
+                    maximumFractionDigits: 3
+                  })} ${viewUnit}/dia`}
+                </p>
               </div>
               <p className="mt-1 text-xs text-zinc-400">Do início ao fim da safra selecionada.</p>
               <div className="mt-3 overflow-x-auto">
@@ -951,7 +998,7 @@ export default function RomaneioPage() {
 
             <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
               <p className="text-sm font-black text-white">Colheita por talhão</p>
-              <p className="mt-1 text-xs text-zinc-400">Estimado vs realizado (KG).</p>
+              <p className="mt-1 text-xs text-zinc-400">Estimado vs realizado ({viewUnit}).</p>
               <div className="mt-3 space-y-2">
                 {talhaoSeries.map((item) => {
                   const max = Math.max(item.estimated, item.realized, 1);
@@ -964,7 +1011,7 @@ export default function RomaneioPage() {
                       <div className="mt-1 h-2 rounded bg-zinc-800"><div className="h-2 rounded bg-amber-400" style={{ width: `${pEst}%` }} /></div>
                       <div className="mt-1 h-2 rounded bg-zinc-800"><div className="h-2 rounded bg-emerald-400" style={{ width: `${pReal}%` }} /></div>
                       <p className="mt-1 text-[11px] text-zinc-400" title={`Média estimada vs realizada: ${ratio.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}>
-                        Est: {fmtKg(item.estimated)} · Real: {fmtKg(item.realized)}
+                        Est: {toViewWeight(item.estimated)} · Real: {toViewWeight(item.realized)}
                       </p>
                     </div>
                   );
@@ -975,7 +1022,7 @@ export default function RomaneioPage() {
 
             <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
               <p className="text-sm font-black text-white">Colheita por variedade</p>
-              <p className="mt-1 text-xs text-zinc-400">Estimado vs realizado (KG).</p>
+              <p className="mt-1 text-xs text-zinc-400">Estimado vs realizado ({viewUnit}).</p>
               <div className="mt-3 space-y-2">
                 {cultivarSeries.map((item) => {
                   const max = Math.max(item.estimated, item.realized, 1);
@@ -988,7 +1035,7 @@ export default function RomaneioPage() {
                       <div className="mt-1 h-2 rounded bg-zinc-800"><div className="h-2 rounded bg-amber-400" style={{ width: `${pEst}%` }} /></div>
                       <div className="mt-1 h-2 rounded bg-zinc-800"><div className="h-2 rounded bg-emerald-400" style={{ width: `${pReal}%` }} /></div>
                       <p className="mt-1 text-[11px] text-zinc-400" title={`Média estimada vs realizada: ${ratio.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}>
-                        Est: {fmtKg(item.estimated)} · Real: {fmtKg(item.realized)}
+                        Est: {toViewWeight(item.estimated)} · Real: {toViewWeight(item.realized)}
                       </p>
                     </div>
                   );
@@ -1070,11 +1117,31 @@ export default function RomaneioPage() {
           </section>
 
           {open ? (
-            <div className="fixed inset-0 z-50 grid place-items-center px-4">
-              <button className="absolute inset-0 bg-zinc-950/60" onClick={() => { setOpen(false); setConfirmSaveOpen(false); setEditingId(null); }} aria-label="Fechar" />
-              <div className="relative w-full max-w-[1380px] max-h-[92vh] overflow-auto rounded-3xl border border-white/15 bg-zinc-900/95 p-5 space-y-4">
-                <p className="text-sm font-black text-white">{editingId ? "Editar romaneio" : "Novo romaneio"}</p>
-                <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="fixed inset-0 z-50 grid place-items-center px-3 sm:px-4">
+              <button className="absolute inset-0 bg-zinc-950/55 backdrop-blur-md" onClick={() => { setOpen(false); setConfirmSaveOpen(false); setEditingId(null); setFormStep(0); }} aria-label="Fechar" />
+              <div className="relative w-full max-w-[1180px] max-h-[92vh] overflow-auto rounded-3xl border border-white/15 bg-zinc-900/95 p-3 sm:p-4 space-y-3 text-[13px] [&_label]:text-[10px] [&_label]:tracking-[0.16em] [&_input]:py-2 [&_input]:text-[13px] [&_input]:transition-[border-color,box-shadow,background-color] [&_input]:duration-200 [&_input]:ease-out [&_input:focus]:border-accent-400/85 [&_input:focus]:shadow-[0_0_0_2px_rgba(234,179,8,0.18)] [&_input:focus]:bg-zinc-950/55 [&_input:focus]:outline-none [&_select]:py-2 [&_select]:text-[13px] [&_select]:transition-[border-color,box-shadow,background-color] [&_select]:duration-200 [&_select]:ease-out [&_select:focus]:border-accent-400/85 [&_select:focus]:shadow-[0_0_0_2px_rgba(234,179,8,0.18)] [&_select:focus]:bg-zinc-950/55 [&_select:focus]:outline-none">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-black text-white">{editingId ? "Editar romaneio" : "Novo romaneio"}</p>
+                  <p className="text-[11px] font-semibold text-zinc-400">Etapa {formStep + 1} de 6</p>
+                </div>
+                <div className="grid grid-cols-3 gap-1 sm:grid-cols-6">
+                  {["Romaneio", "Colheita", "Depósito", "Transporte", "Carga", "Resumo"].map((label, idx) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => setFormStep(idx)}
+                      className={`rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${
+                        formStep === idx
+                          ? "border-accent-400/45 bg-accent-500/18 text-accent-100"
+                          : "border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {formStep === 0 ? (
+                <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-300">Dados do Romaneio</p>
                   <div className="grid gap-3 lg:grid-cols-5">
                     <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Data</label><input type="date" value={form.date} onChange={(e) => setField("date", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark]" /></div>
@@ -1084,8 +1151,10 @@ export default function RomaneioPage() {
                     <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Safra</label><select value={form.safra_id} onChange={(e) => setForm((prev) => ({ ...prev, safra_id: e.target.value, contrato_id: "", empreendimento_id: "" }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{safras.map((s) => <option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>)}</select></div>
                   </div>
                 </section>
+                ) : null}
 
-                <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+                {formStep === 1 ? (
+                <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-300">Dados da Colheita</p>
                   <div className="grid gap-3 lg:grid-cols-5">
                     <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Produtor</label><select value={form.produtor_id} onChange={(e) => setForm((prev) => ({ ...prev, produtor_id: e.target.value, propriedade_id: "", contrato_id: "", empreendimento_id: "", talhao_id: "" }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{produtoresComPropriedade.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{produtorDisplayLabel(p)}</option>)}</select></div>
@@ -1095,16 +1164,20 @@ export default function RomaneioPage() {
                     <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Talhão</label><select value={form.talhao_id} onChange={(e) => setField("talhao_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{talhoesFiltrados.map((t) => <option key={t.id} value={t.id} style={optionStyle}>{t.name}</option>)}</select></div>
                   </div>
                 </section>
+                ) : null}
 
-                <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+                {formStep === 2 ? (
+                <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-300">Dados Depósito</p>
                   <div className="grid gap-3 lg:grid-cols-2">
                     <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Cliente</label><select value={form.cliente_id} onChange={(e) => setField("cliente_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{clientes.map((c) => <option key={c.id} value={c.id} style={optionStyle}>{c.name}</option>)}</select></div>
                     <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Depósito</label><select value={form.deposito} onChange={(e) => setField("deposito", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{depositosGraos.map((dep) => <option key={dep.id} value={dep.name} style={optionStyle}>{dep.name}</option>)}</select></div>
                   </div>
                 </section>
+                ) : null}
 
-                <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+                {formStep === 3 ? (
+                <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-300">Dados do Transportador</p>
                   <div className="grid gap-3 lg:grid-cols-4">
                     <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Transportadora</label><select value={form.transportador_id} onChange={(e) => setForm((prev) => ({ ...prev, transportador_id: e.target.value, plate: "" }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{transportadoresAtivos.map((tr) => <option key={tr.id} value={tr.id} style={optionStyle}>{tr.name}</option>)}</select></div>
@@ -1113,8 +1186,11 @@ export default function RomaneioPage() {
                     <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">CPF</label><input value={form.driver_cpf} onChange={(e) => setField("driver_cpf", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100" /></div>
                   </div>
                 </section>
+                ) : null}
 
-                <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+                {formStep === 4 ? (
+                <>
+                <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-300">Dados da Carga</p>
                   <div className="grid gap-3 lg:grid-cols-4">
                     <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Peso</label><input value={form.weight} onChange={(e) => setField("weight", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100" /></div>
@@ -1124,7 +1200,7 @@ export default function RomaneioPage() {
                   </div>
                 </section>
 
-                <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+                <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-300">Descontos</p>
                   <div className="grid gap-3 lg:grid-cols-4">
                     <div className="grid gap-2"><div className="flex items-center justify-between"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Umidade (KG)</label><span className="text-[11px] font-semibold text-zinc-400">{discountPct.humidityPct.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</span></div><input value={form.humidity} onChange={(e) => setField("humidity", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100" /></div>
@@ -1133,10 +1209,35 @@ export default function RomaneioPage() {
                     <div className="grid gap-2"><div className="flex items-center justify-between"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Outros (KG)</label><span className="text-[11px] font-semibold text-zinc-400">{discountPct.othersPct.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</span></div><input value={form.others} onChange={(e) => setField("others", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100" /></div>
                   </div>
                 </section>
+                </>
+                ) : null}
 
-                <div className="flex justify-end gap-2">
-                  <button onClick={() => { setOpen(false); setConfirmSaveOpen(false); setEditingId(null); }} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200">Cancelar</button>
-                  <button onClick={requestSave} disabled={saving} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-5 py-2.5 text-sm font-black text-emerald-100">{saving ? "Salvando..." : "Salvar"}</button>
+                {formStep === 5 ? (
+                  <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+                    <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-300">Resumo para confirmação</p>
+                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                      <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Data: {form.date || "-"}</div>
+                      <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Romaneio: {form.code || "-"}</div>
+                      <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">NFP: {form.nfp || "-"}</div>
+                      <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Produtor: {produtores.find((p) => p.id === Number(form.produtor_id))?.name || "-"}</div>
+                      <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Cliente: {clientes.find((c) => c.id === Number(form.cliente_id))?.name || "-"}</div>
+                      <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Empreendimento: {empreendimentos.find((e) => e.id === form.empreendimento_id)?.code || "-"}</div>
+                      <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Peso Bruto: {grossWeight.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KG</div>
+                      <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Peso Líquido: {netWeight.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KG</div>
+                    </div>
+                  </section>
+                ) : null}
+
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <button onClick={() => { setOpen(false); setConfirmSaveOpen(false); setEditingId(null); setFormStep(0); }} className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-[12px] font-black text-zinc-200">Cancelar</button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setFormStep((s) => Math.max(s - 1, 0))} disabled={formStep === 0} className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-[12px] font-black text-zinc-200 disabled:cursor-not-allowed disabled:opacity-40">Voltar</button>
+                    {formStep < 5 ? (
+                      <button onClick={() => setFormStep((s) => Math.min(s + 1, 5))} className="rounded-xl border border-accent-400/25 bg-accent-500/20 px-4 py-2 text-[12px] font-black text-accent-100">Próximo</button>
+                    ) : (
+                      <button onClick={requestSave} disabled={saving} className="rounded-xl border border-emerald-400/25 bg-emerald-500/15 px-4 py-2 text-[12px] font-black text-emerald-100">{saving ? "Salvando..." : "Confirmar e salvar"}</button>
+                    )}
+                  </div>
                 </div>
 
                 {confirmSaveOpen ? (
