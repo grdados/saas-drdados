@@ -950,10 +950,10 @@ export default function EmpreendimentosPage() {
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4">
             <div className="flex items-center justify-between"><p className="text-sm font-black text-white">Lista</p><p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p></div>
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden min-w-[1180px] grid-cols-[250px_150px_150px_150px_190px_150px_170px_82px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid">
-                <div>Código</div><div>Safra</div><div>Estimado ({viewUnitLabel})</div><div>Realizado ({viewUnitLabel})</div><div>Média/ha ({viewUnitLabel})</div><div>Preço produto</div><div>Faturamento</div><div className="text-right">Ações</div>
+              <div className="hidden min-w-[1190px] grid-cols-[230px_120px_120px_125px_150px_100px_190px_74px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[12px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid">
+                <div>Código</div><div>Safra</div><div>Estimado ({viewUnitLabel})</div><div>Realizado ({viewUnitLabel})</div><div>Média/ha ({viewUnitLabel})</div><div>Preço</div><div>Faturamento</div><div className="text-right">Ações</div>
               </div>
-              <div className="mt-3 space-y-2 xl:min-w-[1180px]">
+              <div className="mt-3 space-y-2 xl:min-w-[1190px]">
                 {filtered.map((it) => {
                   const estKg = it.items.reduce((acc, r) => acc + n(r.production_kg), 0);
                   const areaHa = it.items.reduce((acc, r) => acc + n(r.area_ha), 0);
@@ -963,25 +963,25 @@ export default function EmpreendimentosPage() {
                   const safraName = safras.find((s) => s.id === Number(it.safra_id ?? 0))?.name ?? ((it.code || "").split(" - ")[0] || "-");
                   return (
                     <div key={it.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3">
-                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[250px_150px_150px_150px_190px_150px_170px_82px] xl:items-center xl:gap-2">
-                        <div className="whitespace-nowrap truncate text-[13px] text-zinc-100" title={it.code}>
+                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[230px_120px_120px_125px_150px_100px_190px_74px] xl:items-center xl:gap-2">
+                        <div className="whitespace-nowrap truncate text-[12px] text-zinc-100" title={it.code}>
                           {it.code}
                         </div>
-                        <div className="truncate text-[13px] text-zinc-100">{safraName}</div>
-                        <div className="text-[13px] text-zinc-100">{formatViewUnit(estKg)}</div>
-                        <div className="text-[13px] text-zinc-100">{formatViewUnit(realKg)}</div>
-                        <div className="text-[13px] text-zinc-100">{formatViewUnitPerHa(mediaHa)}</div>
-                        <div className="text-[13px] text-zinc-100">{formatCurrencyBRL(precoProduto)}</div>
-                        <div className="text-[13px] text-zinc-100">{formatCurrencyBRL(it.billing_value)}</div>
-                        <div className="text-right">
+                        <div className="truncate text-[12px] text-zinc-100">{safraName}</div>
+                        <div className="text-[12px] text-zinc-100">{formatViewUnit(estKg)}</div>
+                        <div className="text-[12px] text-zinc-100">{formatViewUnit(realKg)}</div>
+                        <div className="text-[12px] text-zinc-100">{formatViewUnitPerHa(mediaHa)}</div>
+                        <div className="text-[12px] text-zinc-100">{formatCurrencyBRL(precoProduto)}</div>
+                        <div className="text-[12px] text-zinc-100">{formatCurrencyBRL(it.billing_value)}</div>
+                        <div className="justify-self-end">
                           <div className="ml-auto flex w-fit items-center justify-end gap-1 whitespace-nowrap">
-                            <button onClick={() => openEdit(it)} className="grid h-8 w-8 place-items-center rounded-xl border border-sky-400/25 bg-sky-500/10 text-sky-200 hover:bg-sky-500/20" title="Editar" aria-label="Editar">
+                            <button onClick={() => openEdit(it)} className="grid h-[30px] w-[30px] place-items-center rounded-xl border border-sky-400/25 bg-sky-500/10 text-sky-200 hover:bg-sky-500/20" title="Editar" aria-label="Editar">
                               <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                                 <path d="M12 20h9" />
                                 <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
                               </svg>
                             </button>
-                            <button onClick={() => removeItem(it.id)} className="grid h-8 w-8 place-items-center rounded-xl border border-rose-400/25 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20" title="Excluir" aria-label="Excluir">
+                            <button onClick={() => removeItem(it.id)} className="grid h-[30px] w-[30px] place-items-center rounded-xl border border-rose-400/25 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20" title="Excluir" aria-label="Excluir">
                               <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                                 <path d="M3 6h18" />
                                 <path d="M8 6V4h8v2" />
