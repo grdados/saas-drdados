@@ -381,6 +381,84 @@ class ContaPagar(models.Model):
         return f"CP {self.id}"
 
 
+class Empreendimento(models.Model):
+    class Status(models.TextChoices):
+        IN_PROGRESS = "in_progress", "Em andamento"
+        CLOSED = "closed", "Encerrado"
+
+    id = models.CharField(max_length=64, primary_key=True)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    date = models.DateField(null=True, blank=True)
+    code = models.CharField(max_length=120, blank=True, default="")
+
+    safra = models.ForeignKey("erp.Safra", null=True, blank=True, on_delete=models.PROTECT)
+    propriedade = models.ForeignKey("erp.Propriedade", null=True, blank=True, on_delete=models.PROTECT)
+    produto = models.ForeignKey("erp.Produto", null=True, blank=True, on_delete=models.PROTECT)
+    centro_custo = models.ForeignKey("erp.CentroCusto", null=True, blank=True, on_delete=models.PROTECT)
+
+    unit = models.CharField(max_length=8, blank=True, default="SC")
+    sale_price = models.DecimalField(max_digits=14, decimal_places=4, default=0)
+    billing_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.IN_PROGRESS)
+    notes = models.TextField(blank=True, default="")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-date", "-created_at"]
+        indexes = [
+            models.Index(fields=["company", "date"]),
+            models.Index(fields=["company", "code"]),
+            models.Index(fields=["company", "status"]),
+        ]
+
+    def __str__(self) -> str:
+        return self.code or self.id
+
+    def save(self, *args, **kwargs):
+        if isinstance(self.code, str):
+            self.code = self.code.strip().upper()
+        if isinstance(self.unit, str):
+            self.unit = self.unit.strip().upper()
+        return super().save(*args, **kwargs)
+
+
+class EmpreendimentoItem(models.Model):
+    id = models.CharField(max_length=64, primary_key=True)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    empreendimento = models.ForeignKey("erp.Empreendimento", related_name="items", on_delete=models.CASCADE)
+
+    talhao = models.ForeignKey("erp.Talhao", null=True, blank=True, on_delete=models.PROTECT)
+    produto = models.ForeignKey("erp.Produto", null=True, blank=True, on_delete=models.PROTECT)
+    cultivar = models.ForeignKey("erp.Cultivar", null=True, blank=True, on_delete=models.PROTECT)
+
+    unit = models.CharField(max_length=8, blank=True, default="SC")
+    area_ha = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    produtividade = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    plant_date = models.DateField(null=True, blank=True)
+    close_date = models.DateField(null=True, blank=True)
+    production_sc = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    production_kg = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        indexes = [
+            models.Index(fields=["company", "empreendimento"]),
+            models.Index(fields=["company", "talhao"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.empreendimento_id and not self.company_id:
+            self.company_id = self.empreendimento.company_id
+        if isinstance(self.unit, str):
+            self.unit = self.unit.strip().upper()
+        return super().save(*args, **kwargs)
+
+
 class ContratoVenda(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pendente"

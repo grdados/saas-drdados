@@ -7,17 +7,22 @@ import { getAccessToken } from "@/lib/auth";
 import {
   CentroCusto,
   Cultivar,
+  EmpreendimentoApi,
   ProdutoItem,
   Propriedade,
   Safra,
   Talhao,
+  createEmpreendimento,
+  deleteEmpreendimento,
   isApiError,
+  listEmpreendimentos,
   listCentrosCusto,
   listCultivares,
   listProdutosEstoque,
   listPropriedades,
   listSafras,
-  listTalhoes
+  listTalhoes,
+  updateEmpreendimento
 } from "@/lib/api";
 import { formatCurrencyBRL, formatDateBR, formatDateTimeBR } from "@/lib/locale";
 import {
@@ -25,9 +30,7 @@ import {
   EmpreendimentoItem,
   UnidadeProducao,
   calcItemProduction,
-  loadEmpreendimentos,
   loadRomaneios,
-  saveEmpreendimentos,
   uid
 } from "@/lib/producaoLocal";
 
@@ -56,6 +59,27 @@ function normalizeText(v: string) {
 function statusMeta(status: Empreendimento["status"]) {
   if (status === "closed") return { label: "Encerrado", cls: "border-emerald-400/30 bg-emerald-500/15 text-emerald-200" };
   return { label: "Em andamento", cls: "border-amber-400/30 bg-amber-500/15 text-amber-200" };
+}
+
+function CardIcon({
+  tone,
+  children
+}: {
+  tone: "amber" | "slate" | "sky" | "emerald" | "rose";
+  children: React.ReactNode;
+}) {
+  const toneClass =
+    tone === "amber"
+      ? "bg-amber-500/18 text-amber-300 ring-amber-400/25"
+      : tone === "sky"
+        ? "bg-sky-500/18 text-sky-300 ring-sky-400/25"
+        : tone === "emerald"
+          ? "bg-emerald-500/18 text-emerald-300 ring-emerald-400/25"
+          : tone === "rose"
+            ? "bg-rose-500/18 text-rose-300 ring-rose-400/25"
+            : "bg-white/10 text-zinc-200 ring-white/10";
+
+  return <div className={`grid h-10 w-10 place-items-center rounded-2xl ring-1 ${toneClass}`}>{children}</div>;
 }
 
 type FormRow = {
@@ -110,6 +134,38 @@ function normalizeEmpreendimentoStatus(e: Empreendimento): Empreendimento["statu
   return allClosed ? "closed" : "in_progress";
 }
 
+function fromApiEmpreendimento(e: EmpreendimentoApi): Empreendimento {
+  return {
+    id: String(e.id),
+    created_at: e.created_at,
+    updated_at: e.updated_at,
+    date: e.date ?? "",
+    code: e.code ?? "",
+    safra_id: e.safra_id ?? e.safra?.id ?? null,
+    propriedade_id: e.propriedade_id ?? e.propriedade?.id ?? null,
+    produto_id: e.produto_id ?? e.produto?.id ?? null,
+    centro_custo_id: e.centro_custo_id ?? e.centro_custo?.id ?? null,
+    unit: String(e.unit || "SC").toUpperCase().startsWith("KG") ? "KG" : "SC",
+    sale_price: n(e.sale_price),
+    billing_value: n(e.billing_value),
+    status: e.status === "closed" ? "closed" : "in_progress",
+    notes: e.notes ?? "",
+    items: (e.items || []).map((it) => ({
+      id: String(it.id),
+      talhao_id: it.talhao_id ?? it.talhao?.id ?? null,
+      produto_id: it.produto_id ?? it.produto?.id ?? null,
+      cultivar_id: it.cultivar_id ?? it.cultivar?.id ?? null,
+      unit: String(it.unit || "SC").toUpperCase().startsWith("KG") ? "KG" : "SC",
+      area_ha: n(it.area_ha),
+      produtividade: n(it.produtividade),
+      plant_date: it.plant_date ?? "",
+      close_date: it.close_date ?? "",
+      production_sc: n(it.production_sc),
+      production_kg: n(it.production_kg)
+    }))
+  };
+}
+
 export default function EmpreendimentosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -138,25 +194,26 @@ export default function EmpreendimentosPage() {
   const [sackWeight, setSackWeight] = useState<60 | 40>(60);
 
   useEffect(() => {
-    const loaded = loadEmpreendimentos().map((x) => ({ ...x, status: normalizeEmpreendimentoStatus(x) }));
-    setRows(loaded);
-    saveEmpreendimentos(loaded);
-    void loadRefs();
+    void refreshData();
   }, []);
 
-  async function loadRefs() {
+  async function refreshData() {
     const token = getAccessToken();
-    if (!token) return;
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
     setLoading(true);
     setError("");
     try {
-      const [a, b, c, d, e, f] = await Promise.all([
+      const [a, b, c, d, e, f, emps] = await Promise.all([
         listSafras(token),
         listPropriedades(token),
         listTalhoes(token),
         listProdutosEstoque(token),
         listCultivares(token),
-        listCentrosCusto(token)
+        listCentrosCusto(token),
+        listEmpreendimentos(token)
       ]);
       setSafras(a);
       setPropriedades(b);
@@ -164,6 +221,12 @@ export default function EmpreendimentosPage() {
       setProdutos(d);
       setCultivares(e);
       setCentros(f);
+      setRows(
+        emps.map((x) => {
+          const mapped = fromApiEmpreendimento(x);
+          return { ...mapped, status: normalizeEmpreendimentoStatus(mapped) };
+        })
+      );
     } catch (err) {
       if (isApiError(err) && err.status === 401) {
         window.location.href = "/login";
@@ -344,7 +407,6 @@ export default function EmpreendimentosPage() {
     });
     if (!changed) return;
     setRows(next);
-    saveEmpreendimentos(next);
   }, [rows, safras, propriedades]);
 
   function filteredCultivaresByProduto(produtoId: string) {
@@ -420,11 +482,23 @@ export default function EmpreendimentosPage() {
     setOpen(true);
   }
 
-  function removeItem(id: string) {
+  async function removeItem(id: string) {
     if (!window.confirm("Excluir empreendimento?")) return;
-    const next = rows.filter((x) => x.id !== id);
-    setRows(next);
-    saveEmpreendimentos(next);
+    const token = getAccessToken();
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
+    try {
+      await deleteEmpreendimento(token, id);
+      await refreshData();
+    } catch (err) {
+      if (isApiError(err) && err.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      setError(err instanceof Error ? err.message : "Falha ao excluir empreendimento.");
+    }
   }
 
   function validateAreaByTalhao(nextRows: FormRow[]) {
@@ -451,11 +525,16 @@ export default function EmpreendimentosPage() {
     setConfirmSaveOpen(true);
   }
 
-  function save() {
+  async function save() {
     setConfirmSaveOpen(false);
     setSaving(true);
     setError("");
     try {
+      const token = getAccessToken();
+      if (!token) {
+        window.location.href = "/login";
+        return;
+      }
       const now = new Date().toISOString();
       const previous = editingId ? rows.find((x) => x.id === editingId) : null;
       const prevMap = new Map((previous?.items ?? []).map((it) => [it.id, it]));
@@ -493,34 +572,95 @@ export default function EmpreendimentosPage() {
         items
       };
       entity.status = normalizeEmpreendimentoStatus(entity);
-
-      const next = editingId ? rows.map((x) => (x.id === editingId ? entity : x)) : [entity, ...rows];
-      setRows(next);
-      saveEmpreendimentos(next);
+      const payload = {
+        id: entity.id,
+        date: entity.date || null,
+        code: entity.code,
+        safra_id: entity.safra_id,
+        propriedade_id: entity.propriedade_id,
+        produto_id: entity.produto_id,
+        centro_custo_id: entity.centro_custo_id,
+        unit: entity.unit,
+        sale_price: entity.sale_price,
+        billing_value: entity.billing_value,
+        status: entity.status,
+        notes: entity.notes,
+        items: entity.items.map((it) => ({
+          id: it.id,
+          talhao_id: it.talhao_id,
+          produto_id: it.produto_id,
+          cultivar_id: it.cultivar_id,
+          unit: it.unit,
+          area_ha: it.area_ha,
+          produtividade: it.produtividade,
+          plant_date: it.plant_date || null,
+          close_date: it.close_date || null,
+          production_sc: it.production_sc,
+          production_kg: it.production_kg
+        }))
+      };
+      if (editingId) {
+        await updateEmpreendimento(token, editingId, payload);
+      } else {
+        await createEmpreendimento(token, payload);
+      }
+      await refreshData();
       setOpen(false);
+    } catch (err) {
+      if (isApiError(err) && err.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      setError(err instanceof Error ? err.message : "Falha ao salvar empreendimento.");
     } finally {
       setSaving(false);
     }
   }
 
-  function runCloseEvent() {
+  async function runCloseEvent() {
     if (!closeEmpId || !closeDate) {
       setError("Selecione o empreendimento e a data de encerramento.");
       return;
     }
     if (!window.confirm("Confirmar encerramento da safra/empreendimento?")) return;
-
-    const next = rows.map((e) => {
-      if (e.id !== closeEmpId) return e;
-      const items = e.items.map((it) => ({ ...it, close_date: closeDate }));
-      const closed = { ...e, items, status: "closed" as const, updated_at: new Date().toISOString() };
-      return closed;
-    });
-    setRows(next);
-    saveEmpreendimentos(next);
-    setCloseOpen(false);
-    setCloseEmpId("");
-    setCloseDate("");
+    const token = getAccessToken();
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
+    const target = rows.find((e) => e.id === closeEmpId);
+    if (!target) {
+      setError("Empreendimento não encontrado.");
+      return;
+    }
+    try {
+      await updateEmpreendimento(token, closeEmpId, {
+        status: "closed",
+        items: target.items.map((it) => ({
+          id: it.id,
+          talhao_id: it.talhao_id,
+          produto_id: it.produto_id,
+          cultivar_id: it.cultivar_id,
+          unit: it.unit,
+          area_ha: it.area_ha,
+          produtividade: it.produtividade,
+          plant_date: it.plant_date || null,
+          close_date: closeDate,
+          production_sc: it.production_sc,
+          production_kg: it.production_kg
+        }))
+      });
+      await refreshData();
+      setCloseOpen(false);
+      setCloseEmpId("");
+      setCloseDate("");
+    } catch (err) {
+      if (isApiError(err) && err.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      setError(err instanceof Error ? err.message : "Falha ao encerrar colheita.");
+    }
   }
 
   function escapeHtml(value: unknown) {
@@ -627,31 +767,31 @@ export default function EmpreendimentosPage() {
   const optionStyle = { backgroundColor: "#e5e7eb", color: "#111827" } as const;
 
   return (
-    <AuthedAdminShell>
+    <AuthedAdminShell hideHeader>
       {() => (
         <div className="space-y-5">
-          <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] xl:items-start">
+          <section className="grid gap-3 xl:grid-cols-[minmax(320px,0.95fr)_minmax(0,2.05fr)] xl:items-start">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Produção</p>
               <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Empreendimentos</h1>
-              <p className="mt-1 text-sm text-zinc-300">Planejamento de plantio, estimativa de produção e comparação estimado vs realizado.</p>
+              <p className="mt-1 text-sm text-zinc-300">Planejamento de produção e extimativa de produtividade.</p>
             </div>
-            <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-              <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-3.5">
+            <div className="grid gap-3 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+              <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-3">
                 <p className="mb-2 text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Filtros</p>
-                <div className="grid gap-2 md:grid-cols-[minmax(0,1.2fr)_minmax(0,.8fr)_minmax(0,.8fr)]">
+                <div className="grid gap-1.5 md:grid-cols-[minmax(0,1fr)_92px_106px]">
                   <div className="relative">
                     <span className="pointer-events-none absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-emerald-400/80 shadow-[0_0_0_4px_rgba(16,185,129,0.16)]" />
-                    <select value={safraFilter} onChange={(e) => setSafraFilter(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-accent-500/40 bg-accent-500/15 pl-8 pr-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-400">
+                    <select value={safraFilter} onChange={(e) => setSafraFilter(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-accent-500/40 bg-accent-500/15 pl-8 pr-3 py-2.5 text-xs font-semibold text-zinc-100 outline-none focus:border-accent-400">
                       <option value="" style={optionStyle}>Safra</option>
                       {safras.map((s) => (<option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>))}
                     </select>
                   </div>
-                  <select value={viewUnit} onChange={(e) => setViewUnit(e.target.value as "KG" | "SC")} className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-white/30">
+                  <select value={viewUnit} onChange={(e) => setViewUnit(e.target.value as "KG" | "SC")} className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-xs font-semibold text-zinc-100 outline-none focus:border-white/30">
                     <option value="KG" style={optionStyle}>KG</option>
                     <option value="SC" style={optionStyle}>SC</option>
                   </select>
-                  <select value={String(sackWeight)} onChange={(e) => setSackWeight(Number(e.target.value) as 60 | 40)} disabled={viewUnit !== "SC"} className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50">
+                  <select value={String(sackWeight)} onChange={(e) => setSackWeight(Number(e.target.value) as 60 | 40)} disabled={viewUnit !== "SC"} className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-xs font-semibold text-zinc-100 outline-none focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50">
                     <option value="60" style={optionStyle}>Sacas 60</option>
                     <option value="40" style={optionStyle}>Sacas 40</option>
                   </select>
@@ -660,10 +800,10 @@ export default function EmpreendimentosPage() {
               <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-3.5">
                 <p className="mb-2 text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Relatórios</p>
                 <div className="flex flex-wrap items-center gap-2">
-                  <button onClick={reportResumo} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10">Resumo</button>
-                  <button onClick={reportAnalitico} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10">Analítico</button>
-                  <button onClick={() => setCloseOpen(true)} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10">Evento de encerramento</button>
-                  <button onClick={openCreate} className="rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">Novo empreendimento</button>
+                  <button onClick={reportResumo} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-zinc-100 hover:bg-white/10">Resumo</button>
+                  <button onClick={reportAnalitico} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-zinc-100 hover:bg-white/10">Analítico</button>
+                  <button onClick={() => setCloseOpen(true)} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-zinc-100 hover:bg-white/10">Encerrar Colheita</button>
+                  <button onClick={openCreate} className="rounded-2xl bg-accent-500 px-4 py-2.5 text-xs font-black text-zinc-950 hover:bg-accent-400">Novo</button>
                 </div>
               </section>
             </div>
@@ -671,13 +811,80 @@ export default function EmpreendimentosPage() {
 
           {error ? <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm font-semibold text-amber-200">{error}</div> : null}
 
-          <section className="grid gap-4 lg:grid-cols-3 xl:grid-cols-6">
-            <div className="rounded-3xl border border-amber-400/30 bg-amber-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Faturamento R$</p><p className="mt-2 text-2xl font-black text-white">{formatCurrencyBRL(analytics.faturamento)}</p></div>
-            <div className="rounded-3xl border border-white/15 bg-white/5 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Empreendimentos</p><p className="mt-2 text-2xl font-black text-white">{analytics.qty}</p></div>
-            <div className="rounded-3xl border border-sky-400/30 bg-sky-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Estimado ({viewUnitLabel})</p><p className="mt-2 text-2xl font-black text-white">{formatViewUnit(analytics.estimadoKg)}</p></div>
-            <div className="rounded-3xl border border-sky-400/30 bg-sky-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Realizado ({viewUnitLabel})</p><p className="mt-2 text-2xl font-black text-white">{formatViewUnit(analytics.realizadoKg)}</p></div>
-            <div className="rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Saldo ({viewUnitLabel})</p><p className="mt-2 text-2xl font-black text-white">{formatViewUnit(analytics.saldoKg)}</p></div>
-            <div className="rounded-3xl border border-rose-400/30 bg-rose-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Média/ha prevista</p><p className="mt-2 text-2xl font-black text-white">{formatViewUnitPerHa(analytics.mediaPrevistaHaKg)}</p></div>
+          <section className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-6">
+            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-accent-400/30 bg-accent-500/10 p-3">
+              <CardIcon tone="amber">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7H14.5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+              </CardIcon>
+              <div className="min-w-0 flex-1 text-right">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Faturamento R$</p>
+                <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatCurrencyBRL(analytics.faturamento)}</p>
+              </div>
+            </div>
+            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-white/15 bg-white/5 p-3">
+              <CardIcon tone="slate">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </CardIcon>
+              <div className="min-w-0 flex-1 text-right">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Empreendimentos</p>
+                <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{analytics.qty.toLocaleString("pt-BR")}</p>
+              </div>
+            </div>
+            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-sky-400/30 bg-sky-500/10 p-3">
+              <CardIcon tone="sky">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 21h18" />
+                  <path d="M8 17V9" />
+                  <path d="M12 17V5" />
+                  <path d="M16 17v-6" />
+                </svg>
+              </CardIcon>
+              <div className="min-w-0 flex-1 text-right">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Estimado ({viewUnitLabel})</p>
+                <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatViewUnit(analytics.estimadoKg)}</p>
+              </div>
+            </div>
+            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-sky-400/30 bg-sky-500/10 p-3">
+              <CardIcon tone="sky">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 12h8v8H3z" />
+                  <path d="M13 5h8v8h-8z" />
+                </svg>
+              </CardIcon>
+              <div className="min-w-0 flex-1 text-right">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Realizado ({viewUnitLabel})</p>
+                <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatViewUnit(analytics.realizadoKg)}</p>
+              </div>
+            </div>
+            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-3">
+              <CardIcon tone="emerald">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="m5 12 4 4L19 6" />
+                </svg>
+              </CardIcon>
+              <div className="min-w-0 flex-1 text-right">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Saldo ({viewUnitLabel})</p>
+                <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatViewUnit(analytics.saldoKg)}</p>
+              </div>
+            </div>
+            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-rose-400/30 bg-rose-500/10 p-3">
+              <CardIcon tone="rose">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 20h16" />
+                  <path d="M7 16V8" />
+                  <path d="M12 16V4" />
+                  <path d="M17 16v-5" />
+                </svg>
+              </CardIcon>
+              <div className="min-w-0 flex-1 text-right">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Média/ha prevista</p>
+                <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatViewUnitPerHa(analytics.mediaPrevistaHaKg)}</p>
+              </div>
+            </div>
           </section>
 
           <section className="rounded-3xl border border-white/10 bg-white/5 p-3.5">

@@ -1056,6 +1056,129 @@ export function deletePedidoCompra(token: string, id: number) {
   return request<void>(`/api/erp/compras/pedidos/${id}/`, { method: "DELETE" }, token);
 }
 
+export type EmpreendimentoItemApi = {
+  id: string;
+  talhao: { id: number; name: string } | null;
+  talhao_id?: number | null;
+  produto: { id: number; name: string } | null;
+  produto_id?: number | null;
+  cultivar: { id: number; name: string } | null;
+  cultivar_id?: number | null;
+  unit: "KG" | "SC" | string;
+  area_ha: string;
+  produtividade: string;
+  plant_date: string | null;
+  close_date: string | null;
+  production_sc: string;
+  production_kg: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type EmpreendimentoApi = {
+  id: string;
+  date: string | null;
+  code: string;
+  safra: { id: number; name: string } | null;
+  safra_id?: number | null;
+  propriedade: { id: number; name: string } | null;
+  propriedade_id?: number | null;
+  produto: { id: number; name: string } | null;
+  produto_id?: number | null;
+  centro_custo: { id: number; name: string } | null;
+  centro_custo_id?: number | null;
+  unit: "KG" | "SC" | string;
+  sale_price: string;
+  billing_value: string;
+  status: "in_progress" | "closed" | string;
+  notes: string;
+  items: EmpreendimentoItemApi[];
+  created_at: string;
+  updated_at: string;
+};
+
+export function listEmpreendimentos(token: string) {
+  return request<EmpreendimentoApi[]>("/api/erp/producao/empreendimentos/", { method: "GET" }, token);
+}
+
+export function createEmpreendimento(
+  token: string,
+  payload: Partial<{
+    id: string;
+    date: string | null;
+    code: string;
+    safra_id: number | null;
+    propriedade_id: number | null;
+    produto_id: number | null;
+    centro_custo_id: number | null;
+    unit: string;
+    sale_price: string | number;
+    billing_value: string | number;
+    status: string;
+    notes: string;
+    items: Array<{
+      id?: string;
+      talhao_id: number | null;
+      produto_id: number | null;
+      cultivar_id: number | null;
+      unit: string;
+      area_ha: string | number;
+      produtividade: string | number;
+      plant_date: string | null;
+      close_date: string | null;
+      production_sc: string | number;
+      production_kg: string | number;
+    }>;
+  }>
+) {
+  return request<EmpreendimentoApi>(
+    "/api/erp/producao/empreendimentos/",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  );
+}
+
+export function updateEmpreendimento(
+  token: string,
+  id: string,
+  payload: Partial<{
+    date: string | null;
+    code: string;
+    safra_id: number | null;
+    propriedade_id: number | null;
+    produto_id: number | null;
+    centro_custo_id: number | null;
+    unit: string;
+    sale_price: string | number;
+    billing_value: string | number;
+    status: string;
+    notes: string;
+    items: Array<{
+      id?: string;
+      talhao_id: number | null;
+      produto_id: number | null;
+      cultivar_id: number | null;
+      unit: string;
+      area_ha: string | number;
+      produtividade: string | number;
+      plant_date: string | null;
+      close_date: string | null;
+      production_sc: string | number;
+      production_kg: string | number;
+    }>;
+  }>
+) {
+  return request<EmpreendimentoApi>(
+    `/api/erp/producao/empreendimentos/${id}/`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  );
+}
+
+export function deleteEmpreendimento(token: string, id: string) {
+  return request<void>(`/api/erp/producao/empreendimentos/${id}/`, { method: "DELETE" }, token);
+}
+
 export type ContratoVendaItem = {
   id: number;
   produto: { id: number; name: string } | null;

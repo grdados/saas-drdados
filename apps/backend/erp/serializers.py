@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+from uuid import uuid4
 
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
@@ -528,6 +529,170 @@ class PedidoCompraSerializer(serializers.ModelSerializer):
         if items_data is not None:
             self._upsert_items(instance, items_data)
         self._sync_conta_origem_pedido(instance)
+        return instance
+
+
+class EmpreendimentoItemSerializer(serializers.ModelSerializer):
+    talhao = serializers.SerializerMethodField()
+    talhao_id = serializers.PrimaryKeyRelatedField(
+        source="talhao", queryset=models.Talhao.objects.all(), allow_null=True, required=False
+    )
+    produto = serializers.SerializerMethodField()
+    produto_id = serializers.PrimaryKeyRelatedField(
+        source="produto", queryset=models.Produto.objects.all(), allow_null=True, required=False
+    )
+    cultivar = serializers.SerializerMethodField()
+    cultivar_id = serializers.PrimaryKeyRelatedField(
+        source="cultivar", queryset=models.Cultivar.objects.all(), allow_null=True, required=False
+    )
+
+    class Meta:
+        model = models.EmpreendimentoItem
+        fields = [
+            "id",
+            "talhao",
+            "talhao_id",
+            "produto",
+            "produto_id",
+            "cultivar",
+            "cultivar_id",
+            "unit",
+            "area_ha",
+            "produtividade",
+            "plant_date",
+            "close_date",
+            "production_sc",
+            "production_kg",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_talhao(self, obj):
+        if not getattr(obj, "talhao_id", None):
+            return None
+        return {"id": obj.talhao_id, "name": obj.talhao.name}
+
+    def get_produto(self, obj):
+        if not getattr(obj, "produto_id", None):
+            return None
+        return {"id": obj.produto_id, "name": obj.produto.name}
+
+    def get_cultivar(self, obj):
+        if not getattr(obj, "cultivar_id", None):
+            return None
+        return {"id": obj.cultivar_id, "name": obj.cultivar.name}
+
+    def validate(self, attrs):
+        company = get_current_company(self.context["request"].user) if self.context.get("request") else None
+        _validate_fk_company(attrs.get("talhao"), company, "talhao_id")
+        _validate_fk_company(attrs.get("produto"), company, "produto_id")
+        _validate_fk_company(attrs.get("cultivar"), company, "cultivar_id")
+        return attrs
+
+
+class EmpreendimentoSerializer(serializers.ModelSerializer):
+    safra = serializers.SerializerMethodField()
+    safra_id = serializers.PrimaryKeyRelatedField(
+        source="safra", queryset=models.Safra.objects.all(), allow_null=True, required=False
+    )
+    propriedade = serializers.SerializerMethodField()
+    propriedade_id = serializers.PrimaryKeyRelatedField(
+        source="propriedade", queryset=models.Propriedade.objects.all(), allow_null=True, required=False
+    )
+    produto = serializers.SerializerMethodField()
+    produto_id = serializers.PrimaryKeyRelatedField(
+        source="produto", queryset=models.Produto.objects.all(), allow_null=True, required=False
+    )
+    centro_custo = serializers.SerializerMethodField()
+    centro_custo_id = serializers.PrimaryKeyRelatedField(
+        source="centro_custo", queryset=models.CentroCusto.objects.all(), allow_null=True, required=False
+    )
+    items = EmpreendimentoItemSerializer(many=True, required=False)
+
+    class Meta:
+        model = models.Empreendimento
+        fields = [
+            "id",
+            "date",
+            "code",
+            "safra",
+            "safra_id",
+            "propriedade",
+            "propriedade_id",
+            "produto",
+            "produto_id",
+            "centro_custo",
+            "centro_custo_id",
+            "unit",
+            "sale_price",
+            "billing_value",
+            "status",
+            "notes",
+            "items",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_safra(self, obj):
+        if not getattr(obj, "safra_id", None):
+            return None
+        return {"id": obj.safra_id, "name": obj.safra.name}
+
+    def get_propriedade(self, obj):
+        if not getattr(obj, "propriedade_id", None):
+            return None
+        return {"id": obj.propriedade_id, "name": obj.propriedade.name}
+
+    def get_produto(self, obj):
+        if not getattr(obj, "produto_id", None):
+            return None
+        return {"id": obj.produto_id, "name": obj.produto.name}
+
+    def get_centro_custo(self, obj):
+        if not getattr(obj, "centro_custo_id", None):
+            return None
+        return {"id": obj.centro_custo_id, "name": obj.centro_custo.name}
+
+    def validate(self, attrs):
+        company = get_current_company(self.context["request"].user) if self.context.get("request") else None
+        _validate_fk_company(attrs.get("safra"), company, "safra_id")
+        _validate_fk_company(attrs.get("propriedade"), company, "propriedade_id")
+        _validate_fk_company(attrs.get("produto"), company, "produto_id")
+        _validate_fk_company(attrs.get("centro_custo"), company, "centro_custo_id")
+        return attrs
+
+    def _upsert_items(self, empreendimento: models.Empreendimento, items_data):
+        models.EmpreendimentoItem.objects.filter(empreendimento=empreendimento).delete()
+        for it in items_data or []:
+            models.EmpreendimentoItem.objects.create(
+                id=(it.get("id") or f"row-{uuid4().hex[:10]}"),
+                company=empreendimento.company,
+                empreendimento=empreendimento,
+                talhao=it.get("talhao"),
+                produto=it.get("produto"),
+                cultivar=it.get("cultivar"),
+                unit=(it.get("unit") or "").strip().upper(),
+                area_ha=it.get("area_ha") or Decimal("0"),
+                produtividade=it.get("produtividade") or Decimal("0"),
+                plant_date=it.get("plant_date") or None,
+                close_date=it.get("close_date") or None,
+                production_sc=it.get("production_sc") or Decimal("0"),
+                production_kg=it.get("production_kg") or Decimal("0"),
+            )
+
+    def create(self, validated_data):
+        items_data = validated_data.pop("items", [])
+        empreendimento = models.Empreendimento.objects.create(**validated_data)
+        self._upsert_items(empreendimento, items_data)
+        return empreendimento
+
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop("items", None)
+        for k, v in validated_data.items():
+            setattr(instance, k, v)
+        instance.save()
+        if items_data is not None:
+            self._upsert_items(instance, items_data)
         return instance
 
 

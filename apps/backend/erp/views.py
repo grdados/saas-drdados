@@ -160,6 +160,15 @@ class ContaPagarViewSet(CompanyScopedViewSet):
     serializer_class = serializers.ContaPagarSerializer
 
 
+class EmpreendimentoViewSet(CompanyScopedViewSet):
+    queryset = (
+        models.Empreendimento.objects.select_related(
+            "company", "safra", "propriedade", "produto", "centro_custo"
+        ).prefetch_related("items", "items__talhao", "items__produto", "items__cultivar")
+    )
+    serializer_class = serializers.EmpreendimentoSerializer
+
+
 class ContratoVendaViewSet(CompanyScopedViewSet):
     queryset = (
         models.ContratoVenda.objects.select_related(
