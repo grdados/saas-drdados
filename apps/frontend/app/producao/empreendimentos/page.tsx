@@ -215,9 +215,52 @@ export default function EmpreendimentosPage() {
   function formatViewUnit(kgValue: number) {
     return `${toViewUnit(kgValue).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ${viewUnitLabel}`;
   }
+  function formatViewUnitValue(kgValue: number) {
+    return toViewUnit(kgValue).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+  }
   function formatViewUnitPerHa(kgValuePerHa: number) {
     return `${toViewUnit(kgValuePerHa).toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${viewUnitLabel}/ha`;
   }
+
+  const chartByEmpreendimento = useMemo(
+    () =>
+      filtered.slice(0, 8).map((it) => {
+        const qty = it.items.reduce((acc, r) => acc + n(r.production_kg), 0);
+        const delivered = romaneios
+          .filter((r) => r.empreendimento_id === it.id)
+          .reduce((acc, r) => acc + n(r.net_weight), 0);
+        return { label: it.code, qty, delivered };
+      }),
+    [filtered, romaneios]
+  );
+
+  const chartByPropriedade = useMemo(() => {
+    const map = new Map<string, { label: string; qty: number; delivered: number }>();
+    for (const it of filtered) {
+      const propName = propriedades.find((p) => p.id === Number(it.propriedade_id ?? 0))?.name ?? "-";
+      const current = map.get(propName) ?? { label: propName, qty: 0, delivered: 0 };
+      current.qty += it.items.reduce((acc, r) => acc + n(r.production_kg), 0);
+      current.delivered += romaneios
+        .filter((r) => r.empreendimento_id === it.id)
+        .reduce((acc, r) => acc + n(r.net_weight), 0);
+      map.set(propName, current);
+    }
+    return [...map.values()].sort((a, b) => b.qty - a.qty).slice(0, 8);
+  }, [filtered, romaneios, propriedades]);
+
+  const chartBySafra = useMemo(() => {
+    const map = new Map<string, { label: string; qty: number; delivered: number }>();
+    for (const it of filtered) {
+      const safraName = safras.find((s) => s.id === Number(it.safra_id ?? 0))?.name ?? "-";
+      const current = map.get(safraName) ?? { label: safraName, qty: 0, delivered: 0 };
+      current.qty += it.items.reduce((acc, r) => acc + n(r.production_kg), 0);
+      current.delivered += romaneios
+        .filter((r) => r.empreendimento_id === it.id)
+        .reduce((acc, r) => acc + n(r.net_weight), 0);
+      map.set(safraName, current);
+    }
+    return [...map.values()].sort((a, b) => b.qty - a.qty).slice(0, 8);
+  }, [filtered, romaneios, safras]);
 
   const groupedArea = useMemo(() => {
     const map = new Map<number, number>();
@@ -641,6 +684,77 @@ export default function EmpreendimentosPage() {
             <div className="rounded-3xl border border-sky-400/30 bg-sky-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Realizado ({viewUnitLabel})</p><p className="mt-2 text-2xl font-black text-white">{formatViewUnit(analytics.realizadoKg)}</p></div>
             <div className="rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Saldo ({viewUnitLabel})</p><p className="mt-2 text-2xl font-black text-white">{formatViewUnit(analytics.saldoKg)}</p></div>
             <div className="rounded-3xl border border-rose-400/30 bg-rose-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Média/ha prevista</p><p className="mt-2 text-2xl font-black text-white">{formatViewUnitPerHa(analytics.mediaPrevistaHaKg)}</p></div>
+          </section>
+
+          <section className="rounded-3xl border border-white/10 bg-white/5 p-3.5">
+            <p className="text-[13px] font-black text-white">Quantidade estimada x realizada</p>
+            <div className="mt-3 grid gap-3 xl:grid-cols-3">
+              {[
+                { title: "Por empreendimento", items: chartByEmpreendimento },
+                { title: "Por propriedade", items: chartByPropriedade },
+                { title: "Por safra", items: chartBySafra }
+              ].map((group) => {
+                const max = Math.max(1, ...group.items.map((item) => Math.max(item.qty, item.delivered)));
+                return (
+                  <div key={group.title} className="rounded-2xl border border-white/10 bg-zinc-950/30 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-[12px] font-black text-zinc-200">{group.title}</p>
+                      <div className="flex items-center gap-3 text-[10px] text-zinc-400">
+                        <span className="inline-flex items-center gap-1">
+                          <span className="h-2 w-2 rounded-full bg-amber-400" />
+                          Estimada
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                          Realizada
+                        </span>
+                      </div>
+                    </div>
+                    {group.items.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-white/10 px-3 py-8 text-center text-xs text-zinc-500">
+                        Sem dados para exibir.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-[repeat(auto-fit,minmax(58px,1fr))] items-end gap-2">
+                        {group.items.map((item) => {
+                          const qtyHeight = Math.max(8, (item.qty / max) * 140);
+                          const doneHeight = Math.max(8, (item.delivered / max) * 140);
+                          return (
+                            <div key={item.label} className="min-w-0">
+                              <div className="flex h-[164px] items-end justify-center gap-1">
+                                <div className="flex flex-col items-center">
+                                  <span className="mb-1 text-[9px] font-black text-amber-300">
+                                    {formatViewUnitValue(item.qty)}
+                                  </span>
+                                  <div
+                                    className="w-5 rounded-t-md bg-amber-400/90"
+                                    style={{ height: `${qtyHeight}px` }}
+                                    title={`Estimada: ${formatViewUnit(item.qty)}`}
+                                  />
+                                </div>
+                                <div className="flex flex-col items-center">
+                                  <span className="mb-1 text-[9px] font-black text-emerald-300">
+                                    {formatViewUnitValue(item.delivered)}
+                                  </span>
+                                  <div
+                                    className="w-5 rounded-t-md bg-emerald-400/90"
+                                    style={{ height: `${doneHeight}px` }}
+                                    title={`Realizada: ${formatViewUnit(item.delivered)}`}
+                                  />
+                                </div>
+                              </div>
+                              <p className="mt-2 truncate text-center text-[10px] font-semibold text-zinc-300">
+                                {item.label}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </section>
 
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4">
