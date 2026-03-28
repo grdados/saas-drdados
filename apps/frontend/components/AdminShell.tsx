@@ -203,8 +203,8 @@ function SidebarLink({
 }) {
   const base =
     "group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition-colors";
-  const activeCls = "bg-[#FFB30D]/18 text-white ring-1 ring-[#FFB30D]/35";
-  const idleCls = "text-white/78 hover:bg-[#085454]/18 hover:text-white";
+  const activeCls = "bg-white/[0.08] text-white ring-1 ring-white/10";
+  const idleCls = "text-white/78 hover:bg-white/[0.05] hover:text-white";
 
   if (item.disabled) {
     return (
@@ -218,11 +218,11 @@ function SidebarLink({
 
   return (
     <Link href={item.href} onClick={onNavigate} className={`${base} ${active ? activeCls : idleCls}`}>
-      <span className={active ? "text-[#FFB30D]" : "text-[#7A7A7A] group-hover:text-[#FFB30D]"}>{icon}</span>
-      {depth > 0 ? <span className="h-4 w-px bg-[#085454]/55" /> : null}
+      <span className={active ? "text-white" : "text-[#8A8D93] group-hover:text-white"}>{icon}</span>
+      {depth > 0 ? <span className="h-4 w-px bg-white/10" /> : null}
       <span className="flex-1">{item.label}</span>
       {typeof item.badge === "number" ? (
-        <span className="rounded-full bg-[#FFB30D]/15 px-2 py-0.5 text-xs font-black text-[#FFB30D] ring-1 ring-[#FFB30D]/20">
+        <span className="rounded-full bg-white/[0.08] px-2 py-0.5 text-xs font-black text-white/85 ring-1 ring-white/10">
           {item.badge}
         </span>
       ) : null}
@@ -291,8 +291,8 @@ function SidebarTreeNode({
 
   const base =
     "group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-semibold transition-colors";
-  const activeCls = "bg-[#FFB30D]/18 text-white ring-1 ring-[#FFB30D]/35";
-  const idleCls = "text-white/78 hover:bg-[#085454]/18 hover:text-white";
+  const activeCls = "bg-white/[0.08] text-white ring-1 ring-white/10";
+  const idleCls = "text-white/78 hover:bg-white/[0.05] hover:text-white";
 
   if (!hasChildren) {
     const item: NavItem = { label: node.label, href: node.href || "#", badge: node.badge, disabled: node.disabled };
@@ -303,7 +303,7 @@ function SidebarTreeNode({
         depth={depth}
         onNavigate={onNavigate}
         icon={
-          <span className={active ? "text-[#FFB30D]" : "text-[#7A7A7A] group-hover:text-[#FFB30D]"}>
+          <span className={active ? "text-white" : "text-[#8A8D93] group-hover:text-white"}>
             {node.icon || <span className="h-4 w-4" />}
           </span>
         }
@@ -319,7 +319,7 @@ function SidebarTreeNode({
         className={`${base} ${active ? activeCls : idleCls}`}
         aria-expanded={open}
       >
-        <span className={active ? "text-[#FFB30D]" : "text-[#7A7A7A] group-hover:text-[#FFB30D]"}>
+        <span className={active ? "text-white" : "text-[#8A8D93] group-hover:text-white"}>
           {node.icon || <span className="h-4 w-4" />}
         </span>
         <span className="flex-1">{node.label}</span>
@@ -374,27 +374,27 @@ function SidebarContent({
         </div>
         <div className="leading-tight">
           <p className="text-sm font-black tracking-tight">GR Dados</p>
-          <p className="text-xs text-[#7A7A7A]">ERP</p>
+          <p className="text-xs text-[#767A81]">ERP</p>
         </div>
       </div>
 
       <div className="mt-4">
-        <p className="px-2 text-[11px] font-black uppercase tracking-[0.24em] text-[#7A7A7A]">Dashboard</p>
-        <nav className="mt-2 rounded-[26px] bg-[#085454]/10 p-2">
+        <p className="px-2 text-[11px] font-black uppercase tracking-[0.24em] text-[#767A81]">Dashboard</p>
+        <nav className="mt-2 rounded-[24px] bg-[#24262B] p-2">
           <SidebarTree nodes={navTree.dashboard} pathname={pathname} onNavigate={onNavigate} />
         </nav>
       </div>
 
       <div className="mt-5">
-        <p className="px-2 text-[11px] font-black uppercase tracking-[0.24em] text-[#7A7A7A]">Advanced</p>
-        <nav className="mt-2 rounded-[26px] bg-[#085454]/10 p-2">
+        <p className="px-2 text-[11px] font-black uppercase tracking-[0.24em] text-[#767A81]">Advanced</p>
+        <nav className="mt-2 rounded-[24px] bg-[#24262B] p-2">
           <SidebarTree nodes={navTree.advanced} pathname={pathname} onNavigate={onNavigate} />
         </nav>
       </div>
 
       <div className="mt-auto space-y-3 px-2 pb-2 pt-3">
-        <div className="flex items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.04] p-3">
-          <div className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-2xl bg-[#001542] ring-1 ring-white/10">
+        <div className="flex items-center gap-3 rounded-2xl border border-white/8 bg-[#24262B] p-3">
+          <div className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-2xl bg-[#17181C] ring-1 ring-white/10">
             {avatarUrl && avatarOk ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -405,7 +405,7 @@ function SidebarContent({
                 onError={() => setAvatarOk(false)}
               />
             ) : (
-              <span className="text-xs font-black text-[#FFB30D]">{avatar}</span>
+              <span className="text-xs font-black text-white/90">{avatar}</span>
             )}
           </div>
           <div className="min-w-0 flex-1">
@@ -577,9 +577,9 @@ export function AdminShell({
               className="absolute inset-0 bg-black/70 backdrop-blur-[2px]"
               onClick={() => setMobileNavOpen(false)}
             />
-            <aside className="absolute inset-y-0 left-0 flex w-[86vw] max-w-[340px] flex-col overflow-y-auto border-r border-[#085454]/40 bg-[#083a4a] p-4 shadow-[0_20px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+            <aside className="absolute inset-y-0 left-0 flex w-[86vw] max-w-[320px] flex-col overflow-y-auto border-r border-white/8 bg-[#1E1F23] p-4 shadow-[0_20px_80px_rgba(0,0,0,0.55)] backdrop-blur-xl">
               <div className="mb-3 flex items-center justify-between">
-                <p className="text-xs font-black uppercase tracking-[0.24em] text-[#7A7A7A]">Menu</p>
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-[#767A81]">Menu</p>
                 <HamburgerButton open={mobileNavOpen} onClick={() => setMobileNavOpen(false)} />
               </div>
               <SidebarContent
@@ -596,8 +596,8 @@ export function AdminShell({
           </div>
         ) : null}
 
-        <div className="relative grid w-full grid-cols-1 gap-0 md:grid-cols-[248px_1fr] lg:grid-cols-[268px_1fr] xl:grid-cols-[288px_1fr]">
-          <aside className="hidden min-h-screen flex-col border-r border-[#085454]/40 bg-[#083a4a] p-3 shadow-[inset_-1px_0_0_rgba(8,84,84,0.45),12px_0_36px_rgba(0,0,0,0.18),0_0_0_1px_rgba(255,255,255,0.03)] backdrop-blur-xl md:flex lg:p-4">
+        <div className="relative grid w-full grid-cols-1 gap-0 md:grid-cols-[220px_1fr] lg:grid-cols-[232px_1fr] xl:grid-cols-[244px_1fr]">
+          <aside className="hidden min-h-screen flex-col border-r border-white/8 bg-[#1E1F23] p-3 shadow-[inset_-1px_0_0_rgba(255,255,255,0.04),8px_0_24px_rgba(0,0,0,0.14)] backdrop-blur-xl md:flex lg:p-3.5">
             <SidebarContent
               pathname={pathname}
               navTree={navTree}
