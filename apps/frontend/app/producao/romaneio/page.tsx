@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
@@ -59,6 +59,22 @@ function fmtKg(v: number) {
 }
 function fmtSc(vKg: number, bagKg = 60) {
   return `${(vKg / bagKg).toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} SC`;
+}
+
+function CardIcon({
+  tone,
+  children
+}: {
+  tone: "slate" | "sky" | "emerald";
+  children: ReactNode;
+}) {
+  const toneClass =
+    tone === "sky"
+      ? "bg-sky-500/18 text-sky-300 ring-sky-400/25"
+      : tone === "emerald"
+        ? "bg-emerald-500/18 text-emerald-300 ring-emerald-400/25"
+        : "bg-white/10 text-zinc-200 ring-white/10";
+  return <div className={`grid h-10 w-10 place-items-center rounded-2xl ring-1 ${toneClass}`}>{children}</div>;
 }
 
 function escapeHtml(value: string) {
@@ -244,10 +260,21 @@ export default function RomaneioPage() {
   );
 
   const card = useMemo(() => {
-    const totalNet = filteredRows.reduce((acc, r) => acc + n(r.net_weight), 0);
-    const avgNet = filteredRows.length ? totalNet / filteredRows.length : 0;
-    return { totalNet, avgNet };
-  }, [filteredRows]);
+    const areaPlantada = filteredEmpreendimentos.reduce(
+      (acc, e) => acc + (e.items || []).reduce((sum, it) => sum + n(it.area_ha), 0),
+      0
+    );
+    const plannedKg = filteredEmpreendimentos.reduce(
+      (acc, e) => acc + (e.items || []).reduce((sum, it) => sum + n(it.production_kg), 0),
+      0
+    );
+    const totalGross = filteredRows.reduce((acc, r) => acc + n(r.gross_weight), 0);
+    const totalDiscount = filteredRows.reduce((acc, r) => acc + n(r.humidity) + n(r.impurity) + n(r.ardido) + n(r.others), 0);
+    const totalNet = Math.max(totalGross - totalDiscount, 0);
+    const plannedAvgPerHaKg = areaPlantada > 0 ? plannedKg / areaPlantada : 0;
+    const realizedAvgPerHaKg = areaPlantada > 0 ? totalNet / areaPlantada : 0;
+    return { areaPlantada, plannedKg, totalGross, totalDiscount, totalNet, plannedAvgPerHaKg, realizedAvgPerHaKg };
+  }, [filteredRows, filteredEmpreendimentos]);
 
   const temporalSeries = useMemo(() => {
     const daily = new Map<string, { qty: number; gross: number; disc: number; loads: number }>();
@@ -423,6 +450,21 @@ export default function RomaneioPage() {
 
   function toViewWeight(kg: number) {
     return viewUnit === "KG" ? fmtKg(kg) : fmtSc(kg, scBagKg);
+  }
+  function toViewWeightCard(kg: number) {
+    if (viewUnit === "KG") {
+      return `${kg.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} KG`;
+    }
+    return `${(kg / scBagKg).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} SC`;
+  }
+
+  function toViewValue(kg: number) {
+    return viewUnit === "KG" ? kg : kg / scBagKg;
+  }
+
+  function toViewPerHa(kgPerHa: number) {
+    const unit = viewUnit === "KG" ? "KG/ha" : "SC/ha";
+    return `${toViewValue(kgPerHa).toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${unit}`;
   }
 
   const propriedadesDoProdutor = useMemo(() => {
@@ -730,64 +772,148 @@ export default function RomaneioPage() {
   }
 
   return (
-    <AuthedAdminShell>
+    <AuthedAdminShell hideHeader>
       {() => (
         <div className="space-y-5">
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Produção</p>
-            <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Romaneio</h1>
-            <p className="mt-1 text-sm text-zinc-300">Registro de produção por propriedade e talhão para cálculo e realização.</p>
-          </div>
-
-          <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-emerald-400/80 shadow-[0_0_0_4px_rgba(16,185,129,0.16)]" />
-                  <select value={filterSafra} onChange={(e) => setFilterSafra(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[230px] rounded-2xl border border-accent-500/40 bg-accent-500/15 pl-8 pr-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-400">
-                    <option value="" style={optionStyle}>Selecione a safra</option>
-                    {safras.map((s) => (<option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>))}
-                  </select>
+          <section className="grid gap-3 xl:grid-cols-[minmax(0,390px)_1fr] xl:items-start">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Produção</p>
+              <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Romaneio</h1>
+              <p className="mt-1 text-sm text-zinc-300">Produção de Grãos por propiedades, talhões e variedades.</p>
+            </div>
+            <div className="grid gap-2.5 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)]">
+              <div className="rounded-3xl border border-white/15 bg-zinc-900/55 p-1.5">
+                <div className="flex h-full flex-col justify-between gap-1.5">
+                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Filtros</p>
+                  <div className="flex flex-wrap items-center gap-1">
+                    <div className="relative">
+                      <span className="pointer-events-none absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-emerald-400/80 shadow-[0_0_0_4px_rgba(16,185,129,0.16)]" />
+                      <select value={filterSafra} onChange={(e) => setFilterSafra(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[156px] rounded-2xl border border-accent-500/40 bg-accent-500/15 pl-8 pr-7 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-accent-400">
+                        <option value="" style={optionStyle}>Safra</option>
+                        {safras.map((s) => (<option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>))}
+                      </select>
+                    </div>
+                    <select value={viewUnit} onChange={(e) => setViewUnit(e.target.value as "KG" | "SC")} className="min-w-[84px] rounded-2xl border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-white/30">
+                      <option value="KG" style={optionStyle}>KG</option>
+                      <option value="SC" style={optionStyle}>SC</option>
+                    </select>
+                    <select value={scBagKg} onChange={(e) => setScBagKg(Number(e.target.value) as 40 | 60)} disabled={viewUnit !== "SC"} className="min-w-[96px] rounded-2xl border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50">
+                      <option value={60} style={optionStyle}>Sacas 60</option>
+                      <option value={40} style={optionStyle}>Sacas 40</option>
+                    </select>
+                  </div>
                 </div>
-                <select value={viewUnit} onChange={(e) => setViewUnit(e.target.value as "KG" | "SC")} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100">
-                  <option value="KG" style={optionStyle}>KG</option>
-                  <option value="SC" style={optionStyle}>SC</option>
-                </select>
-                {viewUnit === "SC" ? (
-                  <select value={scBagKg} onChange={(e) => setScBagKg(Number(e.target.value) as 40 | 60)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100">
-                    <option value={60} style={optionStyle}>Saca 60</option>
-                    <option value={40} style={optionStyle}>Saca 40</option>
-                  </select>
-                ) : null}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button onClick={reportResumoDiario} className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-black text-zinc-100 hover:bg-white/10">Resumo diário</button>
-                <button onClick={reportResumoGeral} className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-black text-zinc-100 hover:bg-white/10">Resumo geral</button>
-                <button onClick={reportAnalitico} className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-black text-zinc-100 hover:bg-white/10">Analítico</button>
-                <button onClick={openCreate} className="rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">Novo romaneio</button>
+              <div className="rounded-3xl border border-white/15 bg-zinc-900/55 p-2.5">
+                <div className="flex h-full flex-col justify-between gap-1.5">
+                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Relatórios</p>
+                  <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
+                    <button onClick={reportResumoDiario} className="min-h-[36px] rounded-2xl border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12px] font-black text-zinc-100 hover:bg-white/10">Resumo diário</button>
+                    <button onClick={reportResumoGeral} className="min-h-[36px] rounded-2xl border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12px] font-black text-zinc-100 hover:bg-white/10">Resumo geral</button>
+                    <button onClick={reportAnalitico} className="min-h-[36px] rounded-2xl border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12px] font-black text-zinc-100 hover:bg-white/10">Analítico</button>
+                    <button onClick={openCreate} className="min-h-[36px] rounded-2xl bg-accent-500 px-3.5 py-1.5 text-[12px] font-black text-zinc-950 hover:bg-accent-400">Novo</button>
+                  </div>
+                </div>
               </div>
             </div>
+          </section>
 
-            <div className="mt-3 grid gap-2 lg:grid-cols-4 xl:grid-cols-8">
-              <select value={filterProdutor} onChange={(e) => setFilterProdutor(e.target.value === "" ? "" : Number(e.target.value))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Produtor</option>{produtoresComPropriedade.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{produtorDisplayLabel(p)}</option>)}</select>
-              <select value={filterPropriedade} onChange={(e) => setFilterPropriedade(e.target.value === "" ? "" : Number(e.target.value))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Propriedade</option>{propriedades.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{p.name}</option>)}</select>
-              <select value={filterTalhao} onChange={(e) => setFilterTalhao(e.target.value === "" ? "" : Number(e.target.value))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Talhão</option>{talhoes.map((t) => <option key={t.id} value={t.id} style={optionStyle}>{t.name}</option>)}</select>
-              <select value={filterEmpreendimento} onChange={(e) => setFilterEmpreendimento(e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Empreendimento</option>{empreendimentos.map((e) => <option key={e.id} value={e.id} style={optionStyle}>{e.code}</option>)}</select>
-              <select value={filterTransportador} onChange={(e) => setFilterTransportador(e.target.value === "" ? "" : Number(e.target.value))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Transportadora</option>{transportadoresAtivos.map((t) => <option key={t.id} value={t.id} style={optionStyle}>{t.name}</option>)}</select>
-              <select value={filterPlaca} onChange={(e) => setFilterPlaca(e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Placa</option>{placasAtivas.map((p) => <option key={p.id} value={p.plate} style={optionStyle}>{p.plate}</option>)}</select>
-              <select value={filterCliente} onChange={(e) => setFilterCliente(e.target.value === "" ? "" : Number(e.target.value))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Cliente</option>{clientes.map((c) => <option key={c.id} value={c.id} style={optionStyle}>{c.name}</option>)}</select>
-              <div className="grid grid-cols-2 gap-2">
-                <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark]" />
-                <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark]" />
-              </div>
+          <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-3.5">
+            <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-5">
+              <select value={filterProdutor} onChange={(e) => setFilterProdutor(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-0 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Produtor</option>{produtoresComPropriedade.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{produtorDisplayLabel(p)}</option>)}</select>
+              <select value={filterPropriedade} onChange={(e) => setFilterPropriedade(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-0 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Propriedade</option>{propriedades.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{p.name}</option>)}</select>
+              <select value={filterTalhao} onChange={(e) => setFilterTalhao(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-0 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Talhão</option>{talhoes.map((t) => <option key={t.id} value={t.id} style={optionStyle}>{t.name}</option>)}</select>
+              <select value={filterEmpreendimento} onChange={(e) => setFilterEmpreendimento(e.target.value)} className="min-w-0 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Empreendimento</option>{empreendimentos.map((e) => <option key={e.id} value={e.id} style={optionStyle}>{e.code}</option>)}</select>
+              <select value={filterCliente} onChange={(e) => setFilterCliente(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-0 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Cliente</option>{clientes.map((c) => <option key={c.id} value={c.id} style={optionStyle}>{c.name}</option>)}</select>
+            </div>
+            <div className="mt-2.5 grid gap-2.5 md:grid-cols-2 xl:grid-cols-5">
+              <select value={filterTransportador} onChange={(e) => setFilterTransportador(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-0 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Transportadora</option>{transportadoresAtivos.map((t) => <option key={t.id} value={t.id} style={optionStyle}>{t.name}</option>)}</select>
+              <select value={filterPlaca} onChange={(e) => setFilterPlaca(e.target.value)} className="min-w-0 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Placa</option>{placasAtivas.map((p) => <option key={p.id} value={p.plate} style={optionStyle}>{p.plate}</option>)}</select>
+              <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100 [color-scheme:dark]" />
+              <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100 [color-scheme:dark]" />
             </div>
             {error ? <div className="mt-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm font-semibold text-amber-200">{error}</div> : null}
           </section>
 
-          <section className="grid gap-4 lg:grid-cols-3">
-            <div className="rounded-3xl border border-white/15 bg-white/5 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Registros</p><p className="mt-2 text-2xl font-black text-white">{filteredRows.length}</p></div>
-            <div className="rounded-3xl border border-sky-400/30 bg-sky-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Peso líquido total</p><p className="mt-2 text-2xl font-black text-white">{toViewWeight(card.totalNet)}</p></div>
-            <div className="rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Média por romaneio</p><p className="mt-2 text-2xl font-black text-white">{toViewWeight(card.avgNet)}</p></div>
+          <section className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
+            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-white/15 bg-white/5 p-3">
+              <CardIcon tone="slate">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 20h16" />
+                  <path d="M7 16V8" />
+                  <path d="M12 16V4" />
+                  <path d="M17 16v-5" />
+                </svg>
+              </CardIcon>
+              <div className="min-w-0 flex-1 text-right">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Área Plantada</p>
+                <p className="mt-1.5 text-[16px] font-black leading-tight text-white">
+                  {card.areaPlantada.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ha
+                </p>
+              </div>
+            </div>
+            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-sky-400/30 bg-sky-500/10 p-3">
+              <CardIcon tone="sky">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 21h18" />
+                  <path d="M8 17V9" />
+                  <path d="M12 17V5" />
+                  <path d="M16 17v-6" />
+                </svg>
+              </CardIcon>
+              <div className="min-w-0 flex-1 text-right">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Peso Bruto</p>
+                <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{toViewWeightCard(card.totalGross)}</p>
+                <div className="mt-1.5 space-y-1">
+                  {(() => {
+                    const max = Math.max(card.plannedKg, card.totalGross, 1);
+                    const plannedPct = (card.plannedKg / max) * 100;
+                    const realizedPct = (card.totalGross / max) * 100;
+                    return (
+                      <>
+                        <div className="flex items-center gap-1 text-[9px] text-zinc-300"><span className="w-[36px]">Plan.</span><div className="h-1.5 flex-1 rounded-full bg-zinc-800"><div className="h-1.5 rounded-full bg-amber-400/90" style={{ width: `${plannedPct}%` }} /></div></div>
+                        <div className="flex items-center gap-1 text-[9px] text-zinc-300"><span className="w-[36px]">Real.</span><div className="h-1.5 flex-1 rounded-full bg-zinc-800"><div className="h-1.5 rounded-full bg-emerald-400/90" style={{ width: `${realizedPct}%` }} /></div></div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-3">
+              <CardIcon tone="emerald">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="m5 12 4 4L19 6" />
+                </svg>
+              </CardIcon>
+              <div className="min-w-0 flex-1 text-right">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Média/ha</p>
+                <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{toViewPerHa(card.realizedAvgPerHaKg)}</p>
+                <div className="mt-1.5 space-y-1">
+                  {(() => {
+                    const max = Math.max(card.plannedAvgPerHaKg, card.realizedAvgPerHaKg, 1);
+                    const plannedPct = (card.plannedAvgPerHaKg / max) * 100;
+                    const realizedPct = (card.realizedAvgPerHaKg / max) * 100;
+                    return (
+                      <>
+                        <div className="flex items-center gap-1 text-[9px] text-zinc-300"><span className="w-[36px]">Plan.</span><div className="h-1.5 flex-1 rounded-full bg-zinc-800"><div className="h-1.5 rounded-full bg-amber-400/90" style={{ width: `${plannedPct}%` }} /></div></div>
+                        <div className="flex items-center gap-1 text-[9px] text-zinc-300"><span className="w-[36px]">Real.</span><div className="h-1.5 flex-1 rounded-full bg-zinc-800"><div className="h-1.5 rounded-full bg-emerald-400/90" style={{ width: `${realizedPct}%` }} /></div></div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-3">
+              <CardIcon tone="emerald">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="m5 12 4 4L19 6" />
+                </svg>
+              </CardIcon>
+              <div className="min-w-0 flex-1 text-right">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Peso Líquido</p>
+                <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{toViewWeightCard(card.totalNet)}</p>
+              </div>
+            </div>
           </section>
 
           <section className="grid gap-4 xl:grid-cols-3">
