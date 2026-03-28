@@ -80,6 +80,25 @@ function statusMeta(status: string) {
   return { label: "Pendente", cls: "border-amber-400/30 bg-amber-500/15 text-amber-200" };
 }
 
+function CardIcon({
+  tone,
+  children
+}: {
+  tone: "amber" | "slate" | "sky" | "emerald";
+  children: React.ReactNode;
+}) {
+  const toneClass =
+    tone === "amber"
+      ? "bg-amber-500/18 text-amber-300 ring-amber-400/25"
+      : tone === "sky"
+        ? "bg-sky-500/18 text-sky-300 ring-sky-400/25"
+        : tone === "emerald"
+          ? "bg-emerald-500/18 text-emerald-300 ring-emerald-400/25"
+          : "bg-white/10 text-zinc-200 ring-white/10";
+
+  return <div className={`grid h-10 w-10 place-items-center rounded-2xl ring-1 ${toneClass}`}>{children}</div>;
+}
+
 export default function ContratoVendaPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -270,29 +289,81 @@ export default function ContratoVendaPage() {
           </section>
 
           <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-            <div className="flex h-[88px] flex-col items-center justify-center rounded-3xl border border-accent-400/30 bg-accent-500/10 p-3 text-center">
-              <p className="min-h-[24px] text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Valor total contratos</p>
-              <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{brMoney(cards.totalValue)}</p>
+            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-accent-400/30 bg-accent-500/10 p-3">
+              <CardIcon tone="amber">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 1v22" />
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+              </CardIcon>
+              <div className="min-w-0 flex-1 text-right">
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Valor total contratos</p>
+                <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{brMoney(cards.totalValue)}</p>
+              </div>
             </div>
-            <div className="flex h-[88px] flex-col items-center justify-center rounded-3xl border border-white/15 bg-white/5 p-3 text-center">
-              <p className="min-h-[24px] text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Qtd. de contratos</p>
-              <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatCompactNumber(cards.qtyContracts)}</p>
+            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-white/15 bg-white/5 p-3">
+              <CardIcon tone="slate">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M8 6h13" />
+                  <path d="M8 12h13" />
+                  <path d="M8 18h13" />
+                  <path d="M3 6h.01M3 12h.01M3 18h.01" />
+                </svg>
+              </CardIcon>
+              <div className="min-w-0 flex-1 text-right">
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Qtd. de contratos</p>
+                <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatCompactNumber(cards.qtyContracts)}</p>
+              </div>
             </div>
-            <div className="flex h-[88px] flex-col items-center justify-center rounded-3xl border border-sky-400/30 bg-sky-500/10 p-3 text-center">
-              <p className="min-h-[24px] text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Quantidade ({viewUnitLabel})</p>
-              <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatViewUnitValue(cards.qtyKg)}</p>
+            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-sky-400/30 bg-sky-500/10 p-3">
+              <CardIcon tone="sky">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 17h16" />
+                  <path d="M7 17V7" />
+                  <path d="M12 17V4" />
+                  <path d="M17 17v-6" />
+                </svg>
+              </CardIcon>
+              <div className="min-w-0 flex-1 text-right">
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Quantidade ({viewUnitLabel})</p>
+                <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatViewUnitValue(cards.qtyKg)}</p>
+              </div>
             </div>
-            <div className="flex h-[88px] flex-col items-center justify-center rounded-3xl border border-white/15 bg-white/5 p-3 text-center">
-              <p className="min-h-[24px] text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Nº de contratos</p>
-              <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatCompactNumber(cards.qtyContracts)}</p>
+            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-white/15 bg-white/5 p-3">
+              <CardIcon tone="slate">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="4" y="5" width="16" height="14" rx="2" />
+                  <path d="M8 9h8M8 13h5" />
+                </svg>
+              </CardIcon>
+              <div className="min-w-0 flex-1 text-right">
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Nº de contratos</p>
+                <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatCompactNumber(cards.qtyContracts)}</p>
+              </div>
             </div>
-            <div className="flex h-[88px] flex-col items-center justify-center rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-3 text-center">
-              <p className="min-h-[24px] text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Nº contratos cumpridos</p>
-              <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatCompactNumber(cards.done)}</p>
+            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-3">
+              <CardIcon tone="emerald">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="m5 12 4 4L19 6" />
+                </svg>
+              </CardIcon>
+              <div className="min-w-0 flex-1 text-right">
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Nº contratos cumpridos</p>
+                <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatCompactNumber(cards.done)}</p>
+              </div>
             </div>
-            <div className="flex h-[88px] flex-col items-center justify-center rounded-3xl border border-amber-400/30 bg-amber-500/10 p-3 text-center">
-              <p className="min-h-[24px] text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Nº contratos pendentes</p>
-              <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatCompactNumber(cards.pending)}</p>
+            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-amber-400/30 bg-amber-500/10 p-3">
+              <CardIcon tone="amber">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 8v5" />
+                  <path d="M12 16h.01" />
+                  <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                </svg>
+              </CardIcon>
+              <div className="min-w-0 flex-1 text-right">
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Nº contratos pendentes</p>
+                <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatCompactNumber(cards.pending)}</p>
+              </div>
             </div>
           </section>
 
