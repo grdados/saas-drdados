@@ -133,9 +133,7 @@ export default function EmpreendimentosPage() {
   const [closeEmpId, setCloseEmpId] = useState("");
   const [closeDate, setCloseDate] = useState("");
 
-  const [q, setQ] = useState("");
   const [safraFilter, setSafraFilter] = useState<number | "">("");
-  const [statusFilter, setStatusFilter] = useState<"all" | Empreendimento["status"]>("all");
   const [viewUnit, setViewUnit] = useState<"KG" | "SC">("KG");
   const [sackWeight, setSackWeight] = useState<60 | 40>(60);
 
@@ -180,14 +178,11 @@ export default function EmpreendimentosPage() {
   const romaneios = useMemo(() => loadRomaneios(), [rows]);
 
   const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
     return rows.filter((it) => {
       if (safraFilter !== "" && it.safra_id !== Number(safraFilter)) return false;
-      if (statusFilter !== "all" && normalizeEmpreendimentoStatus(it) !== statusFilter) return false;
-      if (!needle) return true;
-      return it.code.toLowerCase().includes(needle);
+      return true;
     });
-  }, [rows, q, safraFilter, statusFilter]);
+  }, [rows, safraFilter]);
 
   const analytics = useMemo(() => {
     let estimadoKg = 0;
@@ -635,47 +630,46 @@ export default function EmpreendimentosPage() {
     <AuthedAdminShell>
       {() => (
         <div className="space-y-5">
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Produção</p>
-            <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Empreendimentos</h1>
-            <p className="mt-1 text-sm text-zinc-300">Planejamento de plantio, estimativa de produção e comparação estimado vs realizado.</p>
-          </div>
-
-          <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-emerald-400/80 shadow-[0_0_0_4px_rgba(16,185,129,0.16)]" />
-                  <select value={safraFilter} onChange={(e) => setSafraFilter(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[220px] rounded-2xl border border-accent-500/40 bg-accent-500/15 pl-8 pr-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-400">
-                    <option value="" style={optionStyle}>Selecione a safra</option>
-                    {safras.map((s) => (<option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>))}
+          <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] xl:items-start">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Produção</p>
+              <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Empreendimentos</h1>
+              <p className="mt-1 text-sm text-zinc-300">Planejamento de plantio, estimativa de produção e comparação estimado vs realizado.</p>
+            </div>
+            <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+              <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-3.5">
+                <p className="mb-2 text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Filtros</p>
+                <div className="grid gap-2 md:grid-cols-[minmax(0,1.2fr)_minmax(0,.8fr)_minmax(0,.8fr)]">
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-emerald-400/80 shadow-[0_0_0_4px_rgba(16,185,129,0.16)]" />
+                    <select value={safraFilter} onChange={(e) => setSafraFilter(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-accent-500/40 bg-accent-500/15 pl-8 pr-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-400">
+                      <option value="" style={optionStyle}>Safra</option>
+                      {safras.map((s) => (<option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>))}
+                    </select>
+                  </div>
+                  <select value={viewUnit} onChange={(e) => setViewUnit(e.target.value as "KG" | "SC")} className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-white/30">
+                    <option value="KG" style={optionStyle}>KG</option>
+                    <option value="SC" style={optionStyle}>SC</option>
+                  </select>
+                  <select value={String(sackWeight)} onChange={(e) => setSackWeight(Number(e.target.value) as 60 | 40)} disabled={viewUnit !== "SC"} className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50">
+                    <option value="60" style={optionStyle}>Sacas 60</option>
+                    <option value="40" style={optionStyle}>Sacas 40</option>
                   </select>
                 </div>
-                <select value={viewUnit} onChange={(e) => setViewUnit(e.target.value as "KG" | "SC")} className="min-w-[130px] rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-white/30">
-                  <option value="KG" style={optionStyle}>KG</option>
-                  <option value="SC" style={optionStyle}>Sacas</option>
-                </select>
-                <select value={String(sackWeight)} onChange={(e) => setSackWeight(Number(e.target.value) as 60 | 40)} disabled={viewUnit !== "SC"} className="min-w-[130px] rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50">
-                  <option value="60" style={optionStyle}>Saca 60</option>
-                  <option value="40" style={optionStyle}>Saca 40</option>
-                </select>
-              </div>
-              <div className="flex flex-wrap items-center justify-end gap-2">
-              <button onClick={reportResumo} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10">Relatório resumo</button>
-              <button onClick={reportAnalitico} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10">Relatório analítico</button>
-              <button onClick={() => setCloseOpen(true)} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10">Evento de encerramento</button>
-              <button onClick={openCreate} className="rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">Novo empreendimento</button>
-              </div>
+              </section>
+              <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-3.5">
+                <p className="mb-2 text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Relatórios</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button onClick={reportResumo} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10">Resumo</button>
+                  <button onClick={reportAnalitico} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10">Analítico</button>
+                  <button onClick={() => setCloseOpen(true)} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10">Evento de encerramento</button>
+                  <button onClick={openCreate} className="rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">Novo empreendimento</button>
+                </div>
+              </section>
             </div>
           </section>
 
-          <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-4">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por código..." className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 xl:col-span-2" />
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | Empreendimento["status"])} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="all" style={optionStyle}>Status</option><option value="in_progress" style={optionStyle}>Em andamento</option><option value="closed" style={optionStyle}>Encerrado</option></select>
-            </div>
-            {error ? <div className="mt-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm font-semibold text-amber-200">{error}</div> : null}
-          </section>
+          {error ? <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm font-semibold text-amber-200">{error}</div> : null}
 
           <section className="grid gap-4 lg:grid-cols-3 xl:grid-cols-6">
             <div className="rounded-3xl border border-amber-400/30 bg-amber-500/10 p-4"><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Faturamento R$</p><p className="mt-2 text-2xl font-black text-white">{formatCurrencyBRL(analytics.faturamento)}</p></div>
