@@ -138,10 +138,11 @@ export default function ContratoVendaPage() {
     const totalValue = filtered.reduce((acc, c) => acc + n(c.total_value), 0);
     const qtyContracts = filtered.length;
     const qtyKg = filtered.reduce((acc, c) => acc + (c.items || []).reduce((s, i) => s + n(i.quantity), 0), 0);
-    const sacks = qtyKg / sackWeight;
-    const done = filtered.filter((c) => (c.status || "").toLowerCase() === "delivered").length;
-    const pending = filtered.filter((c) => (c.status || "").toLowerCase() !== "delivered" && (c.status || "").toLowerCase() !== "canceled").length;
-    return { totalValue, qtyContracts, qtyKg, sacks, done, pending };
+    const deliveredContracts = filtered.filter((c) => (c.status || "").toLowerCase() === "delivered");
+    const pendingContracts = filtered.filter((c) => (c.status || "").toLowerCase() !== "delivered" && (c.status || "").toLowerCase() !== "canceled");
+    const deliveredKg = deliveredContracts.reduce((acc, c) => acc + (c.items || []).reduce((s, i) => s + n(i.quantity), 0), 0);
+    const pendingKg = pendingContracts.reduce((acc, c) => acc + (c.items || []).reduce((s, i) => s + n(i.quantity), 0), 0);
+    return { totalValue, qtyContracts, qtyKg, deliveredKg, pendingKg, pendingCount: pendingContracts.length };
   }, [filtered, sackWeight]);
 
   const viewUnitLabel = viewUnit === "KG" ? "KG" : `SC${sackWeight}`;
@@ -249,34 +250,36 @@ export default function ContratoVendaPage() {
                 <p className="mt-1 text-sm text-zinc-300">Contrato de venda com geração automática em Contas a Receber.</p>
               </div>
 
-              <div className="rounded-3xl border border-white/15 bg-zinc-900/55 p-3">
-                <div className="grid gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-stretch">
-                  <div className="flex h-full flex-col justify-between gap-2">
-                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Filtros</p>
-                    <div className="flex flex-wrap items-center gap-2">
+              <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+                <div className="rounded-3xl border border-white/15 bg-zinc-900/55 p-2.5">
+                  <div className="flex h-full flex-col justify-between gap-1.5">
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Filtros</p>
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <div className="relative">
                         <span className="pointer-events-none absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-emerald-400/80 shadow-[0_0_0_4px_rgba(16,185,129,0.16)]" />
-                        <select value={filterSafra} onChange={(e) => setFilterSafra(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[200px] rounded-2xl border border-accent-500/40 bg-accent-500/15 pl-8 pr-8 py-2 text-[13px] font-semibold text-zinc-100 outline-none focus:border-accent-400">
+                        <select value={filterSafra} onChange={(e) => setFilterSafra(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[172px] rounded-2xl border border-accent-500/40 bg-accent-500/15 pl-8 pr-8 py-1.5 text-[12px] font-semibold text-zinc-100 outline-none focus:border-accent-400">
                           <option value="" style={optionStyle}>Safra</option>
                           {safras.map((s) => (<option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>))}
                         </select>
                       </div>
-                      <select value={viewUnit} onChange={(e) => setViewUnit(e.target.value as "KG" | "SC")} className="min-w-[112px] rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-[13px] font-semibold text-zinc-100 outline-none focus:border-white/30">
+                      <select value={viewUnit} onChange={(e) => setViewUnit(e.target.value as "KG" | "SC")} className="min-w-[96px] rounded-2xl border border-white/15 bg-white/5 px-3 py-1.5 text-[12px] font-semibold text-zinc-100 outline-none focus:border-white/30">
                         <option value="KG" style={optionStyle}>Unidade</option>
                         <option value="SC" style={optionStyle}>Sacas</option>
                       </select>
-                      <select value={String(sackWeight)} onChange={(e) => setSackWeight(Number(e.target.value) as 60 | 40)} disabled={viewUnit !== "SC"} className="min-w-[132px] rounded-2xl border border-white/15 bg-white/5 px-3 py-2 text-[13px] font-semibold text-zinc-100 outline-none focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50">
+                      <select value={String(sackWeight)} onChange={(e) => setSackWeight(Number(e.target.value) as 60 | 40)} disabled={viewUnit !== "SC"} className="min-w-[108px] rounded-2xl border border-white/15 bg-white/5 px-3 py-1.5 text-[12px] font-semibold text-zinc-100 outline-none focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50">
                         <option value="60" style={optionStyle}>Sacas 60</option>
                         <option value="40" style={optionStyle}>Sacas 40</option>
                       </select>
                     </div>
                   </div>
-                  <div className="flex h-full flex-col justify-between gap-2">
-                    <p className="text-[10px] font-black uppercase tracking-[0.22em] text-zinc-500">Relatórios</p>
-                    <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                      <button onClick={reportResumo} className="min-h-[40px] rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-[13px] font-black text-zinc-100 hover:bg-white/10">Resumo</button>
-                      <button onClick={reportAnalitico} className="min-h-[40px] rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-[13px] font-black text-zinc-100 hover:bg-white/10">Analítico</button>
-                      <button onClick={openCreate} className="min-h-[40px] rounded-2xl bg-accent-500 px-4 py-2 text-[13px] font-black text-zinc-950 hover:bg-accent-400">Novo contrato</button>
+                </div>
+                <div className="rounded-3xl border border-white/15 bg-zinc-900/55 p-2.5">
+                  <div className="flex h-full flex-col justify-between gap-1.5">
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Relatórios</p>
+                    <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
+                      <button onClick={reportResumo} className="min-h-[36px] rounded-2xl border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12px] font-black text-zinc-100 hover:bg-white/10">Resumo</button>
+                      <button onClick={reportAnalitico} className="min-h-[36px] rounded-2xl border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12px] font-black text-zinc-100 hover:bg-white/10">Analítico</button>
+                      <button onClick={openCreate} className="min-h-[36px] rounded-2xl bg-accent-500 px-3.5 py-1.5 text-[12px] font-black text-zinc-950 hover:bg-accent-400">Novo contrato</button>
                     </div>
                   </div>
                 </div>
@@ -294,7 +297,7 @@ export default function ContratoVendaPage() {
             {error ? <div className="mt-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm font-semibold text-amber-200">{error}</div> : null}
           </section>
 
-          <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+          <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
             <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-accent-400/30 bg-accent-500/10 p-3">
               <CardIcon tone="amber">
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -303,7 +306,7 @@ export default function ContratoVendaPage() {
                 </svg>
               </CardIcon>
               <div className="min-w-0 flex-1 text-right">
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Valor total contratos</p>
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Vlr total contratos</p>
                 <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{brMoney(cards.totalValue)}</p>
               </div>
             </div>
@@ -317,8 +320,9 @@ export default function ContratoVendaPage() {
                 </svg>
               </CardIcon>
               <div className="min-w-0 flex-1 text-right">
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Qtd. de contratos</p>
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Nº contratos</p>
                 <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatCompactNumber(cards.qtyContracts)}</p>
+                <p className="mt-0.5 text-[10px] font-semibold text-zinc-400">Pendentes: {formatCompactNumber(cards.pendingCount)}</p>
               </div>
             </div>
             <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-sky-400/30 bg-sky-500/10 p-3">
@@ -335,18 +339,6 @@ export default function ContratoVendaPage() {
                 <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatViewUnitValue(cards.qtyKg)}</p>
               </div>
             </div>
-            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-white/15 bg-white/5 p-3">
-              <CardIcon tone="slate">
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="4" y="5" width="16" height="14" rx="2" />
-                  <path d="M8 9h8M8 13h5" />
-                </svg>
-              </CardIcon>
-              <div className="min-w-0 flex-1 text-right">
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Nº de contratos</p>
-                <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatCompactNumber(cards.qtyContracts)}</p>
-              </div>
-            </div>
             <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-3">
               <CardIcon tone="emerald">
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
@@ -354,8 +346,8 @@ export default function ContratoVendaPage() {
                 </svg>
               </CardIcon>
               <div className="min-w-0 flex-1 text-right">
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Nº contratos cumpridos</p>
-                <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatCompactNumber(cards.done)}</p>
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Entregue ({viewUnit === "KG" ? "KG" : "SC"})</p>
+                <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatViewUnitValue(cards.deliveredKg)}</p>
               </div>
             </div>
             <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-amber-400/30 bg-amber-500/10 p-3">
@@ -367,8 +359,8 @@ export default function ContratoVendaPage() {
                 </svg>
               </CardIcon>
               <div className="min-w-0 flex-1 text-right">
-                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Nº contratos pendentes</p>
-                <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatCompactNumber(cards.pending)}</p>
+                <p className="text-[9px] font-black uppercase tracking-[0.14em] text-zinc-400">Pendente ({viewUnit === "KG" ? "KG" : "SC"})</p>
+                <p className="mt-1.5 text-[16px] font-black leading-tight text-white">{formatViewUnitValue(cards.pendingKg)}</p>
               </div>
             </div>
           </section>
@@ -390,15 +382,15 @@ export default function ContratoVendaPage() {
           <section className="rounded-3xl border border-white/10 bg-white/5 p-3.5">
             <div className="flex items-center justify-between"><p className="text-[13px] font-black text-white">Lista</p><p className="text-[11px] font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} contrato(s)`}</p></div>
             <div className="mt-2.5 overflow-x-auto">
-              <div className="hidden min-w-[1210px] grid-cols-[76px_82px_98px_142px_160px_96px_100px_78px_100px_44px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.15em] text-zinc-400 xl:grid"><div>Status</div><div>Data</div><div>Contrato</div><div>Cliente</div><div>Produtor</div><div>Vencimento</div><div>Quantidade</div><div>Preço</div><div>Valor</div><div className="text-right">Ações</div></div>
-              <div className="mt-2.5 space-y-2 xl:min-w-[1210px]">
-                {filtered.map((c) => {
-                  const qty = (c.items || []).reduce((acc, i) => acc + n(i.quantity), 0);
-                  const avgPrice = qty > 0 ? n(c.total_value) / qty : 0;
-                  const st = statusMeta(c.status);
-                  return <div key={c.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5"><div className="grid grid-cols-1 gap-2 xl:grid-cols-[76px_82px_98px_142px_160px_96px_100px_78px_100px_44px] xl:items-center xl:gap-2"><div><span className={`inline-flex rounded-full border px-2 py-1 text-[10px] font-black ${st.cls}`}>{st.label}</span></div><div className="text-[12px] text-zinc-100">{d(c.date)}</div><div className="text-[12px] font-black text-zinc-100">{c.code || `#${c.id}`}</div><div className="truncate text-[12px] text-zinc-100">{c.cliente?.name ?? "-"}</div><div className="truncate text-[12px] text-zinc-100">{c.produtor?.name ?? "-"}</div><div className="text-[12px] text-zinc-100">{d(c.due_date)}</div><div className="text-[12px] text-zinc-100">{formatViewUnitRow(qty)}</div><div className="text-[12px] text-zinc-100">{brMoney(avgPrice)}</div><div className="text-[12px] font-black text-zinc-100">{brMoney(n(c.total_value))}</div><div className="text-right"><div className="flex w-full flex-nowrap justify-end gap-0.5 whitespace-nowrap"><button onClick={() => openEdit(c)} className="rounded-md border border-sky-400/25 bg-sky-500/10 p-1 text-sky-200 hover:bg-sky-500/20" title="Editar" aria-label="Editar"><svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg></button><button onClick={() => void remove(c.id)} className="rounded-md border border-rose-400/25 bg-rose-500/10 p-1 text-rose-200 hover:bg-rose-500/20" title="Excluir" aria-label="Excluir"><svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg></button></div></div></div></div>;
-                })}
-              </div>
+                <div className="hidden min-w-[1178px] grid-cols-[76px_82px_96px_138px_154px_94px_96px_74px_96px_34px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.15em] text-zinc-400 xl:grid"><div>Status</div><div>Data</div><div>Contrato</div><div>Cliente</div><div>Produtor</div><div>Vencimento</div><div>Quantidade</div><div>Preço</div><div>Valor</div><div className="text-right">Ações</div></div>
+                <div className="mt-2.5 space-y-2 xl:min-w-[1178px]">
+                  {filtered.map((c) => {
+                    const qty = (c.items || []).reduce((acc, i) => acc + n(i.quantity), 0);
+                    const avgPrice = qty > 0 ? n(c.total_value) / qty : 0;
+                    const st = statusMeta(c.status);
+                  return <div key={c.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5"><div className="grid grid-cols-1 gap-2 xl:grid-cols-[76px_82px_96px_138px_154px_94px_96px_74px_96px_34px] xl:items-center xl:gap-2"><div><span className={`inline-flex rounded-full border px-2 py-1 text-[10px] font-black ${st.cls}`}>{st.label}</span></div><div className="text-[12px] text-zinc-100">{d(c.date)}</div><div className="text-[12px] font-black text-zinc-100">{c.code || `#${c.id}`}</div><div className="truncate text-[12px] text-zinc-100">{c.cliente?.name ?? "-"}</div><div className="truncate text-[12px] text-zinc-100">{c.produtor?.name ?? "-"}</div><div className="text-[12px] text-zinc-100">{d(c.due_date)}</div><div className="text-[12px] text-zinc-100">{formatViewUnitRow(qty)}</div><div className="text-[12px] text-zinc-100">{brMoney(avgPrice)}</div><div className="text-[12px] font-black text-zinc-100">{brMoney(n(c.total_value))}</div><div className="text-right"><div className="flex w-full flex-nowrap justify-end gap-0.5 whitespace-nowrap"><button onClick={() => openEdit(c)} className="rounded-md border border-sky-400/25 bg-sky-500/10 p-[3px] text-sky-200 hover:bg-sky-500/20" title="Editar" aria-label="Editar"><svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg></button><button onClick={() => void remove(c.id)} className="rounded-md border border-rose-400/25 bg-rose-500/10 p-[3px] text-rose-200 hover:bg-rose-500/20" title="Excluir" aria-label="Excluir"><svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg></button></div></div></div></div>;
+                  })}
+                </div>
             </div>
           </section>
 
