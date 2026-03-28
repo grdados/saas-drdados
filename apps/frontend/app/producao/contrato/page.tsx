@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
@@ -132,6 +132,9 @@ export default function ContratoVendaPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ContratoVenda | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
+  const [saveConfirmText, setSaveConfirmText] = useState("");
+  const saveConfirmResolverRef = useRef<((result: boolean) => void) | null>(null);
   const [form, setForm] = useState({ date: "", code: "", grupo_id: "", produtor_id: "", cliente_id: "", safra_id: "", due_date: "", operacao_id: "", status: "pending", notes: "", rows: [{ produto_id: "", unit: "KG", quantity: "0", price: "0", discount: "0" }] });
 
   const filtered = useMemo(() => contracts.filter((c) => {
@@ -170,21 +173,68 @@ export default function ContratoVendaPage() {
     return `${formatViewUnitValue(kgValue)} ${viewUnitLabel}`;
   }
 
-  const chartData = useMemo(() => filtered.slice(0, 10).map((c) => {
-    const qty = (c.items || []).reduce((acc, i) => acc + qtyToKg(i.quantity, i.unit), 0);
-    const delivered = (c.items || []).reduce((acc, i) => acc + qtyToKg(i.delivered_quantity, i.unit), 0);
-    return {
-      code: c.code || `#${c.id}`,
-      qty,
-      delivered,
-      cliente: c.cliente?.name ?? "-",
-      produtor: c.produtor?.name ?? "-"
-    };
-  }), [filtered]);
+  const chartByContrato = useMemo(
+    () =>
+      filtered.slice(0, 8).map((c) => {
+        const qty = (c.items || []).reduce((acc, i) => acc + qtyToKg(i.quantity, i.unit), 0);
+        const delivered = (c.items || []).reduce((acc, i) => acc + qtyToKg(i.delivered_quantity, i.unit), 0);
+        return { label: c.code || `#${c.id}`, qty, delivered };
+      }),
+    [filtered]
+  );
+
+  const chartByProdutor = useMemo(() => {
+    const map = new Map<string, { label: string; qty: number; delivered: number }>();
+    for (const c of filtered) {
+      const key = c.produtor?.name || "-";
+      const current = map.get(key) ?? { label: key, qty: 0, delivered: 0 };
+      current.qty += (c.items || []).reduce((acc, i) => acc + qtyToKg(i.quantity, i.unit), 0);
+      current.delivered += (c.items || []).reduce((acc, i) => acc + qtyToKg(i.delivered_quantity, i.unit), 0);
+      map.set(key, current);
+    }
+    return [...map.values()].sort((a, b) => b.qty - a.qty).slice(0, 8);
+  }, [filtered]);
+
+  const chartByCliente = useMemo(() => {
+    const map = new Map<string, { label: string; qty: number; delivered: number }>();
+    for (const c of filtered) {
+      const key = c.cliente?.name || "-";
+      const current = map.get(key) ?? { label: key, qty: 0, delivered: 0 };
+      current.qty += (c.items || []).reduce((acc, i) => acc + qtyToKg(i.quantity, i.unit), 0);
+      current.delivered += (c.items || []).reduce((acc, i) => acc + qtyToKg(i.delivered_quantity, i.unit), 0);
+      map.set(key, current);
+    }
+    return [...map.values()].sort((a, b) => b.qty - a.qty).slice(0, 8);
+  }, [filtered]);
 
   const totalForm = useMemo(() => form.rows.reduce((acc, r) => Math.max(0, acc + (n(r.quantity) * n(r.price) - n(r.discount))), 0), [form.rows]);
 
+  function requestSaveConfirm(isEditing: boolean) {
+    return new Promise<boolean>((resolve) => {
+      saveConfirmResolverRef.current = resolve;
+      setSaveConfirmText(isEditing ? "Confirmar edicao do contrato?" : "Confirmar novo contrato?");
+      setSaveConfirmOpen(true);
+    });
+  }
+
+  function resolveSaveConfirm(result: boolean) {
+    setSaveConfirmOpen(false);
+    if (saveConfirmResolverRef.current) {
+      saveConfirmResolverRef.current(result);
+      saveConfirmResolverRef.current = null;
+    }
+  }
+
   useEffect(() => { void refresh(); }, []);
+  useEffect(
+    () => () => {
+      if (saveConfirmResolverRef.current) {
+        saveConfirmResolverRef.current(false);
+        saveConfirmResolverRef.current = null;
+      }
+    },
+    []
+  );
   async function refresh() {
     const token = getAccessToken(); if (!token) return;
     setLoading(true); setError("");
@@ -210,7 +260,8 @@ export default function ContratoVendaPage() {
 
   async function save() {
     const token = getAccessToken(); if (!token) return;
-    if (!window.confirm(editing ? "Confirmar edição do contrato?" : "Confirmar novo contrato?")) return;
+    const confirmed = await requestSaveConfirm(Boolean(editing));
+    if (!confirmed) return;
     setSaving(true);
     try {
       const payload = { date: form.date || null, code: form.code.trim(), grupo_id: form.grupo_id ? Number(form.grupo_id) : null, produtor_id: form.produtor_id ? Number(form.produtor_id) : null, cliente_id: form.cliente_id ? Number(form.cliente_id) : null, safra_id: form.safra_id ? Number(form.safra_id) : null, due_date: form.due_date || null, operacao_id: form.operacao_id ? Number(form.operacao_id) : null, status: form.status, notes: form.notes, items: form.rows.map((r) => ({ produto_id: r.produto_id ? Number(r.produto_id) : null, unit: normalizeUnit(r.unit), quantity: toApiDecimal(r.quantity), price: toApiDecimal(r.price), discount: toApiDecimal(r.discount) })) };
@@ -377,15 +428,78 @@ export default function ContratoVendaPage() {
 
           <section className="rounded-3xl border border-white/10 bg-white/5 p-3.5">
             <p className="text-[13px] font-black text-white">Quantidade contratada x entregue</p>
-            <div className="mt-2.5 overflow-x-auto">
-              <div className="min-w-[760px] space-y-2">
-                {chartData.map((r) => {
-                  const max = Math.max(r.qty, r.delivered, 1);
-                  const qtyPct = (r.qty / max) * 100;
-                  const delPct = (r.delivered / max) * 100;
-                  return <div key={r.code} className="rounded-2xl border border-white/10 bg-zinc-950/30 p-2.5"><p className="mb-1 text-[11px] font-black text-zinc-300">{r.code}</p><p className="mb-2 text-[10px] font-semibold text-zinc-400">{r.cliente} / {r.produtor}</p><div className="space-y-1"><div className="h-2 rounded bg-zinc-800"><div className="h-2 rounded bg-amber-400" style={{ width: `${qtyPct}%` }} /></div><div className="h-2 rounded bg-zinc-800"><div className="h-2 rounded bg-emerald-400" style={{ width: `${delPct}%` }} /></div></div><p className="mt-2 text-[11px] text-zinc-400">Contratada: {formatViewUnit(r.qty)} · Entregue: {formatViewUnit(r.delivered)}</p></div>;
-                })}
-              </div>
+            <div className="mt-3 grid gap-3 xl:grid-cols-3">
+              {[
+                { title: "Por contrato", items: chartByContrato },
+                { title: "Por produtor", items: chartByProdutor },
+                { title: "Por cliente", items: chartByCliente }
+              ].map((group) => {
+                const max = Math.max(
+                  1,
+                  ...group.items.map((item) => Math.max(item.qty, item.delivered))
+                );
+                return (
+                  <div
+                    key={group.title}
+                    className="rounded-2xl border border-white/10 bg-zinc-950/30 p-3"
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-[12px] font-black text-zinc-200">{group.title}</p>
+                      <div className="flex items-center gap-3 text-[10px] text-zinc-400">
+                        <span className="inline-flex items-center gap-1">
+                          <span className="h-2 w-2 rounded-full bg-amber-400" />
+                          Contratada
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                          Entregue
+                        </span>
+                      </div>
+                    </div>
+                    {group.items.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-white/10 px-3 py-8 text-center text-xs text-zinc-500">
+                        Sem dados para exibir.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-[repeat(auto-fit,minmax(58px,1fr))] items-end gap-2">
+                        {group.items.map((item) => {
+                          const contractedHeight = Math.max(8, (item.qty / max) * 140);
+                          const deliveredHeight = Math.max(8, (item.delivered / max) * 140);
+                          return (
+                            <div key={item.label} className="min-w-0">
+                              <div className="flex h-[164px] items-end justify-center gap-1">
+                                <div className="flex flex-col items-center">
+                                  <span className="mb-1 text-[9px] font-black text-amber-300">
+                                    {formatViewUnitValue(item.qty)}
+                                  </span>
+                                  <div
+                                    className="w-5 rounded-t-md bg-amber-400/90"
+                                    style={{ height: `${contractedHeight}px` }}
+                                    title={`Contratada: ${formatViewUnit(item.qty)}`}
+                                  />
+                                </div>
+                                <div className="flex flex-col items-center">
+                                  <span className="mb-1 text-[9px] font-black text-emerald-300">
+                                    {formatViewUnitValue(item.delivered)}
+                                  </span>
+                                  <div
+                                    className="w-5 rounded-t-md bg-emerald-400/90"
+                                    style={{ height: `${deliveredHeight}px` }}
+                                    title={`Entregue: ${formatViewUnit(item.delivered)}`}
+                                  />
+                                </div>
+                              </div>
+                              <p className="mt-2 truncate text-center text-[10px] font-semibold text-zinc-300">
+                                {item.label}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </section>
 
@@ -405,6 +519,33 @@ export default function ContratoVendaPage() {
           </section>
 
           {open ? <div className="fixed inset-0 z-50 grid place-items-center px-4"><button className="absolute inset-0 bg-zinc-950/60" onClick={() => setOpen(false)} aria-label="Fechar" /><div className="relative w-full max-w-[1200px] rounded-3xl border border-white/15 bg-zinc-900/95 p-5 space-y-4"><p className="text-sm font-black text-white">{editing ? "Editar contrato" : "Novo contrato"}</p><div className="grid gap-3 lg:grid-cols-3"><div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Data</label><input type="date" value={form.date} onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark]" /></div><div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Contrato</label><input value={form.code} onChange={(e) => setForm((p) => ({ ...p, code: toUpperText(e.target.value) }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100" /></div><div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Status</label><select value={form.status} onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="pending" style={optionStyle}>Pendente</option><option value="delivered" style={optionStyle}>Entregue</option><option value="canceled" style={optionStyle}>Cancelado</option></select></div><div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Grupo</label><select value={form.grupo_id} onChange={(e) => setForm((p) => ({ ...p, grupo_id: e.target.value }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{grupos.map((g) => <option key={g.id} value={g.id} style={optionStyle}>{g.name}</option>)}</select></div><div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Produtor</label><select value={form.produtor_id} onChange={(e) => setForm((p) => ({ ...p, produtor_id: e.target.value }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{produtores.map((x) => <option key={x.id} value={x.id} style={optionStyle}>{produtorDisplayLabel(x)}</option>)}</select></div><div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Fornecedor</label><select value={form.cliente_id} onChange={(e) => setForm((p) => ({ ...p, cliente_id: e.target.value }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{clientes.map((x) => <option key={x.id} value={x.id} style={optionStyle}>{x.name}</option>)}</select></div><div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Safra</label><select value={form.safra_id} onChange={(e) => setForm((p) => ({ ...p, safra_id: e.target.value }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{safras.map((x) => <option key={x.id} value={x.id} style={optionStyle}>{x.name}</option>)}</select></div><div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Vencimento</label><input type="date" value={form.due_date} onChange={(e) => setForm((p) => ({ ...p, due_date: e.target.value }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark]" /></div><div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Operação</label><select value={form.operacao_id} onChange={(e) => setForm((p) => ({ ...p, operacao_id: e.target.value }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{operacoes.filter((o) => o.kind === "credit").map((x) => <option key={x.id} value={x.id} style={optionStyle}>{x.name}</option>)}</select></div></div><div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Observação</label><textarea value={form.notes} onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))} rows={2} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100" /></div><div className="hidden gap-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 lg:grid lg:grid-cols-[1.3fr_0.5fr_0.7fr_0.7fr_0.7fr_0.8fr_auto]"><div>Produto</div><div>UN</div><div>Quantidade</div><div>Preço</div><div>Desconto</div><div>Total Item</div><div className="text-center">Remover</div></div><div className="space-y-2">{form.rows.map((r, idx) => { const rowTotal = Math.max(0, n(r.quantity) * n(r.price) - n(r.discount)); return <div key={idx} className="grid gap-2 lg:grid-cols-[1.3fr_0.5fr_0.7fr_0.7fr_0.7fr_0.8fr_auto]"><select aria-label="Produto" value={r.produto_id} onChange={(e) => setForm((p) => ({ ...p, rows: p.rows.map((x, i) => i === idx ? { ...x, produto_id: e.target.value } : x) }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Produto</option>{produtos.map((x) => <option key={x.id} value={x.id} style={optionStyle}>{x.name}</option>)}</select><select aria-label="Unidade" value={normalizeUnit(r.unit)} onChange={(e) => setForm((p) => ({ ...p, rows: p.rows.map((x, i) => i === idx ? { ...x, unit: normalizeUnit(e.target.value) } : x) }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="KG" style={optionStyle}>KG</option><option value="SC" style={optionStyle}>SC</option></select><input aria-label="Quantidade" value={r.quantity} onChange={(e) => setForm((p) => ({ ...p, rows: p.rows.map((x, i) => i === idx ? { ...x, quantity: e.target.value } : x) }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 text-right" /><input aria-label="Preço" value={r.price} onChange={(e) => setForm((p) => ({ ...p, rows: p.rows.map((x, i) => i === idx ? { ...x, price: e.target.value } : x) }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 text-right" /><input aria-label="Desconto" value={r.discount} onChange={(e) => setForm((p) => ({ ...p, rows: p.rows.map((x, i) => i === idx ? { ...x, discount: e.target.value } : x) }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 text-right" /><input aria-label="Total item" readOnly value={rowTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} className="rounded-2xl border border-white/10 bg-zinc-900/60 px-3 py-2.5 text-sm text-zinc-100 text-right" /><button type="button" onClick={() => setForm((p) => ({ ...p, rows: p.rows.filter((_, i) => i !== idx) }))} className="rounded-2xl border border-rose-400/25 bg-rose-500/15 px-3 py-2.5 text-sm font-black text-rose-100">x</button></div>; })}</div><div className="flex items-center justify-between"><button type="button" onClick={() => setForm((p) => ({ ...p, rows: [...p.rows, { produto_id: "", unit: "KG", quantity: "0", price: "0", discount: "0" }] }))} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-4 py-2 text-sm font-black text-emerald-100">Adicionar item</button><p className="text-sm font-black text-white">Valor total: {brMoney(totalForm)}</p></div><div className="rounded-2xl border border-sky-400/20 bg-sky-500/10 px-3 py-2 text-[11px] font-semibold text-sky-100">Unidade: use <strong>SC</strong> para saca de 60 kg.</div><div className="flex justify-end gap-2"><button onClick={() => setOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200">Cancelar</button><button onClick={() => void save()} disabled={saving} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-5 py-2.5 text-sm font-black text-emerald-100">{saving ? "Salvando..." : "Salvar"}</button></div></div></div> : null}
+          {saveConfirmOpen ? (
+            <div className="fixed inset-0 z-[60] grid place-items-center px-4">
+              <button
+                className="absolute inset-0 bg-zinc-950/70"
+                onClick={() => resolveSaveConfirm(false)}
+                aria-label="Cancelar confirmacao"
+              />
+              <div className="relative w-full max-w-md rounded-3xl border border-white/15 bg-zinc-900/95 p-5 shadow-2xl">
+                <p className="text-base font-black text-white">Confirmar salvamento</p>
+                <p className="mt-2 text-sm text-zinc-300">{saveConfirmText}</p>
+                <div className="mt-5 flex justify-end gap-2">
+                  <button
+                    onClick={() => resolveSaveConfirm(false)}
+                    className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200 hover:bg-white/10"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => resolveSaveConfirm(true)}
+                    className="rounded-2xl bg-accent-500 px-4 py-2 text-sm font-black text-zinc-950 hover:bg-accent-400"
+                  >
+                    Confirmar
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
     </AuthedAdminShell>
