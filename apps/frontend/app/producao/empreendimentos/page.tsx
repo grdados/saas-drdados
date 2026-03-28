@@ -181,6 +181,7 @@ export default function EmpreendimentosPage() {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
+  const [formStep, setFormStep] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [codeTouched, setCodeTouched] = useState(false);
@@ -452,6 +453,7 @@ export default function EmpreendimentosPage() {
     setEditingId(null);
     setCodeTouched(false);
     setForm({ ...EMPTY_FORM, rows: [{ ...EMPTY_ROW, id: uid("row") }] });
+    setFormStep(0);
     setOpen(true);
   }
 
@@ -479,6 +481,7 @@ export default function EmpreendimentosPage() {
         plant_date: r.plant_date
       }))
     });
+    setFormStep(0);
     setOpen(true);
   }
 
@@ -605,6 +608,7 @@ export default function EmpreendimentosPage() {
         await createEmpreendimento(token, payload);
       }
       await refreshData();
+      setFormStep(0);
       setOpen(false);
     } catch (err) {
       if (isApiError(err) && err.status === 401) {
@@ -999,7 +1003,99 @@ export default function EmpreendimentosPage() {
             </div>
           </section>
 
-          {open ? <div className="fixed inset-0 z-50 grid place-items-center px-4"><button className="absolute inset-0 bg-zinc-950/55 backdrop-blur-sm" onClick={() => setOpen(false)} aria-label="Fechar" /><div className="relative w-full max-w-[1320px] max-h-[92vh] overflow-auto rounded-3xl border border-white/15 bg-zinc-900/95 p-5 space-y-4"><p className="text-sm font-black text-white">{editingId ? "Editar empreendimento" : "Novo empreendimento"}</p><div className="grid gap-3 lg:grid-cols-4"><div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Data</label><input type="date" value={form.date} onChange={(e) => setField("date", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark]" /></div><div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Empreendimento</label><input value={form.code} onChange={(e) => setField("code", e.target.value.toUpperCase())} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100" /></div><div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Safra</label><select value={form.safra_id} onChange={(e) => setField("safra_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{safras.map((s) => <option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>)}</select></div><div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Propriedade</label><select value={form.propriedade_id} onChange={(e) => setField("propriedade_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{propriedades.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{p.name}</option>)}</select></div><div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Produto</label><select value={form.produto_id} onChange={(e) => setField("produto_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{produtos.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{p.name}</option>)}</select></div><div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Centro de Custo</label><select value={form.centro_custo_id} onChange={(e) => setField("centro_custo_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{centros.map((c) => <option key={c.id} value={c.id} style={optionStyle}>{c.name}</option>)}</select></div><div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">UN</label><select value={form.unit} onChange={(e) => setField("unit", e.target.value as UnidadeProducao)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="KG" style={optionStyle}>KG</option><option value="SC" style={optionStyle}>SC</option></select></div><div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Preço Venda</label><input value={form.sale_price} onChange={(e) => setField("sale_price", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100" /></div></div><div className="text-[11px] text-zinc-400">Status: <span className="font-black text-zinc-200">Em andamento</span> (o encerramento é feito por evento de safra).</div>{selectedPropriedade ? <div className="rounded-2xl border border-sky-400/20 bg-sky-500/10 p-3 text-xs font-semibold text-sky-100">Área da propriedade selecionada: {n(selectedPropriedade.area_ha).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ha</div> : null}<div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Observação</label><textarea value={form.notes} onChange={(e) => setField("notes", e.target.value)} rows={2} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100" /></div><div className="hidden gap-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid xl:grid-cols-[1fr_1fr_1fr_100px_110px_130px_130px_210px_72px] xl:items-center"><div>Talhão</div><div>Produto</div><div>Cultivar</div><div>UN</div><div>Área (ha)</div><div>Produtividade</div><div>Data Plantio</div><div>Produção</div><div className="text-center">Remover</div></div><div className="space-y-2">{form.rows.map((r, idx) => {const talhao = talhoes.find((t) => t.id === Number(r.talhao_id || 0));const talhaoArea = n(talhao?.area_ha);const used = Number(r.talhao_id || 0) ? groupedArea.get(Number(r.talhao_id)) ?? 0 : 0;const available = talhaoArea - used;const production = calcItemProduction(r.unit, n(r.area_ha), n(r.produtividade));const cultivars = filteredCultivaresByProduto(r.produto_id);return <div key={r.id} className="space-y-1"><div className="grid gap-2 xl:grid-cols-[1fr_1fr_1fr_100px_110px_130px_130px_210px_72px] xl:items-center"><select aria-label="Talhão" value={r.talhao_id} onChange={(e) => setRowField(idx, "talhao_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Talhão</option>{talhoes.filter((t) => !form.propriedade_id || t.propriedade?.id === Number(form.propriedade_id)).map((t) => <option key={t.id} value={t.id} style={optionStyle}>{t.name}</option>)}</select><select aria-label="Produto" value={r.produto_id} onChange={(e) => setRowField(idx, "produto_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Produto</option>{produtos.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{p.name}</option>)}</select><select aria-label="Cultivar" value={r.cultivar_id} onChange={(e) => setRowField(idx, "cultivar_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Cultivar</option>{cultivars.map((c) => <option key={c.id} value={c.id} style={optionStyle}>{c.name}</option>)}</select><select aria-label="Unidade" value={r.unit} onChange={(e) => setRowField(idx, "unit", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="KG" style={optionStyle}>KG</option><option value="SC" style={optionStyle}>SC</option></select><input aria-label="Área" value={r.area_ha} onChange={(e) => setRowField(idx, "area_ha", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100" /><input aria-label="Produtividade" value={r.produtividade} onChange={(e) => setRowField(idx, "produtividade", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100" /><input aria-label="Data Plantio" type="date" value={r.plant_date} onChange={(e) => setRowField(idx, "plant_date", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark]" /><input aria-label="Produção" readOnly value={`${production.production_sc.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} SC / ${production.production_kg.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} KG`} className="rounded-2xl border border-white/10 bg-zinc-900/60 px-3 py-2.5 text-right text-sm text-zinc-100" /><button type="button" onClick={() => setForm((prev) => ({ ...prev, rows: prev.rows.filter((x) => x.id !== r.id) }))} className="mx-auto w-[72px] rounded-2xl border border-rose-400/25 bg-rose-500/15 px-3 py-2.5 text-sm font-black text-rose-100">x</button></div>{r.talhao_id ? <p className={`text-[11px] ${available < -0.0001 ? "text-rose-300" : "text-zinc-400"}`}>Área disponível no talhão: {(Math.max(available, 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ha</p> : null}</div>;})}</div><div className="flex items-center justify-between"><button type="button" onClick={() => setForm((prev) => ({ ...prev, rows: [...prev.rows, { ...EMPTY_ROW, id: uid("row") }] }))} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-4 py-2 text-sm font-black text-emerald-100">Adicionar variedade no talhão</button><div className="text-right"><p className="text-xs text-zinc-400">Produção estimada: {formatSc(formTotals.sc)} | {formatKg(formTotals.kg)}</p><p className="text-sm font-black text-white">Faturamento R$: {formatCurrencyBRL(formTotals.billing)}</p></div></div><div className="flex justify-end gap-2"><button onClick={() => setOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200">Cancelar</button><button onClick={requestSave} disabled={saving} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-5 py-2.5 text-sm font-black text-emerald-100">{saving ? "Salvando..." : "Salvar"}</button></div></div></div> : null}
+          {open ? (
+            <div className="fixed inset-0 z-50 grid place-items-center px-3 sm:px-4">
+              <button className="absolute inset-0 bg-zinc-950/55 backdrop-blur-sm" onClick={() => { setOpen(false); setFormStep(0); }} aria-label="Fechar" />
+              <div className="relative w-full max-w-[1320px] max-h-[92vh] overflow-auto rounded-3xl border border-white/15 bg-zinc-900/95 p-3 sm:p-4 space-y-3 text-[13px] [&_input]:py-2 [&_input]:text-[13px] [&_select]:py-2 [&_select]:text-[13px] [&_textarea]:text-[13px]">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-black text-white">{editingId ? "Editar empreendimento" : "Novo empreendimento"}</p>
+                  <p className="text-[11px] font-semibold text-zinc-400">Etapa {formStep + 1} de 3</p>
+                </div>
+
+                <div className="grid grid-cols-3 gap-1">
+                  {["Dados gerais", "Itens e talhões", "Resumo"].map((label, idx) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => setFormStep(idx)}
+                      className={`rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${
+                        formStep === idx
+                          ? "border-accent-400/45 bg-accent-500/18 text-accent-100"
+                          : "border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {formStep === 0 ? (
+                  <>
+                    <div className="grid gap-3 lg:grid-cols-4">
+                      <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Data</label><input type="date" value={form.date} onChange={(e) => setField("date", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 text-zinc-100 [color-scheme:dark]" /></div>
+                      <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Empreendimento</label><input value={form.code} onChange={(e) => setField("code", e.target.value.toUpperCase())} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 text-zinc-100" /></div>
+                      <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Safra</label><select value={form.safra_id} onChange={(e) => setField("safra_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{safras.map((s) => <option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>)}</select></div>
+                      <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Propriedade</label><select value={form.propriedade_id} onChange={(e) => setField("propriedade_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{propriedades.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{p.name}</option>)}</select></div>
+                      <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Produto</label><select value={form.produto_id} onChange={(e) => setField("produto_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{produtos.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{p.name}</option>)}</select></div>
+                      <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Centro de Custo</label><select value={form.centro_custo_id} onChange={(e) => setField("centro_custo_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{centros.map((c) => <option key={c.id} value={c.id} style={optionStyle}>{c.name}</option>)}</select></div>
+                      <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">UN</label><select value={form.unit} onChange={(e) => setField("unit", e.target.value as UnidadeProducao)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 text-zinc-100"><option value="KG" style={optionStyle}>KG</option><option value="SC" style={optionStyle}>SC</option></select></div>
+                      <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Preço Venda</label><input value={form.sale_price} onChange={(e) => setField("sale_price", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 text-right text-zinc-100" /></div>
+                    </div>
+                    <div className="text-[11px] text-zinc-400">Status: <span className="font-black text-zinc-200">Em andamento</span> (o encerramento é feito por evento de safra).</div>
+                    {selectedPropriedade ? <div className="rounded-2xl border border-sky-400/20 bg-sky-500/10 p-3 text-xs font-semibold text-sky-100">Área da propriedade selecionada: {n(selectedPropriedade.area_ha).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ha</div> : null}
+                    <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Observação</label><textarea value={form.notes} onChange={(e) => setField("notes", e.target.value)} rows={3} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-zinc-100" /></div>
+                  </>
+                ) : null}
+
+                {formStep === 1 ? (
+                  <>
+                    <div className="hidden gap-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid xl:grid-cols-[1fr_1fr_1fr_100px_110px_130px_130px_210px_72px] xl:items-center"><div>Talhão</div><div>Produto</div><div>Cultivar</div><div>UN</div><div>Área (ha)</div><div>Produtividade</div><div>Data Plantio</div><div>Produção</div><div className="text-center">Remover</div></div>
+                    <div className="space-y-2">
+                      {form.rows.map((r, idx) => {
+                        const talhao = talhoes.find((t) => t.id === Number(r.talhao_id || 0));
+                        const talhaoArea = n(talhao?.area_ha);
+                        const used = Number(r.talhao_id || 0) ? groupedArea.get(Number(r.talhao_id)) ?? 0 : 0;
+                        const available = talhaoArea - used;
+                        const production = calcItemProduction(r.unit, n(r.area_ha), n(r.produtividade));
+                        const cultivars = filteredCultivaresByProduto(r.produto_id);
+                        return <div key={r.id} className="space-y-1"><div className="grid gap-2 xl:grid-cols-[1fr_1fr_1fr_100px_110px_130px_130px_210px_72px] xl:items-center"><select aria-label="Talhão" value={r.talhao_id} onChange={(e) => setRowField(idx, "talhao_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 text-zinc-100"><option value="" style={optionStyle}>Talhão</option>{talhoes.filter((t) => !form.propriedade_id || t.propriedade?.id === Number(form.propriedade_id)).map((t) => <option key={t.id} value={t.id} style={optionStyle}>{t.name}</option>)}</select><select aria-label="Produto" value={r.produto_id} onChange={(e) => setRowField(idx, "produto_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 text-zinc-100"><option value="" style={optionStyle}>Produto</option>{produtos.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{p.name}</option>)}</select><select aria-label="Cultivar" value={r.cultivar_id} onChange={(e) => setRowField(idx, "cultivar_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 text-zinc-100"><option value="" style={optionStyle}>Cultivar</option>{cultivars.map((c) => <option key={c.id} value={c.id} style={optionStyle}>{c.name}</option>)}</select><select aria-label="Unidade" value={r.unit} onChange={(e) => setRowField(idx, "unit", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 text-zinc-100"><option value="KG" style={optionStyle}>KG</option><option value="SC" style={optionStyle}>SC</option></select><input aria-label="Área" value={r.area_ha} onChange={(e) => setRowField(idx, "area_ha", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 text-right text-zinc-100" /><input aria-label="Produtividade" value={r.produtividade} onChange={(e) => setRowField(idx, "produtividade", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 text-right text-zinc-100" /><input aria-label="Data Plantio" type="date" value={r.plant_date} onChange={(e) => setRowField(idx, "plant_date", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 text-zinc-100 [color-scheme:dark]" /><input aria-label="Produção" readOnly value={`${production.production_sc.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} SC / ${production.production_kg.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} KG`} className="rounded-2xl border border-white/10 bg-zinc-900/60 px-3 text-right text-zinc-100" /><button type="button" onClick={() => setForm((prev) => ({ ...prev, rows: prev.rows.filter((x) => x.id !== r.id) }))} className="mx-auto w-[72px] rounded-2xl border border-rose-400/25 bg-rose-500/15 px-3 py-2 text-sm font-black text-rose-100">x</button></div>{r.talhao_id ? <p className={`text-[11px] ${available < -0.0001 ? "text-rose-300" : "text-zinc-400"}`}>Área disponível no talhão: {(Math.max(available, 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ha</p> : null}</div>;
+                      })}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <button type="button" onClick={() => setForm((prev) => ({ ...prev, rows: [...prev.rows, { ...EMPTY_ROW, id: uid("row") }] }))} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-4 py-2 text-sm font-black text-emerald-100">Adicionar variedade no talhão</button>
+                      <div className="text-right"><p className="text-xs text-zinc-400">Produção estimada: {formatSc(formTotals.sc)} | {formatKg(formTotals.kg)}</p><p className="text-sm font-black text-white">Faturamento R$: {formatCurrencyBRL(formTotals.billing)}</p></div>
+                    </div>
+                  </>
+                ) : null}
+
+                {formStep === 2 ? (
+                  <section className="rounded-2xl border border-white/10 bg-white/5 p-3 space-y-2">
+                    <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-300">Resumo para confirmação</p>
+                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 text-[12px] text-zinc-300">
+                      <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2">Data: {form.date || "-"}</div>
+                      <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2">Empreendimento: {form.code || "-"}</div>
+                      <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2">Safra: {selectedSafra?.name || "-"}</div>
+                      <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2">Propriedade: {selectedPropriedade?.name || "-"}</div>
+                      <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2">Itens: {form.rows.length}</div>
+                      <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2">Faturamento: {formatCurrencyBRL(formTotals.billing)}</div>
+                    </div>
+                  </section>
+                ) : null}
+
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <button onClick={() => { setOpen(false); setFormStep(0); }} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2 text-sm font-black text-zinc-200">Cancelar</button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setFormStep((s) => Math.max(s - 1, 0))} disabled={formStep === 0} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed">Voltar</button>
+                    {formStep < 2 ? (
+                      <button onClick={() => setFormStep((s) => Math.min(s + 1, 2))} className="rounded-2xl border border-accent-400/25 bg-accent-500/20 px-4 py-2 text-sm font-black text-accent-100">Próximo</button>
+                    ) : (
+                      <button onClick={requestSave} disabled={saving} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-5 py-2 text-sm font-black text-emerald-100">{saving ? "Salvando..." : "Confirmar e salvar"}</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {confirmSaveOpen ? <div className="fixed inset-0 z-[60] grid place-items-center px-4"><button className="absolute inset-0 bg-zinc-950/55 backdrop-blur-sm" onClick={() => setConfirmSaveOpen(false)} /><div className="relative w-full max-w-[560px] rounded-3xl border border-white/15 bg-zinc-900/95 p-5 space-y-3"><p className="text-lg font-black text-white">{editingId ? "Confirmar alteração" : "Confirmar novo empreendimento"}</p><p className="text-sm text-zinc-300">{editingId ? "Deseja salvar as alterações deste empreendimento?" : "Deseja salvar este novo empreendimento?"}</p><div className="flex justify-end gap-2"><button onClick={() => setConfirmSaveOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200">Não</button><button onClick={save} disabled={saving} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-5 py-2.5 text-sm font-black text-emerald-100 disabled:cursor-not-allowed disabled:opacity-60">{saving ? "Salvando..." : "Sim, salvar"}</button></div></div></div> : null}
 
