@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AdminShell } from "@/components/AdminShell";
 import { getAccessToken } from "@/lib/auth";
@@ -11,6 +11,7 @@ import {
   getMe,
   isApiError,
   listBackupArchives,
+  restoreBackupArchiveUpload,
   restoreBackupArchive,
   type BackupArchive,
   type BackupSchedule,
@@ -57,6 +58,8 @@ export default function SettingsPage() {
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [activeArchiveId, setActiveArchiveId] = useState<number | null>(null);
   const [backupMessage, setBackupMessage] = useState("");
+  const [uploadRestoreLoading, setUploadRestoreLoading] = useState(false);
+  const restoreFileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -185,6 +188,36 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleRestoreFromUpload(file: File) {
+    const confirmed = window.confirm(
+      `Restaurar o arquivo ${file.name}? Esta acao substitui os dados atuais da empresa por esse snapshot.`
+    );
+    if (!confirmed) return;
+
+    const token = getAccessToken();
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
+
+    setUploadRestoreLoading(true);
+    setBackupMessage("");
+    try {
+      const restored = await restoreBackupArchiveUpload(token, file);
+      setArchives((current) => [restored, ...current.filter((item) => item.id !== restored.id)]);
+      setBackupMessage(`Restauracao concluida a partir do arquivo enviado: ${restored.filename}`);
+    } catch (err) {
+      if (isApiError(err) && err.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      setBackupMessage(err instanceof Error ? err.message : "Falha ao restaurar arquivo enviado.");
+    } finally {
+      setUploadRestoreLoading(false);
+      if (restoreFileInputRef.current) restoreFileInputRef.current.value = "";
+    }
+  }
+
   async function handleScheduleSave() {
     const token = getAccessToken();
     if (!token) {
@@ -264,6 +297,30 @@ export default function SettingsPage() {
               >
                 {backupLoading ? "Gerando backup..." : "Gerar backup agora"}
               </button>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <input
+                ref={restoreFileInputRef}
+                type="file"
+                accept=".zip"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) return;
+                  void handleRestoreFromUpload(file);
+                }}
+              />
+              <button
+                disabled={uploadRestoreLoading}
+                onClick={() => restoreFileInputRef.current?.click()}
+                className="rounded-2xl border border-white/10 px-4 py-2 text-xs font-black text-zinc-100 hover:border-white/20 hover:bg-white/5 disabled:opacity-60"
+              >
+                {uploadRestoreLoading ? "Restaurando..." : "Restaurar de arquivo .zip"}
+              </button>
+              <p className="text-xs text-zinc-500">
+                Use este botao para restaurar um backup exportado da nuvem, mesmo sem historico local.
+              </p>
             </div>
 
             {backupMessage ? <p className="mt-4 text-sm font-semibold text-zinc-300">{backupMessage}</p> : null}

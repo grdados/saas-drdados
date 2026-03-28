@@ -44,13 +44,14 @@ function extractErrorMessage(payloadText: string): string {
 }
 
 async function rawRequest(path: string, options: RequestInit = {}, token?: string): Promise<Response> {
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
   let response: Response;
   try {
     response = await fetch(`${API_URL}${path}`, {
       ...options,
       headers: {
         Accept: "application/json",
-        "Content-Type": "application/json",
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(options.headers ?? {})
       }
@@ -211,6 +212,19 @@ export async function downloadBackupArchive(token: string, archiveId: number) {
 
 export function restoreBackupArchive(token: string, archiveId: number) {
   return request<BackupArchive>(`/api/backups/archives/${archiveId}/restore/`, { method: "POST" }, token);
+}
+
+export function restoreBackupArchiveUpload(token: string, file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+  return request<BackupArchive>(
+    "/api/backups/archives/restore-upload/",
+    {
+      method: "POST",
+      body: formData
+    },
+    token
+  );
 }
 
 export function getBackupSchedule(token: string) {

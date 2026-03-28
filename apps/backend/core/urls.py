@@ -5,6 +5,7 @@ from .backup_views import (
     BackupArchiveDownloadView,
     BackupArchiveListView,
     BackupArchiveRestoreView,
+    BackupArchiveUploadRestoreView,
     BackupScheduleView,
 )
 from .views import healthcheck, project_intake
@@ -16,5 +17,6 @@ urlpatterns = [
     path("backups/archives/create/", BackupArchiveCreateView.as_view(), name="backup_archive_create"),
     path("backups/archives/<int:archive_id>/download/", BackupArchiveDownloadView.as_view(), name="backup_archive_download"),
     path("backups/archives/<int:archive_id>/restore/", BackupArchiveRestoreView.as_view(), name="backup_archive_restore"),
+    path("backups/archives/restore-upload/", BackupArchiveUploadRestoreView.as_view(), name="backup_archive_restore_upload"),
     path("backups/schedule/", BackupScheduleView.as_view(), name="backup_schedule"),
 ]

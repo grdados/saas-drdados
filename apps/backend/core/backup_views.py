@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 
 from accounts.permissions import IsCompanyAdmin, get_current_company
 
-from .backup_utils import compute_next_run, create_company_backup, restore_company_backup
+from .backup_utils import compute_next_run, create_company_backup, import_uploaded_backup, restore_company_backup
 from .models import BackupArchive, BackupSchedule
 from .serializers import BackupArchiveSerializer, BackupScheduleSerializer
 
@@ -69,6 +69,37 @@ class BackupArchiveRestoreView(APIView):
             return Response({"detail": "Falha ao restaurar o backup."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response(BackupArchiveSerializer(archive).data)
+
+
+class BackupArchiveUploadRestoreView(APIView):
+    permission_classes = [IsAuthenticated, IsCompanyAdmin]
+
+    def post(self, request):
+        company = get_current_company(request.user)
+        archive_file = request.FILES.get("file")
+        if not archive_file:
+            return Response({"detail": "Envie um arquivo .zip para restauracao."}, status=status.HTTP_400_BAD_REQUEST)
+
+        archive = None
+        try:
+            archive = import_uploaded_backup(company=company, uploaded_file=archive_file, created_by=request.user)
+            archive = restore_company_backup(archive, target_company=company)
+        except FileNotFoundError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_404_NOT_FOUND)
+        except ValueError as exc:
+            if archive:
+                archive.latest_restore_status = BackupArchive.RestoreStatus.FAILED
+                archive.latest_restore_message = str(exc)
+                archive.save(update_fields=["latest_restore_status", "latest_restore_message", "updated_at"])
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception:
+            if archive:
+                archive.latest_restore_status = BackupArchive.RestoreStatus.FAILED
+                archive.latest_restore_message = "Falha ao restaurar o backup enviado."
+                archive.save(update_fields=["latest_restore_status", "latest_restore_message", "updated_at"])
+            return Response({"detail": "Falha ao restaurar o backup enviado."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response(BackupArchiveSerializer(archive).data, status=status.HTTP_201_CREATED)
 
 
 class BackupScheduleView(APIView):

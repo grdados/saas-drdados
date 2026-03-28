@@ -4,6 +4,7 @@ import zipfile
 from collections import defaultdict, deque
 from datetime import timedelta
 from pathlib import Path
+from uuid import uuid4
 
 from django.apps import apps
 from django.conf import settings
@@ -228,6 +229,49 @@ def read_archive_payload(archive: BackupArchive) -> tuple[dict, dict]:
         raise ValueError("Checksum do backup invalido. O arquivo pode estar corrompido.")
 
     return manifest, json.loads(payload_bytes.decode("utf-8"))
+
+
+def import_uploaded_backup(company: Company, uploaded_file, created_by=None) -> BackupArchive:
+    original_name = Path(getattr(uploaded_file, "name", "backup.zip") or "backup.zip").name
+    if not original_name.lower().endswith(".zip"):
+        raise ValueError("Arquivo invalido. Envie um backup .zip.")
+
+    target_name = f"upload-company-{company.id}-{timezone.localtime(timezone.now()).strftime('%Y%m%d-%H%M%S')}-{uuid4().hex[:8]}.zip"
+    target = get_company_backup_dir(company) / target_name
+
+    with target.open("wb") as destination:
+        for chunk in uploaded_file.chunks():
+            destination.write(chunk)
+
+    try:
+        file_bytes = target.read_bytes()
+        archive_checksum = hashlib.sha256(file_bytes).hexdigest()
+
+        with zipfile.ZipFile(target, "r") as archive_zip:
+            manifest = json.loads(archive_zip.read("manifest.json").decode("utf-8"))
+            payload_bytes = archive_zip.read("data.json")
+            checksum_line = archive_zip.read("payload.sha256").decode("utf-8").strip()
+
+        payload_checksum = hashlib.sha256(payload_bytes).hexdigest()
+        expected = manifest.get("payload_checksum_sha256", "")
+        if expected != payload_checksum or not checksum_line.startswith(payload_checksum):
+            raise ValueError("Checksum do backup invalido. O arquivo pode estar corrompido.")
+
+        return BackupArchive.objects.create(
+            company=company,
+            created_by=created_by,
+            source=BackupArchive.Source.MANUAL,
+            filename=original_name,
+            storage_path=str(target),
+            file_size=target.stat().st_size,
+            checksum_sha256=archive_checksum,
+            payload_checksum_sha256=payload_checksum,
+            manifest=manifest,
+        )
+    except Exception:
+        if target.exists():
+            target.unlink()
+        raise
 
 
 def reset_sequences(models: list[type]) -> None:
