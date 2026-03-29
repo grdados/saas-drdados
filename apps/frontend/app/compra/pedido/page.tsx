@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
@@ -74,6 +74,26 @@ function statusBadge(status: string) {
   return { label: "Pendente", cls: "border-amber-400/30 bg-amber-500/15 text-amber-200" };
 }
 
+function CardIcon({
+  tone,
+  children
+}: {
+  tone: "amber" | "slate" | "sky" | "emerald" | "rose";
+  children: ReactNode;
+}) {
+  const toneClass =
+    tone === "amber"
+      ? "border-amber-400/35 bg-amber-500/10 text-amber-300"
+      : tone === "sky"
+      ? "border-sky-400/35 bg-sky-500/10 text-sky-300"
+      : tone === "emerald"
+      ? "border-emerald-400/35 bg-emerald-500/10 text-emerald-300"
+      : tone === "rose"
+      ? "border-rose-400/35 bg-rose-500/10 text-rose-300"
+      : "border-white/20 bg-white/10 text-zinc-300";
+  return <div className={`grid h-10 w-10 place-items-center rounded-2xl border ${toneClass}`}>{children}</div>;
+}
+
 function resolvePedidoStatus(
   p: PedidoCompra,
   billedByPedidoItem: Map<number, number>
@@ -113,7 +133,6 @@ export default function PedidoCompraPage() {
   const [insumos, setInsumos] = useState<Insumo[]>([]);
   const [faturamentos, setFaturamentos] = useState<FaturamentoCompra[]>([]);
 
-  const [q, setQ] = useState("");
   const [reportSafraId, setReportSafraId] = useState<number | "">("");
   const [reportGrupoId, setReportGrupoId] = useState<number | "">("");
   const [reportProdutorId, setReportProdutorId] = useState<number | "">("");
@@ -123,6 +142,7 @@ export default function PedidoCompraPage() {
   const [reportTo, setReportTo] = useState("");
 
   const [open, setOpen] = useState(false);
+  const [formStep, setFormStep] = useState(0);
   const [editingId, setEditingId] = useState<number | null>(null);
   const editing = useMemo(() => pedidos.find((p) => p.id === editingId) ?? null, [pedidos, editingId]);
 
@@ -155,7 +175,6 @@ export default function PedidoCompraPage() {
   }, [faturamentos]);
 
   const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
     return pedidos.filter((p) => {
       const resolvedStatus = resolvePedidoStatus(p, billedByPedidoItem);
       if (reportSafraId !== "" && (p.safra?.id ?? null) !== Number(reportSafraId)) return false;
@@ -172,16 +191,10 @@ export default function PedidoCompraPage() {
         });
         if (!hasCategory) return false;
       }
-      if (!needle) return true;
-      return (
-        (p.code || "").toLowerCase().includes(needle) ||
-        (p.fornecedor?.name ?? "").toLowerCase().includes(needle) ||
-        (p.produtor?.name ?? "").toLowerCase().includes(needle)
-      );
+      return true;
     });
   }, [
     pedidos,
-    q,
     reportSafraId,
     reportGrupoId,
     reportProdutorId,
@@ -238,31 +251,36 @@ export default function PedidoCompraPage() {
         label: "Valor total",
         value: `R$ ${total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         qty: `${filtered.length} pedido(s)`,
-        tone: "border-accent-400/30 bg-accent-500/10"
+        tone: "border-accent-400/30 bg-accent-500/10",
+        iconTone: "amber" as const
       },
       {
         label: "Faturados",
         value: `R$ ${val(faturadosList).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         qty: `${faturados} pedido(s)`,
-        tone: "border-emerald-400/30 bg-emerald-500/10"
+        tone: "border-emerald-400/30 bg-emerald-500/10",
+        iconTone: "emerald" as const
       },
       {
         label: "Pendentes",
         value: `R$ ${val(pendentesList).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         qty: `${pendentes} pedido(s)`,
-        tone: "border-amber-400/30 bg-amber-500/10"
+        tone: "border-amber-400/30 bg-amber-500/10",
+        iconTone: "amber" as const
       },
       {
         label: "Parciais",
         value: `R$ ${val(parciaisList).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         qty: `${parciais} pedido(s)`,
-        tone: "border-sky-400/30 bg-sky-500/10"
+        tone: "border-sky-400/30 bg-sky-500/10",
+        iconTone: "sky" as const
       },
       {
         label: "A faturar",
         value: `R$ ${val([...pendentesList, ...parciaisList]).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         qty: `${aFaturar} pedido(s)`,
-        tone: "border-white/15 bg-white/5"
+        tone: "border-rose-400/30 bg-rose-500/10",
+        iconTone: "rose" as const
       }
     ];
   }, [filtered, billedByPedidoItem]);
@@ -321,6 +339,7 @@ export default function PedidoCompraPage() {
     setFormStatus("pending");
     setRows([{ produto_id: null, unit: "", quantity: "0", price: "0", discount: "0" }]);
     setSaveMessage("");
+    setFormStep(0);
     setOpen(true);
   }
 
@@ -352,6 +371,7 @@ export default function PedidoCompraPage() {
     );
     if ((p.items || []).length === 0) setRows([{ produto_id: null, unit: "", quantity: "0", price: "0", discount: "0" }]);
     setSaveMessage("");
+    setFormStep(0);
     setOpen(true);
   }
 
@@ -401,6 +421,7 @@ export default function PedidoCompraPage() {
         const updated = await updatePedidoCompra(token, editingId, payload);
         setPedidos((prev) => prev.map((p) => (p.id === editingId ? updated : p)));
       }
+      setFormStep(0);
       setOpen(false);
     } catch (err) {
       if (isApiError(err) && err.status === 401) {
@@ -761,61 +782,55 @@ export default function PedidoCompraPage() {
   }
 
   return (
-    <AuthedAdminShell>
+    <AuthedAdminShell hideHeader>
       {() => (
         <div className="space-y-5">
-          <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Compra</p>
-          <h1 className="text-2xl font-black tracking-tight text-white">Pedido</h1>
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-            <div className="flex items-center justify-end gap-2">
-              <button onClick={openResumoReport} className="inline-flex items-center justify-center whitespace-nowrap rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-xs font-black text-white hover:bg-white/10">Relatório resumo</button>
-              <button onClick={openAnaliticoReport} className="inline-flex items-center justify-center whitespace-nowrap rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-xs font-black text-white hover:bg-white/10">Relatório analítico</button>
-              <button onClick={openCreate} className="inline-flex items-center justify-center whitespace-nowrap rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">Novo pedido</button>
+          <section className="grid gap-3 xl:grid-cols-[minmax(0,420px)_1fr] xl:items-start">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Compra</p>
+              <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Pedido</h1>
+              <p className="mt-1 text-sm text-zinc-300">Pedidos de compra de insumos.</p>
+            </div>
+            <div className="rounded-3xl border border-white/15 bg-zinc-900/55 p-2.5">
+              <div className="flex h-full flex-col justify-between gap-1.5">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Relatórios</p>
+                <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
+                  <button onClick={openResumoReport} className="min-h-[36px] rounded-2xl border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12px] font-medium text-zinc-100 hover:bg-white/10">Relatório resumo</button>
+                  <button onClick={openAnaliticoReport} className="min-h-[36px] rounded-2xl border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12px] font-medium text-zinc-100 hover:bg-white/10">Relatório analítico</button>
+                  <button onClick={openCreate} className="min-h-[36px] rounded-2xl bg-accent-500 px-3.5 py-1.5 text-[12px] font-black text-zinc-950 hover:bg-accent-400">Novo pedido</button>
+                </div>
+              </div>
             </div>
           </section>
 
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-12">
-              <div className="relative w-full xl:col-span-3">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 21l-4.3-4.3" />
-                    <path d="M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z" />
-                  </svg>
-                </span>
-                <input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Localizar"
-                  className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 pl-10 pr-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
-                />
-              </div>
-              <select value={reportSafraId} onChange={(e) => setReportSafraId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+          <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-3.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <select value={reportSafraId} onChange={(e) => setReportSafraId(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[126px] flex-1 rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="" style={optionStyle}>Safra</option>
                 {safras.map((s) => (<option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>))}
               </select>
-              <select value={reportGrupoId} onChange={(e) => setReportGrupoId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+              <select value={reportGrupoId} onChange={(e) => setReportGrupoId(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[126px] flex-1 rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="" style={optionStyle}>Grupo</option>
                 {grupos.map((g) => (<option key={g.id} value={g.id} style={optionStyle}>{g.name}</option>))}
               </select>
-              <select value={reportProdutorId} onChange={(e) => setReportProdutorId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+              <select value={reportProdutorId} onChange={(e) => setReportProdutorId(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[126px] flex-1 rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="" style={optionStyle}>Produtor</option>
                 {produtores.map((p) => (<option key={p.id} value={p.id} style={optionStyle}>{produtorDisplayLabel(p)}</option>))}
               </select>
-              <select value={reportCategoria} onChange={(e) => setReportCategoria(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+              <select value={reportCategoria} onChange={(e) => setReportCategoria(e.target.value)} className="min-w-[126px] flex-1 rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="" style={optionStyle}>Categoria</option>
                 {reportCategorias.map((c) => (<option key={c} value={c} style={optionStyle}>{c}</option>))}
               </select>
-              <select value={reportStatus} onChange={(e) => setReportStatus(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+              <select value={reportStatus} onChange={(e) => setReportStatus(e.target.value)} className="min-w-[126px] flex-1 rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="all" style={optionStyle}>Status (todos)</option>
                 <option value="pending" style={optionStyle}>Pendente</option>
                 <option value="partial" style={optionStyle}>Fat. Parcial</option>
                 <option value="delivered" style={optionStyle}>Faturado</option>
                 <option value="canceled" style={optionStyle}>Cancelado</option>
               </select>
-              <div className="flex min-w-0 gap-2 sm:col-span-2 xl:col-span-2">
-                <input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
-                <input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
+              <div className="flex min-w-[260px] flex-1 gap-2">
+                <input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="w-full rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
+                <input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="w-full rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
               </div>
             </div>
           </section>
@@ -824,23 +839,38 @@ export default function PedidoCompraPage() {
             <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm font-semibold text-amber-200">{error}</div>
           ) : null}
 
-          <section className="grid gap-4 lg:grid-cols-5">
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             {cards.map((c) => (
-              <div key={c.label} className={`rounded-3xl border p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] ${c.tone}`}>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">{c.label}</p>
-                <p className="mt-2 text-2xl font-black text-white">{c.value}</p>
-                <p className="mt-2 text-xs font-semibold text-zinc-300">{c.qty}</p>
+              <div key={c.label} className={`flex h-[88px] items-center gap-3 rounded-3xl border p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] ${c.tone}`}>
+                <CardIcon tone={c.iconTone}>
+                  {c.label === "Valor total" ? (
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1v22" /><path d="M17 5.5c0-1.7-2.2-3-5-3s-5 1.3-5 3 2.2 3 5 3 5 1.3 5 3-2.2 3-5 3-5-1.3-5-3" /></svg>
+                  ) : c.label === "Faturados" ? (
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="m5 13 4 4L19 7" /></svg>
+                  ) : c.label === "Pendentes" ? (
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 8v5" /><circle cx="12" cy="16" r="1" /><path d="M10.3 3.5 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.5a2 2 0 0 0-3.4 0z" /></svg>
+                  ) : c.label === "Parciais" ? (
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 6v6l4 2" /><circle cx="12" cy="12" r="9" /></svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.5 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.5a2 2 0 0 0-3.4 0z" /></svg>
+                  )}
+                </CardIcon>
+                <div className="min-w-0 flex-1 text-right">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">{c.label}</p>
+                  <p className="mt-1.5 truncate text-[16px] font-black leading-tight text-white">{c.value}</p>
+                  <p className="mt-0.5 text-[10px] font-semibold text-zinc-300">{c.qty}</p>
+                </div>
               </div>
             ))}
           </section>
 
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-black text-white">Lista</p>
-              <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
+              <p className="text-[13px] font-black text-white">Lista</p>
+              <p className="text-[11px] font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
             </div>
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden min-w-[1540px] grid-cols-[120px_96px_130px_120px_150px_150px_150px_110px_110px_130px_160px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 md:grid">
+              <div className="hidden min-w-[1120px] grid-cols-[84px_80px_78px_88px_86px_156px_96px_74px_78px_102px_118px] gap-1.5 rounded-2xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400 md:grid">
                 <div>Status</div>
                 <div>Data</div>
                 <div>Pedido</div>
@@ -853,54 +883,53 @@ export default function PedidoCompraPage() {
                 <div className="text-right">Valor</div>
                 <div className="text-right">Ações</div>
               </div>
-            </div>
-            <div className="mt-3 space-y-2 overflow-x-auto">
+              <div className="mt-3 space-y-2">
               {filtered.map((p) => {
                 const locked = isPedidoLockedForChanges(p, billedByPedidoItem);
                 return (
-                <div key={p.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-4 py-3 hover:bg-white/5">
-                  <div className="grid min-w-[1540px] grid-cols-1 gap-2 md:grid-cols-[120px_96px_130px_120px_150px_150px_150px_110px_110px_130px_160px] md:items-center md:gap-3">
+                <div key={p.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5 hover:bg-white/5">
+                  <div className="grid min-w-[1120px] grid-cols-1 gap-1.5 md:grid-cols-[84px_80px_78px_88px_86px_156px_96px_74px_78px_102px_118px] md:items-center md:gap-1.5">
                     <div>
                       {(() => {
                         const meta = statusBadge(resolvePedidoStatus(p, billedByPedidoItem));
-                        return <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>;
+                        return <span className={`inline-flex rounded-full border px-2 py-0.5 text-[9px] font-bold ${meta.cls}`}>{meta.label}</span>;
                       })()}
                     </div>
-                    <div><p className="text-sm font-semibold text-zinc-100">{prettyDateBR(p.date)}</p></div>
+                    <div><p className="text-[11px] font-medium text-zinc-100">{prettyDateBR(p.date)}</p></div>
                     <div>
                       <button
                         onClick={() => openEdit(p.id)}
                         disabled={locked}
-                        className={`truncate text-left text-sm font-black ${locked ? "cursor-not-allowed text-zinc-500" : "text-white hover:text-accent-200"}`}
+                        className={`truncate text-left text-[11px] font-medium ${locked ? "cursor-not-allowed text-zinc-500" : "text-white hover:text-accent-200"}`}
                       >
                         {p.code || `#${p.id}`}
                       </button>
                     </div>
-                    <div><p className="text-sm font-semibold text-zinc-100">{prettyDateBR(p.due_date)}</p></div>
-                    <div><p className="truncate text-sm font-semibold text-zinc-100">{p.grupo?.name ?? "-"}</p></div>
-                    <div><p className="truncate text-sm font-semibold text-zinc-100">{p.produtor?.name ?? "-"}</p></div>
-                    <div><p className="truncate text-sm font-semibold text-zinc-100">{p.fornecedor?.name ?? "-"}</p></div>
+                    <div><p className="text-[11px] font-medium text-zinc-100">{prettyDateBR(p.due_date)}</p></div>
+                    <div><p className="truncate text-[11px] font-medium text-zinc-100">{p.grupo?.name ?? "-"}</p></div>
+                    <div><p className="truncate text-[11px] font-medium text-zinc-100">{p.produtor?.name ?? "-"}</p></div>
+                    <div><p className="truncate text-[11px] font-medium text-zinc-100">{p.fornecedor?.name ?? "-"}</p></div>
                     <div className="text-right">
-                      <p className="text-sm font-black text-zinc-100">
-                        {(p.items || []).reduce((acc, it) => acc + parseNumber(it.quantity), 0).toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}
+                      <p className="text-[11px] font-medium text-zinc-100">
+                        {(p.items || []).reduce((acc, it) => acc + parseNumber(it.quantity), 0).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                       </p>
                     </div>
                     <div className="text-right">
                       {(() => {
                         const qty = (p.items || []).reduce((acc, it) => acc + parseNumber(it.quantity), 0);
                         const price = qty > 0 ? parseNumber(p.total_value) / qty : 0;
-                        return <p className="text-sm font-black text-zinc-100">{price.toLocaleString("pt-BR", { minimumFractionDigits: 5, maximumFractionDigits: 5 })}</p>;
+                        return <p className="text-[11px] font-medium text-zinc-100">{price.toLocaleString("pt-BR", { minimumFractionDigits: 5, maximumFractionDigits: 5 })}</p>;
                       })()}
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-black text-zinc-100">R$ {Number(p.total_value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                      <p className="text-[11px] font-medium text-zinc-100">R$ {Number(p.total_value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                     </div>
-                    <div className="min-w-[160px] whitespace-nowrap">
-                      <div className="flex w-full flex-nowrap justify-end gap-1.5 whitespace-nowrap">
+                    <div className="whitespace-nowrap">
+                      <div className="flex w-full flex-nowrap justify-end gap-1 whitespace-nowrap">
                         <button
                           onClick={() => openEdit(p.id)}
                           disabled={locked}
-                          className={`rounded-xl border p-2 ${
+                          className={`rounded-lg border p-1.5 ${
                             locked
                               ? "cursor-not-allowed border-zinc-500/25 bg-zinc-500/10 text-zinc-300"
                               : "border-sky-400/25 bg-sky-500/10 text-sky-200 hover:bg-sky-500/20"
@@ -916,7 +945,7 @@ export default function PedidoCompraPage() {
                         <button
                           onClick={() => onDelete(p.id)}
                           disabled={locked}
-                          className={`rounded-xl border p-2 ${
+                          className={`rounded-lg border p-1.5 ${
                             locked
                               ? "cursor-not-allowed border-zinc-500/25 bg-zinc-500/10 text-zinc-300"
                               : "border-rose-400/25 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20"
@@ -933,7 +962,7 @@ export default function PedidoCompraPage() {
                         </button>
                         <button
                           onClick={() => window.open(`/compra/pedido/${p.id}/print?t=${Date.now()}`, "_blank", "noopener,noreferrer")}
-                          className="whitespace-nowrap rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-black text-white hover:bg-white/10"
+                          className="whitespace-nowrap rounded-lg border border-white/10 bg-white/5 px-1.5 py-1 text-[9px] font-medium text-white hover:bg-white/10"
                           title="Imprimir / PDF"
                           aria-label="Imprimir / PDF"
                         >
@@ -947,21 +976,22 @@ export default function PedidoCompraPage() {
               {!loading && filtered.length === 0 ? (
                 <div className="rounded-2xl border border-white/10 bg-zinc-950/30 p-4 text-sm text-zinc-300">Nenhum pedido encontrado.</div>
               ) : null}
+              </div>
             </div>
           </section>
 
           {/* Modal */}
           {open ? (
             <div className="fixed inset-0 z-50 grid place-items-center px-4">
-              <button className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm" onClick={() => setOpen(false)} aria-label="Fechar" />
+              <button className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm" onClick={() => { setOpen(false); setFormStep(0); }} aria-label="Fechar" />
               <div className="relative w-full max-w-[1100px] overflow-hidden rounded-3xl border border-white/15 bg-zinc-900/85 shadow-2xl">
                 <div className="flex items-start justify-between gap-3 border-b border-white/10 p-5">
                   <div>
                     <p className="text-sm font-black text-white">{editing ? "Editar pedido" : "Novo pedido"}</p>
-                    <p className="mt-1 text-xs text-zinc-400">Formulário pai e itens (filho).</p>
+                    <p className="mt-1 text-xs text-zinc-400">Etapa {formStep + 1} de 3</p>
                   </div>
                   <button
-                    onClick={() => setOpen(false)}
+                    onClick={() => { setOpen(false); setFormStep(0); }}
                     className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10"
                     aria-label="Fechar modal"
                     title="Fechar"
@@ -983,6 +1013,24 @@ export default function PedidoCompraPage() {
                     focusNextInForm(target);
                   }}
                 >
+                  <div className="mb-4 grid grid-cols-3 gap-1">
+                    {["Dados gerais", "Itens", "Resumo"].map((label, idx) => (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => setFormStep(idx)}
+                        className={`rounded-lg border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] ${
+                          formStep === idx
+                            ? "border-accent-400/45 bg-accent-500/18 text-accent-100"
+                            : "border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {formStep === 0 ? (
                   <div className="grid gap-4 lg:grid-cols-3">
                     <div className="grid gap-2">
                       <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Data</label>
@@ -1130,8 +1178,10 @@ export default function PedidoCompraPage() {
                       </select>
                     </div>
                   </div>
+                  ) : null}
 
-                  <div className="mt-5 rounded-3xl border border-white/10 bg-white/5 p-4">
+                  {formStep === 1 ? (
+                  <div className="mt-1 rounded-3xl border border-white/10 bg-white/5 p-4">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-black text-white">Itens</p>
                       <button
@@ -1205,26 +1255,61 @@ export default function PedidoCompraPage() {
                       </div>
                     </div>
                   </div>
+                  ) : null}
+
+                  {formStep === 2 ? (
+                    <section className="mt-1 rounded-3xl border border-white/10 bg-white/5 p-4">
+                      <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Resumo para confirmação</p>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                        <div className="rounded-xl border border-white/10 bg-zinc-950/35 px-3 py-2 text-xs text-zinc-300">Pedido: {formCode || "-"}</div>
+                        <div className="rounded-xl border border-white/10 bg-zinc-950/35 px-3 py-2 text-xs text-zinc-300">Data: {formDate || "-"}</div>
+                        <div className="rounded-xl border border-white/10 bg-zinc-950/35 px-3 py-2 text-xs text-zinc-300">Fornecedor: {fornecedores.find((f) => f.id === Number(formFornecedorId))?.name || "-"}</div>
+                        <div className="rounded-xl border border-white/10 bg-zinc-950/35 px-3 py-2 text-xs text-zinc-300">Produtor: {produtores.find((p) => p.id === Number(formProdutorId))?.name || "-"}</div>
+                        <div className="rounded-xl border border-white/10 bg-zinc-950/35 px-3 py-2 text-xs text-zinc-300">Itens: {rows.length}</div>
+                        <div className="rounded-xl border border-white/10 bg-zinc-950/35 px-3 py-2 text-xs text-zinc-300">Total: R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      </div>
+                    </section>
+                  ) : null}
 
                   {saveMessage ? (
                     <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3 text-sm font-semibold text-zinc-200">{saveMessage}</div>
                   ) : null}
 
-                  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-                    <button
-                      type="submit"
-                      disabled={saving || formCode.trim().length < 2}
-                      className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-5 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {saving ? "Salvando..." : "Salvar"}
-                    </button>
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
                     <button
                       disabled={saving}
-                      onClick={() => setOpen(false)}
-                      className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                      onClick={() => { setOpen(false); setFormStep(0); }}
+                      className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       Cancelar
                     </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setFormStep((s) => Math.max(s - 1, 0))}
+                        disabled={formStep === 0}
+                        className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Voltar
+                      </button>
+                      {formStep < 2 ? (
+                        <button
+                          type="button"
+                          onClick={() => setFormStep((s) => Math.min(s + 1, 2))}
+                          className="inline-flex items-center justify-center rounded-2xl border border-accent-400/25 bg-accent-500/20 px-4 py-2.5 text-sm font-black text-accent-100"
+                        >
+                          Próximo
+                        </button>
+                      ) : (
+                        <button
+                          type="submit"
+                          disabled={saving || formCode.trim().length < 2}
+                          className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-5 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {saving ? "Salvando..." : "Confirmar e salvar"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </form>
               </div>

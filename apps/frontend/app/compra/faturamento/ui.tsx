@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
@@ -98,6 +98,26 @@ function fatStatusMeta(status: FatStatus) {
   return { label: "Pendente", cls: "border-amber-400/30 bg-amber-500/15 text-amber-200" };
 }
 
+function CardIcon({
+  tone,
+  children
+}: {
+  tone: "amber" | "slate" | "sky" | "emerald" | "rose";
+  children: ReactNode;
+}) {
+  const toneClass =
+    tone === "amber"
+      ? "border-amber-400/35 bg-amber-500/10 text-amber-300"
+      : tone === "sky"
+      ? "border-sky-400/35 bg-sky-500/10 text-sky-300"
+      : tone === "emerald"
+      ? "border-emerald-400/35 bg-emerald-500/10 text-emerald-300"
+      : tone === "rose"
+      ? "border-rose-400/35 bg-rose-500/10 text-rose-300"
+      : "border-white/20 bg-white/10 text-zinc-300";
+  return <div className={`grid h-10 w-10 place-items-center rounded-2xl border ${toneClass}`}>{children}</div>;
+}
+
 function SimpleLineChart({ points }: { points: Array<{ label: string; value: number }> }) {
   const w = 720;
   const h = 170;
@@ -171,7 +191,6 @@ export default function FaturamentoCompraPage() {
   const [insumos, setInsumos] = useState<Array<{ id: number; name: string; categoria?: { id: number; name: string } | null }>>([]);
   const [cpStatusByFatId, setCpStatusByFatId] = useState<Record<number, "open" | "partial" | "paid" | "canceled">>({});
 
-  const [q, setQ] = useState("");
   const [reportGrupoId, setReportGrupoId] = useState<number | "">("");
   const [reportProdutorId, setReportProdutorId] = useState<number | "">("");
   const [reportCategoria, setReportCategoria] = useState("");
@@ -215,7 +234,6 @@ export default function FaturamentoCompraPage() {
   }, [fats, pedidos, safraId]);
 
   const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
     return fatsDaSafra.filter((f) => {
       const st = resolveFatStatus(f, cpStatusByFatId[f.id]);
       if (reportGrupoId !== "" && (f.grupo?.id ?? null) !== Number(reportGrupoId)) return false;
@@ -231,17 +249,10 @@ export default function FaturamentoCompraPage() {
         });
         if (!hasCategory) return false;
       }
-      if (!needle) return true;
-      return (
-        (f.invoice_number || "").toLowerCase().includes(needle) ||
-        (f.fornecedor?.name ?? "").toLowerCase().includes(needle) ||
-        (f.produtor?.name ?? "").toLowerCase().includes(needle) ||
-        (f.pedido?.code ?? "").toLowerCase().includes(needle)
-      );
+      return true;
     });
   }, [
     fatsDaSafra,
-    q,
     reportGrupoId,
     reportProdutorId,
     reportStatus,
@@ -330,11 +341,11 @@ export default function FaturamentoCompraPage() {
     const ticket = notas ? totalFat / notas : 0;
     const pedidosUnicos = new Set(filtered.map((f) => f.pedido?.id).filter(Boolean) as number[]);
     return [
-      { label: "Total faturado", value: money(totalFat), note: `${notas} NF(s)`, tone: "border-accent-400/30 bg-accent-500/10" },
-      { label: "Ticket médio", value: money(ticket), note: "Por nota", tone: "border-sky-400/30 bg-sky-500/10" },
-      { label: "Pendentes/Vencidos", value: String(statusCounts.pending + statusCounts.overdue), note: "A pagar", tone: "border-amber-400/30 bg-amber-500/10" },
-      { label: "Pagos", value: String(statusCounts.paid), note: "Liquidados", tone: "border-emerald-400/30 bg-emerald-500/10" },
-      { label: "Pedidos", value: String(pedidosUnicos.size), note: "Com faturamento", tone: "border-white/15 bg-white/5" }
+      { label: "Total faturado", value: money(totalFat), note: `${notas} NF(s)`, tone: "border-accent-400/30 bg-accent-500/10", iconTone: "amber" as const },
+      { label: "Ticket médio", value: money(ticket), note: "Por nota", tone: "border-sky-400/30 bg-sky-500/10", iconTone: "sky" as const },
+      { label: "Pendentes/Vencidos", value: String(statusCounts.pending + statusCounts.overdue), note: "A pagar", tone: "border-rose-400/30 bg-rose-500/10", iconTone: "rose" as const },
+      { label: "Pagos", value: String(statusCounts.paid), note: "Liquidados", tone: "border-emerald-400/30 bg-emerald-500/10", iconTone: "emerald" as const },
+      { label: "Pedidos", value: String(pedidosUnicos.size), note: "Com faturamento", tone: "border-white/15 bg-white/5", iconTone: "slate" as const }
     ];
   }, [filtered, statusCounts]);
 
@@ -875,79 +886,96 @@ export default function FaturamentoCompraPage() {
   }
 
   return (
-    <AuthedAdminShell>
+    <AuthedAdminShell hideHeader>
       {() => (
         <div className="space-y-5">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <section className="grid gap-3 xl:grid-cols-[minmax(0,420px)_1fr] xl:items-start">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Compra</p>
               <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Faturamento</h1>
               <p className="mt-1 text-sm text-zinc-300">Nota fiscal de recebimento + geração automática em Contas a Pagar.</p>
             </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="relative w-full max-w-[320px]">
-                <span className="pointer-events-none absolute left-3 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-emerald-400 shadow-[0_0_0_6px_rgba(16,185,129,0.16)] animate-pulse" />
-                <select value={safraId} onChange={(e) => setSafraId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-accent-500/40 bg-accent-500/15 pl-8 pr-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-400">
-                <option value="" style={optionStyle}>
-                  Selecione a safra
-                </option>
-                {safras.map((s) => (
-                  <option key={s.id} value={s.id} style={optionStyle}>
-                    {s.name}
-                  </option>
-                ))}
-                </select>
+            <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+              <div className="rounded-3xl border border-white/15 bg-zinc-900/55 p-2.5">
+                <div className="flex h-full flex-col justify-between gap-1.5">
+                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Filtros</p>
+                  <div className="relative w-full">
+                    <span className="pointer-events-none absolute left-3 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-emerald-400 shadow-[0_0_0_6px_rgba(16,185,129,0.16)] animate-pulse" />
+                    <select value={safraId} onChange={(e) => setSafraId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-accent-500/40 bg-accent-500/15 pl-8 pr-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-accent-400">
+                      <option value="" style={optionStyle}>Safra</option>
+                      {safras.map((s) => (
+                        <option key={s.id} value={s.id} style={optionStyle}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
-              <button onClick={openResumoReport} className="inline-flex items-center justify-center whitespace-nowrap rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-xs font-black text-white hover:bg-white/10">
-                Relatório resumo
-              </button>
-              <button onClick={openAnaliticoReport} className="inline-flex items-center justify-center whitespace-nowrap rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-xs font-black text-white hover:bg-white/10">
-                Relatório analítico
-              </button>
-              <button onClick={openCreate} className="inline-flex items-center justify-center whitespace-nowrap rounded-2xl bg-accent-500 px-4 py-2.5 text-sm font-black text-zinc-950 hover:bg-accent-400">
-                Novo faturamento
-              </button>
+              <div className="rounded-3xl border border-white/15 bg-zinc-900/55 p-2.5">
+                <div className="flex h-full flex-col justify-between gap-1.5">
+                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Relatórios</p>
+                  <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
+                    <button onClick={openResumoReport} className="min-h-[36px] rounded-2xl border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12px] font-medium text-zinc-100 hover:bg-white/10">Resumo</button>
+                    <button onClick={openAnaliticoReport} className="min-h-[36px] rounded-2xl border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12px] font-medium text-zinc-100 hover:bg-white/10">Analítico</button>
+                    <button onClick={openCreate} className="min-h-[36px] rounded-2xl bg-accent-500 px-3.5 py-1.5 text-[12px] font-black text-zinc-950 hover:bg-accent-400">Novo faturamento</button>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
+          </section>
 
           {error ? <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm font-semibold text-amber-200">{error}</div> : null}
 
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-7">
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por NF, fornecedor, produtor ou pedido..." className="lg:col-span-2 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50" />
-              <select value={reportGrupoId} onChange={(e) => setReportGrupoId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+          <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-3.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <select value={reportGrupoId} onChange={(e) => setReportGrupoId(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[126px] flex-1 rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="" style={optionStyle}>Grupo</option>
                 {grupos.map((g) => (<option key={g.id} value={g.id} style={optionStyle}>{g.name}</option>))}
               </select>
-              <select value={reportProdutorId} onChange={(e) => setReportProdutorId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+              <select value={reportProdutorId} onChange={(e) => setReportProdutorId(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[126px] flex-1 rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="" style={optionStyle}>Produtor</option>
                 {produtores.map((p) => (<option key={p.id} value={p.id} style={optionStyle}>{produtorDisplayLabel(p)}</option>))}
               </select>
-              <select value={reportCategoria} onChange={(e) => setReportCategoria(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+              <select value={reportCategoria} onChange={(e) => setReportCategoria(e.target.value)} className="min-w-[126px] flex-1 rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="" style={optionStyle}>Categoria</option>
                 {reportCategorias.map((c) => (<option key={c} value={c} style={optionStyle}>{c}</option>))}
               </select>
-              <select value={reportStatus} onChange={(e) => setReportStatus(e.target.value as typeof reportStatus)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+              <select value={reportStatus} onChange={(e) => setReportStatus(e.target.value as typeof reportStatus)} className="min-w-[126px] flex-1 rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="all" style={optionStyle}>Status (todos)</option>
                 <option value="pending" style={optionStyle}>Pendente</option>
                 <option value="overdue" style={optionStyle}>Vencido</option>
                 <option value="partial" style={optionStyle}>Parcial</option>
                 <option value="paid" style={optionStyle}>Pago</option>
               </select>
-              <div className="flex gap-2">
-                <input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
-                <input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
+              <div className="flex min-w-[260px] flex-1 gap-2">
+                <input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="w-full rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
+                <input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="w-full rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
               </div>
             </div>
           </section>
 
-          <section className="grid gap-4 lg:grid-cols-3 xl:grid-cols-5">
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             {cards.map((c) => (
-              <div key={c.label} className={`rounded-3xl border p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl ${c.tone}`}>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">{c.label}</p>
-                <p className="mt-2 text-3xl font-black text-white">{c.value}</p>
-                <p className="mt-2 text-sm font-semibold text-zinc-300">{c.note}</p>
+              <div key={c.label} className={`flex h-[88px] items-center gap-3 rounded-3xl border p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] ${c.tone}`}>
+                <CardIcon tone={c.iconTone}>
+                  {c.label === "Total faturado" ? (
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1v22" /><path d="M17 5.5c0-1.7-2.2-3-5-3s-5 1.3-5 3 2.2 3 5 3 5 1.3 5 3-2.2 3-5 3-5-1.3-5-3" /></svg>
+                  ) : c.label === "Ticket médio" ? (
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3h18v14H3z" /><path d="M8 21h8" /><path d="M12 17v4" /></svg>
+                  ) : c.label === "Pagos" ? (
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="m5 13 4 4L19 7" /></svg>
+                  ) : c.label === "Pendentes/Vencidos" ? (
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.5 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.5a2 2 0 0 0-3.4 0z" /></svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h16M4 12h10M4 17h16" /></svg>
+                  )}
+                </CardIcon>
+                <div className="min-w-0 flex-1 text-right">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">{c.label}</p>
+                  <p className="mt-1.5 truncate text-[16px] font-black leading-tight text-white">{c.value}</p>
+                  <p className="mt-0.5 text-[10px] font-semibold text-zinc-300">{c.note}</p>
+                </div>
               </div>
             ))}
           </section>
@@ -987,11 +1015,11 @@ export default function FaturamentoCompraPage() {
 
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-black text-white">Notas fiscais</p>
-              <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
+              <p className="text-[13px] font-black text-white">Notas fiscais</p>
+              <p className="text-[11px] font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
             </div>
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden min-w-[1500px] grid-cols-[110px_90px_120px_120px_130px_84px_84px_120px_120px_90px_110px_90px_110px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid">
+              <div className="hidden min-w-[1260px] grid-cols-[84px_78px_88px_88px_90px_70px_120px_120px_86px_84px_84px_96px_126px] gap-1.5 rounded-2xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400 xl:grid">
                 <div>Status</div>
                 <div>Data</div>
                 <div>Nota Fiscal</div>
@@ -1006,40 +1034,39 @@ export default function FaturamentoCompraPage() {
                 <div className="text-right">Valor</div>
                 <div className="text-right">Ações</div>
               </div>
-            </div>
-            <div className="mt-3 space-y-2 overflow-x-auto">
+              <div className="mt-3 space-y-2">
               {filtered.map((f) => {
                 const fatStatus = resolveFatStatus(f, cpStatusByFatId[f.id]);
                 const isPaid = fatStatus === "paid";
                 return (
-                <div key={f.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-4 py-3 hover:bg-white/5">
-                  <div className="grid xl:min-w-[1500px] grid-cols-1 gap-2 xl:grid-cols-[110px_90px_120px_120px_130px_84px_84px_120px_120px_90px_110px_90px_110px] xl:items-center xl:gap-3">
+                <div key={f.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5 hover:bg-white/5">
+                  <div className="grid xl:min-w-[1260px] grid-cols-1 gap-1.5 xl:grid-cols-[84px_78px_88px_88px_90px_70px_120px_120px_86px_84px_84px_96px_126px] xl:items-center xl:gap-1.5">
                     <div>
                       {(() => {
                         const meta = fatStatusMeta(fatStatus);
-                        return <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>;
+                        return <span className={`inline-flex rounded-full border px-2 py-0.5 text-[9px] font-bold ${meta.cls}`}>{meta.label}</span>;
                       })()}
                     </div>
-                    <div><p className="text-sm font-semibold text-zinc-100">{prettyDateBR(f.date)}</p></div>
-                    <div><p className="truncate text-sm font-black text-white">{f.invoice_number || `#${f.id}`}</p></div>
-                    <div><p className="truncate text-sm font-semibold text-zinc-100">{prettyDateBR(f.due_date)}</p></div>
-                    <div><p className="truncate text-sm font-semibold text-zinc-100">{f.grupo?.name ?? "-"}</p></div>
+                    <div><p className="text-[11px] font-medium text-zinc-100">{prettyDateBR(f.date)}</p></div>
+                    <div><p className="truncate text-[11px] font-medium text-white">{f.invoice_number || `#${f.id}`}</p></div>
+                    <div><p className="truncate text-[11px] font-medium text-zinc-100">{prettyDateBR(f.due_date)}</p></div>
+                    <div><p className="truncate text-[11px] font-medium text-zinc-100">{f.grupo?.name ?? "-"}</p></div>
                     <div>
                       {(() => {
                         const d = daysUntilDue(f.due_date);
-                        if (d === null) return <p className="text-sm font-semibold text-zinc-400">-</p>;
+                        if (d === null) return <p className="text-[11px] font-medium text-zinc-400">-</p>;
                         const cls = d < 0 ? "text-rose-300" : d <= 5 ? "text-amber-300" : "text-emerald-300";
-                        return <p className={`text-sm font-black ${cls}`}>{d < 0 ? `${Math.abs(d)} atras.` : `${d} dia(s)`}</p>;
+                        return <p className={`text-[11px] font-medium ${cls}`}>{d < 0 ? `${Math.abs(d)} atras.` : `${d} dia(s)`}</p>;
                       })()}
                     </div>
-                    <div><p className="truncate text-sm font-semibold text-zinc-100">{f.produtor?.name ?? "-"}</p></div>
-                    <div><p className="truncate text-sm font-semibold text-zinc-100">{f.fornecedor?.name ?? "-"}</p></div>
-                    <div><p className="text-sm font-semibold text-zinc-100">{f.pedido?.code ?? "-"}</p></div>
+                    <div><p className="truncate text-[11px] font-medium text-zinc-100">{f.produtor?.name ?? "-"}</p></div>
+                    <div><p className="truncate text-[11px] font-medium text-zinc-100">{f.fornecedor?.name ?? "-"}</p></div>
+                    <div><p className="text-[11px] font-medium text-zinc-100">{f.pedido?.code ?? "-"}</p></div>
                     <div className="text-right">
-                      <p className="text-sm font-black text-zinc-100">
+                      <p className="text-[11px] font-medium text-zinc-100">
                         {(f.items || []).reduce((acc, it) => acc + parseNumber(it.quantity), 0).toLocaleString("pt-BR", {
-                          minimumFractionDigits: 3,
-                          maximumFractionDigits: 3
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 0
                         })}
                       </p>
                     </div>
@@ -1048,20 +1075,20 @@ export default function FaturamentoCompraPage() {
                         const qty = (f.items || []).reduce((acc, it) => acc + parseNumber(it.quantity), 0);
                         const price = qty > 0 ? parseNumber(f.total_value) / qty : 0;
                         return (
-                          <p className="text-sm font-black text-zinc-100">
+                          <p className="text-[11px] font-medium text-zinc-100">
                             {price.toLocaleString("pt-BR", { minimumFractionDigits: 5, maximumFractionDigits: 5 })}
                           </p>
                         );
                       })()}
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-black text-zinc-100">{money(parseNumber(f.total_value))}</p>
+                      <p className="text-[11px] font-medium text-zinc-100">{money(parseNumber(f.total_value))}</p>
                     </div>
-                    <div className="min-w-[120px] whitespace-nowrap">
-                      <div className="flex w-full flex-nowrap justify-end gap-1.5 whitespace-nowrap">
+                    <div className="whitespace-nowrap">
+                      <div className="flex w-full flex-nowrap justify-end gap-1 whitespace-nowrap">
                         <button
                           onClick={() => openEdit(f)}
-                          className="rounded-xl border border-sky-400/25 bg-sky-500/10 p-2 text-sky-200 hover:bg-sky-500/20"
+                          className="rounded-lg border border-sky-400/25 bg-sky-500/10 p-1.5 text-sky-200 hover:bg-sky-500/20"
                           title="Editar"
                           aria-label="Editar"
                         >
@@ -1073,7 +1100,7 @@ export default function FaturamentoCompraPage() {
                         <button
                           onClick={() => onDelete(f.id)}
                           disabled={isPaid}
-                          className={`rounded-xl border p-2 ${
+                          className={`rounded-lg border p-1.5 ${
                             isPaid
                               ? "cursor-not-allowed border-zinc-500/25 bg-zinc-500/10 text-zinc-300"
                               : "border-rose-400/25 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20"
@@ -1094,6 +1121,7 @@ export default function FaturamentoCompraPage() {
                 </div>
               )})}
               {!loading && filtered.length === 0 ? <div className="rounded-2xl border border-white/10 bg-zinc-950/30 p-4 text-sm text-zinc-300">Nenhum faturamento encontrado.</div> : null}
+              </div>
             </div>
           </section>
 
