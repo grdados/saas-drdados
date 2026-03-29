@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
@@ -162,6 +162,26 @@ function statusMeta(status: ContaStatus) {
   return { label: "Pendente", cls: "border-amber-400/30 bg-amber-500/15 text-amber-200" };
 }
 
+function CardIcon({
+  tone,
+  children
+}: {
+  tone: "amber" | "sky" | "emerald" | "rose" | "slate";
+  children: ReactNode;
+}) {
+  const toneClass =
+    tone === "amber"
+      ? "border-amber-400/35 bg-amber-500/10 text-amber-300"
+      : tone === "sky"
+      ? "border-sky-400/35 bg-sky-500/10 text-sky-300"
+      : tone === "emerald"
+      ? "border-emerald-400/35 bg-emerald-500/10 text-emerald-300"
+      : tone === "rose"
+      ? "border-rose-400/35 bg-rose-500/10 text-rose-300"
+      : "border-white/20 bg-white/10 text-zinc-300";
+  return <div className={`grid h-10 w-10 place-items-center rounded-2xl border ${toneClass}`}>{children}</div>;
+}
+
 function normalizeStatus(it: ContaPagar): ContaStatus {
   if (it.status === "paid" || it.status === "partial" || it.status === "canceled" || it.status === "overdue") {
     return it.status;
@@ -187,6 +207,7 @@ type PaymentState = {
   conta_id: number | "";
   status: ContaStatus;
 };
+type PaymentStep = 1 | 2 | 3 | 4;
 
 type ToastState = {
   kind: "success" | "error";
@@ -213,7 +234,6 @@ export default function ContasAPagarPage() {
   const [faturamentos, setFaturamentos] = useState<FaturamentoCompra[]>([]);
   const [insumos, setInsumos] = useState<Array<{ id: number; categoria: { id: number; name: string } | null }>>([]);
 
-  const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | ContaStatus>("all");
   const [reportSafraId, setReportSafraId] = useState<number | "">("");
   const [reportGrupoId, setReportGrupoId] = useState<number | "">("");
@@ -225,6 +245,7 @@ export default function ContasAPagarPage() {
 
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [payOpen, setPayOpen] = useState(false);
+  const [payStep, setPayStep] = useState<PaymentStep>(1);
   const [payment, setPayment] = useState<PaymentState>(DEFAULT_PAYMENT);
   const [paying, setPaying] = useState(false);
   const [estornoConfirmOpen, setEstornoConfirmOpen] = useState(false);
@@ -250,7 +271,6 @@ export default function ContasAPagarPage() {
   }, [insumos]);
 
   const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
     return [...items]
       .filter((it) => {
         const st = normalizeStatus(it);
@@ -270,16 +290,10 @@ export default function ContasAPagarPage() {
         }
         if (reportFrom && it.date && it.date < reportFrom) return false;
         if (reportTo && it.date && it.date > reportTo) return false;
-        if (!needle) return true;
-        return (
-          (it.invoice_number || "").toLowerCase().includes(needle) ||
-          (it.fornecedor?.name ?? "").toLowerCase().includes(needle) ||
-          (it.produtor?.name ?? "").toLowerCase().includes(needle) ||
-          (it.pedido?.code ?? "").toLowerCase().includes(needle)
-        );
+        return true;
       })
       .sort((a, b) => String(a.due_date ?? "").localeCompare(String(b.due_date ?? "")));
-  }, [items, q, status, reportSafraId, reportGrupoId, reportProdutorId, reportFornecedorId, reportCategoria, reportFrom, reportTo, pedidosSafraById, faturamentoById, categoriaByInsumoId]);
+  }, [items, status, reportSafraId, reportGrupoId, reportProdutorId, reportFornecedorId, reportCategoria, reportFrom, reportTo, pedidosSafraById, faturamentoById, categoriaByInsumoId]);
 
   const grupos = useMemo(() => {
     const m = new Map<number, string>();
@@ -807,7 +821,14 @@ export default function ContasAPagarPage() {
       ...DEFAULT_PAYMENT,
       status: "paid"
     });
+    setPayStep(1);
     setPayOpen(true);
+  }
+
+  function closePayModal() {
+    if (paying) return;
+    setPayOpen(false);
+    setPayStep(1);
   }
 
   function openBulkReversal() {
@@ -867,10 +888,6 @@ export default function ContasAPagarPage() {
     const token = getAccessToken();
     if (!token || !selectedIds.length) return;
     const selected = items.filter((x) => selectedIds.includes(x.id));
-    const confirmText = selectedIds.length > 1
-      ? "Confirmar pagamento em lote?"
-      : "Confirmar pagamento da fatura selecionada?";
-    if (!window.confirm(confirmText)) return;
     setPaying(true);
     setError("");
     try {
@@ -891,7 +908,7 @@ export default function ContasAPagarPage() {
         status: payment.status
       };
       await Promise.all(selectedIds.map((id) => updateContaPagarStatus(token, id, payload)));
-      setPayOpen(false);
+      closePayModal();
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao efetuar pagamento.");
@@ -900,10 +917,51 @@ export default function ContasAPagarPage() {
     }
   }
 
+  const paymentSteps: Array<{ id: PaymentStep; label: string }> = [
+    { id: 1, label: "Pagamento" },
+    { id: 2, label: "Ajustes" },
+    { id: 3, label: "Conta" },
+    { id: 4, label: "Resumo" }
+  ];
+
+  function validatePaymentStep(step: PaymentStep) {
+    if (step === 1) {
+      const increment = parseNumber(payment.payment_increment || "0");
+      if (!payment.payment_date) {
+        setError("Informe a data de pagamento.");
+        return false;
+      }
+      if (increment <= 0) {
+        setError("Informe um valor de pagamento maior que zero.");
+        return false;
+      }
+      if (increment > selectedPendingTotal + 0.00001) {
+        setError(`Valor de pagamento acima do saldo pendente (${prettyMoney(selectedPendingTotal)}).`);
+        return false;
+      }
+    }
+    if (step === 3 && payment.conta_id === "") {
+      setError("Selecione a conta financeira para concluir.");
+      return false;
+    }
+    return true;
+  }
+
+  function nextPaymentStep() {
+    if (!validatePaymentStep(payStep)) return;
+    setError("");
+    setPayStep((prev) => Math.min(4, (prev + 1) as PaymentStep) as PaymentStep);
+  }
+
+  function prevPaymentStep() {
+    setError("");
+    setPayStep((prev) => Math.max(1, (prev - 1) as PaymentStep) as PaymentStep);
+  }
+
   const optionStyle = { backgroundColor: "#e5e7eb", color: "#111827" } as const;
 
   return (
-    <AuthedAdminShell>
+    <AuthedAdminShell hideHeader>
       {() => (
         <div className="space-y-5">
           {toast ? (
@@ -920,72 +978,70 @@ export default function ContasAPagarPage() {
             </div>
           ) : null}
 
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Financeiro</p>
-            <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Contas a pagar</h1>
-            <p className="mt-1 text-sm text-zinc-300">Consulta e pagamento individual/lote com reflexo no faturamento.</p>
-          </div>
-
-          <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-4 backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]">
-            <div className="flex flex-wrap items-center justify-end gap-2">
+          <section className="grid gap-3 xl:grid-cols-[minmax(0,420px)_1fr] xl:items-start">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Financeiro</p>
+              <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Contas a pagar</h1>
+              <p className="mt-1 text-sm text-zinc-300">Consulta e pagamento individual/lote com reflexo no faturamento.</p>
+            </div>
+            <div className="rounded-3xl border border-white/15 bg-zinc-900/55 p-2.5 backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]">
+              <div className="flex h-full flex-col justify-between gap-1.5">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Relatórios</p>
+                <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
               <button
                 onClick={openResumoReport}
-                className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10"
+                className="min-h-[36px] rounded-2xl border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12px] font-medium text-zinc-100 hover:bg-white/10"
               >
                 Relatório resumo
               </button>
               <button
                 onClick={openAnaliticoReport}
-                className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10"
+                className="min-h-[36px] rounded-2xl border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12px] font-medium text-zinc-100 hover:bg-white/10"
               >
                 Relatório analítico
               </button>
               <button
                 onClick={openBulkReversal}
                 disabled={!reversibleFilteredIds.length}
-                className="rounded-2xl border border-zinc-400/25 bg-zinc-500/15 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-zinc-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-[36px] rounded-2xl border border-zinc-400/25 bg-zinc-500/15 px-3.5 py-1.5 text-[12px] font-medium text-zinc-100 hover:bg-zinc-500/25 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Estornar pagamentos ({reversibleFilteredIds.length})
               </button>
               <button
                 onClick={() => openPayFor(selectedIds)}
                 disabled={!selectedIds.length}
-                className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-4 py-2 text-sm font-black text-emerald-100 hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-[36px] rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-3.5 py-1.5 text-[12px] font-black text-emerald-100 hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Pagar selecionados ({selectedIds.length})
               </button>
+                </div>
+              </div>
             </div>
           </section>
 
-          <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-4 backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-12">
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Buscar por NF, fornecedor, produtor ou pedido..."
-                className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50 xl:col-span-3"
-              />
-              <select value={reportSafraId} onChange={(e) => setReportSafraId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+          <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-3.5 backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]">
+            <div className="flex flex-wrap items-center gap-2">
+              <select value={reportSafraId} onChange={(e) => setReportSafraId(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[126px] flex-1 rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="" style={optionStyle}>Safra</option>
                 {safras.map((s) => (<option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>))}
               </select>
-              <select value={reportGrupoId} onChange={(e) => setReportGrupoId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+              <select value={reportGrupoId} onChange={(e) => setReportGrupoId(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[126px] flex-1 rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="" style={optionStyle}>Grupo</option>
                 {grupos.map((g) => (<option key={g.id} value={g.id} style={optionStyle}>{g.name}</option>))}
               </select>
-              <select value={reportProdutorId} onChange={(e) => setReportProdutorId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+              <select value={reportProdutorId} onChange={(e) => setReportProdutorId(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[126px] flex-1 rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="" style={optionStyle}>Produtor</option>
                 {produtores.map((p) => (<option key={p.id} value={p.id} style={optionStyle}>{produtorDisplayLabel(p)}</option>))}
               </select>
-              <select value={reportFornecedorId} onChange={(e) => setReportFornecedorId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+              <select value={reportFornecedorId} onChange={(e) => setReportFornecedorId(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[126px] flex-1 rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="" style={optionStyle}>Fornecedor</option>
                 {fornecedores.map((f) => (<option key={f.id} value={f.id} style={optionStyle}>{f.name}</option>))}
               </select>
-              <select value={reportCategoria} onChange={(e) => setReportCategoria(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+              <select value={reportCategoria} onChange={(e) => setReportCategoria(e.target.value)} className="min-w-[126px] flex-1 rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="" style={optionStyle}>Categoria</option>
                 {categorias.map((c) => (<option key={c} value={c} style={optionStyle}>{c}</option>))}
               </select>
-              <select value={status} onChange={(e) => setStatus(e.target.value as "all" | ContaStatus)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+              <select value={status} onChange={(e) => setStatus(e.target.value as "all" | ContaStatus)} className="min-w-[126px] flex-1 rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
                 <option value="all" style={optionStyle}>Todos</option>
                 <option value="open" style={optionStyle}>Pendente</option>
                 <option value="overdue" style={optionStyle}>Vencido</option>
@@ -993,9 +1049,9 @@ export default function ContasAPagarPage() {
                 <option value="paid" style={optionStyle}>Pago</option>
                 <option value="canceled" style={optionStyle}>Cancelado</option>
               </select>
-              <div className="flex gap-2 sm:col-span-2 xl:col-span-2">
-                <input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
-                <input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
+              <div className="flex min-w-[260px] flex-1 gap-2">
+                <input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="w-full rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
+                <input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="w-full rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
               </div>
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -1016,20 +1072,69 @@ export default function ContasAPagarPage() {
             ) : null}
           </section>
 
-          <section className="grid gap-4 lg:grid-cols-3 xl:grid-cols-6">
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
             {[
-              { label: "Valor total", value: prettyMoney(stats.totalValue), qty: stats.totalQty, tone: "border-accent-400/30 bg-accent-500/10" },
-              { label: "Pendente", value: prettyMoney(stats.openValue), qty: stats.openQty, tone: "border-amber-400/30 bg-amber-500/10" },
-              { label: "Parcial", value: prettyMoney(stats.partialValue), qty: stats.partialQty, tone: "border-sky-400/30 bg-sky-500/10" },
-              { label: "Vencido", value: prettyMoney(stats.overdueValue), qty: stats.overdueQty, tone: "border-rose-400/30 bg-rose-500/10" },
-              { label: "Pago", value: prettyMoney(stats.paidValue), qty: stats.paidQty, tone: "border-emerald-400/30 bg-emerald-500/10" },
-              { label: "Cancelado", value: prettyMoney(stats.canceledValue), qty: stats.canceledQty, tone: "border-zinc-400/30 bg-zinc-500/10" }
+              {
+                label: "Valor total",
+                value: prettyMoney(stats.totalValue),
+                qty: stats.totalQty,
+                tone: "amber" as const,
+                panelTone: "border-accent-400/30 bg-accent-500/10",
+                icon: "R$"
+              },
+              {
+                label: "Pendente",
+                value: prettyMoney(stats.openValue),
+                qty: stats.openQty,
+                tone: "amber" as const,
+                panelTone: "border-amber-400/30 bg-amber-500/10",
+                icon: "P"
+              },
+              {
+                label: "Parcial",
+                value: prettyMoney(stats.partialValue),
+                qty: stats.partialQty,
+                tone: "sky" as const,
+                panelTone: "border-sky-400/30 bg-sky-500/10",
+                icon: "1/2"
+              },
+              {
+                label: "Vencido",
+                value: prettyMoney(stats.overdueValue),
+                qty: stats.overdueQty,
+                tone: "rose" as const,
+                panelTone: "border-rose-400/30 bg-rose-500/10",
+                icon: "!"
+              },
+              {
+                label: "Pago",
+                value: prettyMoney(stats.paidValue),
+                qty: stats.paidQty,
+                tone: "emerald" as const,
+                panelTone: "border-emerald-400/30 bg-emerald-500/10",
+                icon: "✓"
+              },
+              {
+                label: "Cancelado",
+                value: prettyMoney(stats.canceledValue),
+                qty: stats.canceledQty,
+                tone: "slate" as const,
+                panelTone: "border-zinc-400/30 bg-zinc-500/10",
+                icon: "×"
+              }
             ].map((c) => (
-              <div key={c.label} className={`rounded-3xl border p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] ${c.tone}`}>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">{c.label}</p>
-                <p className="mt-2 text-2xl font-black text-white">{c.value}</p>
-                <p className="mt-2 text-xs font-semibold text-zinc-300">Quantidade: {c.qty}</p>
-              </div>
+              <article key={c.label} className={`h-[96px] rounded-3xl border px-3 py-2.5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] ${c.panelTone}`}>
+                <div className="grid h-full grid-cols-[40px_1fr] items-center gap-2.5">
+                  <CardIcon tone={c.tone}>
+                    <span className="text-[12px] font-black">{c.icon}</span>
+                  </CardIcon>
+                  <div className="text-right">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300/90">{c.label}</p>
+                    <p className="mt-0.5 text-[16px] font-black leading-none text-white">{c.value}</p>
+                    <p className="mt-1 text-[11px] font-semibold text-zinc-300/90">Qtd: {c.qty}</p>
+                  </div>
+                </div>
+              </article>
             ))}
           </section>
 
@@ -1040,7 +1145,7 @@ export default function ContasAPagarPage() {
             </div>
 
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden min-w-[1510px] grid-cols-[56px_110px_110px_110px_100px_170px_170px_100px_110px_110px_110px_210px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid">
+              <div className="hidden min-w-[1240px] grid-cols-[40px_90px_90px_78px_76px_130px_130px_84px_96px_96px_96px_118px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
                 <div>Sel</div>
                 <div>Status</div>
                 <div>Venc.</div>
@@ -1055,13 +1160,13 @@ export default function ContasAPagarPage() {
                 <div className="text-right">Ações</div>
               </div>
 
-              <div className="mt-3 space-y-2 xl:min-w-[1510px]">
+              <div className="mt-3 space-y-2 xl:min-w-[1240px]">
                 {filtered.map((it) => {
                   const st = normalizeStatus(it);
                   const meta = statusMeta(st);
                   return (
-                    <div key={it.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3 hover:bg-white/5">
-                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[56px_110px_110px_110px_100px_170px_170px_100px_110px_110px_110px_210px] xl:items-center xl:gap-3">
+                    <div key={it.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5 hover:bg-white/5">
+                      <div className="grid grid-cols-1 gap-1.5 xl:grid-cols-[40px_90px_90px_78px_76px_130px_130px_84px_96px_96px_96px_118px] xl:items-center xl:gap-2">
                       <div>
                         <input
                           type="checkbox"
@@ -1072,29 +1177,29 @@ export default function ContasAPagarPage() {
                         />
                       </div>
                       <div>
-                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold ${meta.cls}`}>{meta.label}</span>
+                        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${meta.cls}`}>{meta.label}</span>
                       </div>
-                      <div className="text-sm font-semibold text-zinc-100">{prettyDate(it.due_date)}</div>
-                      <div className="text-sm font-semibold text-zinc-100">{origemLabel(it)}</div>
-                      <div className="text-sm font-black text-zinc-100">{it.invoice_number || "-"}</div>
-                      <div className="truncate text-sm font-semibold text-zinc-100">{it.fornecedor?.name ?? "-"}</div>
-                      <div className="truncate text-sm font-semibold text-zinc-100">{it.produtor?.name ?? "-"}</div>
-                      <div className="truncate text-sm font-semibold text-zinc-100">{it.pedido?.code ?? "-"}</div>
-                      <div className="text-sm font-black text-zinc-100">{prettyMoney(it.total_value)}</div>
-                      <div className="text-sm font-black text-zinc-100">{prettyMoney(it.paid_value)}</div>
-                      <div className="text-sm font-black text-zinc-100">{prettyMoney(it.balance_value)}</div>
-                      <div className="text-right whitespace-nowrap">
+                      <div className="text-[12px] font-medium text-zinc-100">{prettyDate(it.due_date)}</div>
+                      <div className="text-[12px] font-medium text-zinc-100">{origemLabel(it)}</div>
+                      <div className="text-[11px] font-semibold text-zinc-100">{it.invoice_number || "-"}</div>
+                      <div className="truncate text-[12px] font-medium text-zinc-100">{it.fornecedor?.name ?? "-"}</div>
+                      <div className="truncate text-[12px] font-medium text-zinc-100">{it.produtor?.name ?? "-"}</div>
+                      <div className="truncate text-[12px] font-medium text-zinc-100">{it.pedido?.code ?? "-"}</div>
+                      <div className="text-[11px] font-semibold text-zinc-100">{prettyMoney(it.total_value)}</div>
+                      <div className="text-[11px] font-semibold text-zinc-100">{prettyMoney(it.paid_value)}</div>
+                      <div className="text-[11px] font-semibold text-zinc-100">{prettyMoney(it.balance_value)}</div>
+                      <div className="flex justify-end whitespace-nowrap">
                         {st === "partial" ? (
                           <div className="inline-flex items-center justify-end gap-2">
                             <button
                               onClick={() => openPayFor([it.id])}
-                              className="whitespace-nowrap rounded-xl border border-emerald-400/25 bg-emerald-500/15 px-3 py-1.5 text-[11px] font-black text-emerald-100 hover:bg-emerald-500/25"
+                              className="whitespace-nowrap rounded-xl border border-emerald-400/25 bg-emerald-500/15 px-1.5 py-1 text-[10px] font-semibold text-emerald-100 hover:bg-emerald-500/25"
                             >
                               Pagar
                             </button>
                             <button
                               onClick={() => requestEstorno([it.id])}
-                              className="whitespace-nowrap rounded-xl border border-zinc-500/25 bg-zinc-500/15 px-3 py-1.5 text-[11px] font-black text-zinc-200 hover:bg-zinc-500/25"
+                              className="whitespace-nowrap rounded-xl border border-zinc-500/25 bg-zinc-500/15 px-1.5 py-1 text-[10px] font-semibold text-zinc-200 hover:bg-zinc-500/25"
                             >
                               Estornar
                             </button>
@@ -1102,7 +1207,7 @@ export default function ContasAPagarPage() {
                         ) : (
                           <button
                             onClick={() => ((st === "paid") ? requestEstorno([it.id]) : openPayFor([it.id]))}
-                            className={`whitespace-nowrap rounded-xl px-3 py-1.5 text-[11px] font-black ${
+                            className={`whitespace-nowrap rounded-xl px-1.5 py-1 text-[10px] font-semibold ${
                               st === "paid"
                                 ? "border border-zinc-500/25 bg-zinc-500/15 text-zinc-200 hover:bg-zinc-500/25"
                                 : "border border-emerald-400/25 bg-emerald-500/15 text-emerald-100 hover:bg-emerald-500/25"
@@ -1123,12 +1228,12 @@ export default function ContasAPagarPage() {
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <p className="text-sm font-black text-white">Simulacao de pagamento</p>
-                <p className="mt-1 text-xs text-zinc-400">Baseado nos filtros aplicados em Contas a Pagar.</p>
+                <p className="text-[13px] font-black text-white">Simulacao de pagamento</p>
+                <p className="mt-1 text-[11px] text-zinc-400">Baseado nos filtros aplicados em Contas a Pagar.</p>
               </div>
               <button
                 onClick={printSimulationReport}
-                className="rounded-2xl border border-sky-400/25 bg-sky-500/15 px-4 py-2 text-sm font-black text-sky-100 hover:bg-sky-500/25"
+                className="rounded-2xl border border-sky-400/25 bg-sky-500/15 px-4 py-2 text-[12px] font-semibold text-sky-100 hover:bg-sky-500/25"
               >
                 Imprimir simulacao
               </button>
@@ -1136,20 +1241,20 @@ export default function ContasAPagarPage() {
 
             <div className="mt-3 grid gap-3 lg:grid-cols-4">
               <div className="grid gap-2">
-                <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Data pagamento</label>
-                <input type="date" value={simPaymentDate} onChange={(e) => setSimPaymentDate(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Data pagamento</label>
+                <input type="date" value={simPaymentDate} onChange={(e) => setSimPaymentDate(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[12px] text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
               </div>
               <div className="grid gap-2">
-                <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">% Antecipacao mes</label>
-                <input value={simAntecipMonthPct} onChange={(e) => setSimAntecipMonthPct(e.target.value)} inputMode="decimal" placeholder="0,00" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">% Antecipacao mes</label>
+                <input value={simAntecipMonthPct} onChange={(e) => setSimAntecipMonthPct(e.target.value)} inputMode="decimal" placeholder="0,00" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-right text-[12px] text-zinc-100 outline-none focus:border-accent-500/50" />
               </div>
               <div className="grid gap-2">
-                <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">% Juros mes</label>
-                <input value={simJurosMonthPct} onChange={(e) => setSimJurosMonthPct(e.target.value)} inputMode="decimal" placeholder="0,00" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">% Juros mes</label>
+                <input value={simJurosMonthPct} onChange={(e) => setSimJurosMonthPct(e.target.value)} inputMode="decimal" placeholder="0,00" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-right text-[12px] text-zinc-100 outline-none focus:border-accent-500/50" />
               </div>
               <div className="grid gap-2">
-                <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Preco produto (saca)</label>
-                <input value={simSacaPrice} onChange={(e) => setSimSacaPrice(e.target.value)} inputMode="decimal" placeholder="0,00" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
+                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Preco produto (saca)</label>
+                <input value={simSacaPrice} onChange={(e) => setSimSacaPrice(e.target.value)} inputMode="decimal" placeholder="0,00" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-right text-[12px] text-zinc-100 outline-none focus:border-accent-500/50" />
               </div>
             </div>
 
@@ -1162,8 +1267,8 @@ export default function ContasAPagarPage() {
                 { label: "Sacas necessarias", value: simulation.sacksNeeded.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) }
               ].map((c) => (
                 <div key={c.label} className="rounded-2xl border border-white/10 bg-zinc-950/45 p-3 shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]">
-                  <p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">{c.label}</p>
-                  <p className="mt-2 text-xl font-black text-white">{c.value}</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">{c.label}</p>
+                  <p className="mt-1.5 text-[15px] font-black text-white">{c.value}</p>
                 </div>
               ))}
             </div>
@@ -1171,95 +1276,190 @@ export default function ContasAPagarPage() {
 
           {payOpen ? (
             <div className="fixed inset-0 z-50 grid place-items-center px-4">
-              <button className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm" onClick={() => setPayOpen(false)} aria-label="Fechar" />
-              <div className="relative w-full max-w-[860px] overflow-hidden rounded-3xl border border-white/15 bg-zinc-900/90 shadow-2xl">
-                <div className="flex items-start justify-between gap-3 border-b border-white/10 p-5">
-                  <div>
-                    <p className="text-sm font-black text-white">Pagamento ({selectedIds.length} conta(s))</p>
-                    <p className="mt-1 text-xs text-zinc-400">Individual ou lote com data, descontos, acréscimos, forma e conta.</p>
+              <button className="absolute inset-0 bg-zinc-950/60 backdrop-blur-md" onClick={closePayModal} aria-label="Fechar" />
+              <div className="relative w-full max-w-[920px] overflow-hidden rounded-3xl border border-white/15 bg-zinc-900/92 shadow-2xl">
+                <div className="border-b border-white/10 p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-black text-white">Novo pagamento</p>
+                      <p className="mt-1 text-xs text-zinc-400">Etapa {payStep} de {paymentSteps.length} · {selectedIds.length} conta(s)</p>
+                    </div>
+                    <button onClick={closePayModal} className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10">x</button>
                   </div>
-                  <button onClick={() => setPayOpen(false)} className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10">x</button>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-4">
+                    {paymentSteps.map((step) => (
+                      <button
+                        key={step.id}
+                        type="button"
+                        onClick={() => {
+                          if (step.id > payStep && !validatePaymentStep(payStep)) return;
+                          setError("");
+                          setPayStep(step.id);
+                        }}
+                        className={`rounded-xl border px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] transition ${
+                          payStep === step.id
+                            ? "border-accent-400/40 bg-accent-500/20 text-accent-100"
+                            : "border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10"
+                        }`}
+                      >
+                        {step.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
                 <form
-                  className="grid gap-4 p-5 lg:grid-cols-3"
+                  className="p-5"
                   onSubmit={(e) => {
                     e.preventDefault();
+                    if (payStep < 4) {
+                      nextPaymentStep();
+                      return;
+                    }
                     void runPayment();
                   }}
                   onKeyDown={(e) => {
                     if (e.key !== "Enter" || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
                     const target = e.target as HTMLElement;
-                    if (!target || target.tagName === "TEXTAREA") return;
+                    if (!target || target.tagName === "TEXTAREA" || target.tagName === "BUTTON") return;
                     e.preventDefault();
                     focusNextInForm(target);
                   }}
                 >
-                  <div className="grid gap-2">
-                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Status</label>
-                    <select value={payment.status} onChange={(e) => setPayment((p) => ({ ...p, status: e.target.value as ContaStatus }))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
-                      <option value="open" style={optionStyle}>Pendente</option>
-                      <option value="overdue" style={optionStyle}>Vencido</option>
-                      <option value="partial" style={optionStyle}>Parcial</option>
-                      <option value="paid" style={optionStyle}>Pago</option>
-                      <option value="canceled" style={optionStyle}>Cancelado</option>
-                    </select>
-                  </div>
-                  <div className="grid gap-2">
-                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Data pagamento</label>
-                    <input type="date" value={payment.payment_date} onChange={(e) => setPayment((p) => ({ ...p, payment_date: e.target.value }))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
-                  </div>
-                  <div className="grid gap-2">
-                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">
-                      Valor pagamento (Saldo pendente: {prettyMoney(selectedPendingTotal)})
-                    </label>
-                    <input
-                      value={payment.payment_increment}
-                      onChange={(e) => {
-                        const next = e.target.value;
-                        const parsed = parseNumber(next);
-                        if (selectedPendingTotal > 0 && parsed > selectedPendingTotal) {
-                          setPayment((p) => ({ ...p, payment_increment: String(selectedPendingTotal.toFixed(2)) }));
-                          return;
-                        }
-                        setPayment((p) => ({ ...p, payment_increment: next }));
-                      }}
-                      inputMode="decimal"
-                      placeholder="0,00"
-                      className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100 outline-none focus:border-accent-500/50"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Forma pagamento</label>
-                    <select value={payment.payment_method} onChange={(e) => setPayment((p) => ({ ...p, payment_method: e.target.value as PaymentState["payment_method"] }))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
-                      <option value="pix" style={optionStyle}>PIX</option>
-                      <option value="boleto" style={optionStyle}>Boleto</option>
-                      <option value="transfer" style={optionStyle}>Transferencia</option>
-                      <option value="card" style={optionStyle}>Cartao</option>
-                      <option value="cash" style={optionStyle}>Dinheiro</option>
-                      <option value="other" style={optionStyle}>Outro</option>
-                    </select>
-                  </div>
-                  <div className="grid gap-2">
-                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Desconto</label>
-                    <input value={payment.discount_value} onChange={(e) => setPayment((p) => ({ ...p, discount_value: e.target.value }))} inputMode="decimal" placeholder="0,00" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
-                  </div>
-                  <div className="grid gap-2">
-                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Acréscimo</label>
-                    <input value={payment.addition_value} onChange={(e) => setPayment((p) => ({ ...p, addition_value: e.target.value }))} inputMode="decimal" placeholder="0,00" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
-                  </div>
-                  <div className="grid gap-2">
-                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Conta</label>
-                    <select value={payment.conta_id} onChange={(e) => setPayment((p) => ({ ...p, conta_id: e.target.value === "" ? "" : Number(e.target.value) }))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
-                      <option value="" style={optionStyle}>Selecione</option>
-                      {contas.map((c) => (<option key={c.id} value={c.id} style={optionStyle}>{c.name}</option>))}
-                    </select>
-                  </div>
+                  {payStep === 1 ? (
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <div className="grid gap-2">
+                        <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Data pagamento</label>
+                        <input type="date" value={payment.payment_date} onChange={(e) => setPayment((p) => ({ ...p, payment_date: e.target.value }))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
+                      </div>
+                      <div className="grid gap-2">
+                        <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">
+                          Valor pagamento (Saldo: {prettyMoney(selectedPendingTotal)})
+                        </label>
+                        <input
+                          value={payment.payment_increment}
+                          onChange={(e) => {
+                            const next = e.target.value;
+                            const parsed = parseNumber(next);
+                            if (selectedPendingTotal > 0 && parsed > selectedPendingTotal) {
+                              setPayment((p) => ({ ...p, payment_increment: String(selectedPendingTotal.toFixed(2)) }));
+                              return;
+                            }
+                            setPayment((p) => ({ ...p, payment_increment: next }));
+                          }}
+                          inputMode="decimal"
+                          placeholder="0,00"
+                          className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100 outline-none focus:border-accent-500/50"
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {payStep === 2 ? (
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <div className="grid gap-2">
+                        <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Desconto</label>
+                        <input value={payment.discount_value} onChange={(e) => setPayment((p) => ({ ...p, discount_value: e.target.value }))} inputMode="decimal" placeholder="0,00" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
+                      </div>
+                      <div className="grid gap-2">
+                        <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Acréscimo</label>
+                        <input value={payment.addition_value} onChange={(e) => setPayment((p) => ({ ...p, addition_value: e.target.value }))} inputMode="decimal" placeholder="0,00" className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100 outline-none focus:border-accent-500/50" />
+                      </div>
+                      <div className="grid gap-2 lg:col-span-2">
+                        <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Status após pagamento</label>
+                        <select value={payment.status} onChange={(e) => setPayment((p) => ({ ...p, status: e.target.value as ContaStatus }))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                          <option value="open" style={optionStyle}>Pendente</option>
+                          <option value="overdue" style={optionStyle}>Vencido</option>
+                          <option value="partial" style={optionStyle}>Parcial</option>
+                          <option value="paid" style={optionStyle}>Pago</option>
+                          <option value="canceled" style={optionStyle}>Cancelado</option>
+                        </select>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {payStep === 3 ? (
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <div className="grid gap-2">
+                        <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Forma pagamento</label>
+                        <select value={payment.payment_method} onChange={(e) => setPayment((p) => ({ ...p, payment_method: e.target.value as PaymentState["payment_method"] }))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                          <option value="pix" style={optionStyle}>PIX</option>
+                          <option value="boleto" style={optionStyle}>Boleto</option>
+                          <option value="transfer" style={optionStyle}>Transferencia</option>
+                          <option value="card" style={optionStyle}>Cartao</option>
+                          <option value="cash" style={optionStyle}>Dinheiro</option>
+                          <option value="other" style={optionStyle}>Outro</option>
+                        </select>
+                      </div>
+                      <div className="grid gap-2">
+                        <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Conta financeira</label>
+                        <select value={payment.conta_id} onChange={(e) => setPayment((p) => ({ ...p, conta_id: e.target.value === "" ? "" : Number(e.target.value) }))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                          <option value="" style={optionStyle}>Selecione</option>
+                          {contas.map((c) => (<option key={c.id} value={c.id} style={optionStyle}>{c.name}</option>))}
+                        </select>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {payStep === 4 ? (
+                    <div className="grid gap-3">
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <div className="rounded-2xl border border-white/10 bg-zinc-950/40 p-3">
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-400">Contas selecionadas</p>
+                          <p className="mt-1 text-lg font-black text-white">{selectedIds.length}</p>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-zinc-950/40 p-3">
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-400">Saldo pendente</p>
+                          <p className="mt-1 text-lg font-black text-white">{prettyMoney(selectedPendingTotal)}</p>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-zinc-950/40 p-3">
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-zinc-400">Valor informado</p>
+                          <p className="mt-1 text-lg font-black text-white">{prettyMoney(payment.payment_increment || "0")}</p>
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-zinc-950/40 p-3 text-sm text-zinc-300">
+                        <p><span className="text-zinc-400">Data:</span> {payment.payment_date ? prettyDate(payment.payment_date) : "-"}</p>
+                        <p><span className="text-zinc-400">Forma:</span> {payment.payment_method.toUpperCase()}</p>
+                        <p><span className="text-zinc-400">Conta:</span> {contas.find((c) => c.id === Number(payment.conta_id))?.name ?? "-"}</p>
+                        <p><span className="text-zinc-400">Status final:</span> {statusMeta(payment.status).label}</p>
+                        <p><span className="text-zinc-400">Desconto:</span> {prettyMoney(payment.discount_value || "0")}</p>
+                        <p><span className="text-zinc-400">Acréscimo:</span> {prettyMoney(payment.addition_value || "0")}</p>
+                      </div>
+                    </div>
+                  ) : null}
                 </form>
-                <div className="flex justify-end gap-2 border-t border-white/10 p-5">
-                  <button onClick={() => setPayOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200 hover:bg-white/10">Cancelar</button>
-                  <button type="button" onClick={runPayment} disabled={paying} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-5 py-2.5 text-sm font-black text-emerald-100 hover:bg-emerald-500/25 disabled:opacity-60">
-                    {paying ? "Processando..." : "Efetuar pagamento"}
-                  </button>
+
+                <div className="flex items-center justify-between gap-2 border-t border-white/10 p-5">
+                  <button onClick={closePayModal} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200 hover:bg-white/10">Cancelar</button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={prevPaymentStep}
+                      disabled={payStep === 1 || paying}
+                      className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Voltar
+                    </button>
+                    {payStep < 4 ? (
+                      <button
+                        type="button"
+                        onClick={nextPaymentStep}
+                        disabled={paying}
+                        className="rounded-2xl border border-accent-400/25 bg-accent-500/15 px-5 py-2.5 text-sm font-black text-accent-100 hover:bg-accent-500/25 disabled:opacity-60"
+                      >
+                        Próximo
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={runPayment}
+                        disabled={paying}
+                        className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-5 py-2.5 text-sm font-black text-emerald-100 hover:bg-emerald-500/25 disabled:opacity-60"
+                      >
+                        {paying ? "Processando..." : "Confirmar pagamento"}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
