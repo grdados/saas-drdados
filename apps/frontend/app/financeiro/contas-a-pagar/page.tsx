@@ -1072,7 +1072,7 @@ export default function ContasAPagarPage() {
             ) : null}
           </section>
 
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {[
               {
                 label: "Valor total",
@@ -1083,7 +1083,7 @@ export default function ContasAPagarPage() {
                 icon: "R$"
               },
               {
-                label: "Pendente",
+                label: "Pendente (R$)",
                 value: prettyMoney(stats.openValue),
                 qty: stats.openQty,
                 tone: "amber" as const,
@@ -1091,7 +1091,7 @@ export default function ContasAPagarPage() {
                 icon: "P"
               },
               {
-                label: "Parcial",
+                label: "Parcial (R$)",
                 value: prettyMoney(stats.partialValue),
                 qty: stats.partialQty,
                 tone: "sky" as const,
@@ -1099,7 +1099,7 @@ export default function ContasAPagarPage() {
                 icon: "1/2"
               },
               {
-                label: "Vencido",
+                label: "Vencido (R$)",
                 value: prettyMoney(stats.overdueValue),
                 qty: stats.overdueQty,
                 tone: "rose" as const,
@@ -1107,20 +1107,12 @@ export default function ContasAPagarPage() {
                 icon: "!"
               },
               {
-                label: "Pago",
+                label: "Pago (R$)",
                 value: prettyMoney(stats.paidValue),
                 qty: stats.paidQty,
                 tone: "emerald" as const,
                 panelTone: "border-emerald-400/30 bg-emerald-500/10",
                 icon: "✓"
-              },
-              {
-                label: "Cancelado",
-                value: prettyMoney(stats.canceledValue),
-                qty: stats.canceledQty,
-                tone: "slate" as const,
-                panelTone: "border-zinc-400/30 bg-zinc-500/10",
-                icon: "×"
               }
             ].map((c) => (
               <article key={c.label} className={`h-[96px] rounded-3xl border px-3 py-2.5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] ${c.panelTone}`}>
@@ -1130,7 +1122,7 @@ export default function ContasAPagarPage() {
                   </CardIcon>
                   <div className="text-right">
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300/90">{c.label}</p>
-                    <p className="mt-0.5 text-[16px] font-black leading-none text-white">{c.value}</p>
+                    <p className="mt-0.5 text-[16px] font-black leading-none text-white">{c.value.replace(/^R\$\s?/, "")}</p>
                     <p className="mt-1 text-[11px] font-semibold text-zinc-300/90">Qtd: {c.qty}</p>
                   </div>
                 </div>
@@ -1145,7 +1137,7 @@ export default function ContasAPagarPage() {
             </div>
 
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden min-w-[1240px] grid-cols-[40px_90px_90px_78px_76px_130px_130px_84px_96px_96px_96px_118px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
+              <div className="hidden min-w-[1210px] grid-cols-[40px_90px_90px_78px_76px_130px_130px_84px_96px_96px_96px_96px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
                 <div>Sel</div>
                 <div>Status</div>
                 <div>Venc.</div>
@@ -1160,13 +1152,13 @@ export default function ContasAPagarPage() {
                 <div className="text-right">Ações</div>
               </div>
 
-              <div className="mt-3 space-y-2 xl:min-w-[1240px]">
+              <div className="mt-3 space-y-2 xl:min-w-[1210px]">
                 {filtered.map((it) => {
                   const st = normalizeStatus(it);
                   const meta = statusMeta(st);
                   return (
                     <div key={it.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5 hover:bg-white/5">
-                      <div className="grid grid-cols-1 gap-1.5 xl:grid-cols-[40px_90px_90px_78px_76px_130px_130px_84px_96px_96px_96px_118px] xl:items-center xl:gap-2">
+                      <div className="grid grid-cols-1 gap-1.5 xl:grid-cols-[40px_90px_90px_78px_76px_130px_130px_84px_96px_96px_96px_96px] xl:items-center xl:gap-2">
                       <div>
                         <input
                           type="checkbox"
@@ -1181,13 +1173,13 @@ export default function ContasAPagarPage() {
                       </div>
                       <div className="text-[12px] font-medium text-zinc-100">{prettyDate(it.due_date)}</div>
                       <div className="text-[12px] font-medium text-zinc-100">{origemLabel(it)}</div>
-                      <div className="text-[11px] font-semibold text-zinc-100">{it.invoice_number || "-"}</div>
+                      <div className="text-[10px] font-semibold text-zinc-100">{it.invoice_number || "-"}</div>
                       <div className="truncate text-[12px] font-medium text-zinc-100">{it.fornecedor?.name ?? "-"}</div>
                       <div className="truncate text-[12px] font-medium text-zinc-100">{it.produtor?.name ?? "-"}</div>
                       <div className="truncate text-[12px] font-medium text-zinc-100">{it.pedido?.code ?? "-"}</div>
-                      <div className="text-[11px] font-semibold text-zinc-100">{prettyMoney(it.total_value)}</div>
-                      <div className="text-[11px] font-semibold text-zinc-100">{prettyMoney(it.paid_value)}</div>
-                      <div className="text-[11px] font-semibold text-zinc-100">{prettyMoney(it.balance_value)}</div>
+                      <div className="text-[10px] font-semibold text-zinc-100">{prettyMoney(it.total_value)}</div>
+                      <div className="text-[10px] font-semibold text-zinc-100">{prettyMoney(it.paid_value)}</div>
+                      <div className="text-[10px] font-semibold text-zinc-100">{prettyMoney(it.balance_value)}</div>
                       <div className="flex justify-end whitespace-nowrap">
                         {st === "partial" ? (
                           <div className="inline-flex items-center justify-end gap-2">
