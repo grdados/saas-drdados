@@ -311,6 +311,7 @@ class FaturamentoCompraItem(models.Model):
 
     pedido_item = models.ForeignKey("erp.PedidoCompraItem", null=True, blank=True, on_delete=models.PROTECT)
     produto = models.ForeignKey("erp.Insumo", null=True, blank=True, on_delete=models.PROTECT)
+    peca = models.ForeignKey("erp.Peca", null=True, blank=True, on_delete=models.PROTECT)
 
     quantity = models.DecimalField(max_digits=14, decimal_places=3, default=0)
     price = models.DecimalField(max_digits=14, decimal_places=5, default=0)
@@ -324,6 +325,7 @@ class FaturamentoCompraItem(models.Model):
         indexes = [
             models.Index(fields=["company", "faturamento"]),
             models.Index(fields=["company", "pedido_item"]),
+            models.Index(fields=["company", "peca"]),
         ]
 
     def __str__(self) -> str:

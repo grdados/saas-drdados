@@ -352,6 +352,24 @@ export default function ContasAPagarPage() {
     };
   }, [filtered]);
 
+  const monthlyExpenses = useMemo(() => {
+    const year = new Date().getFullYear();
+    const months = Array.from({ length: 12 }, (_, i) => ({
+      month: i,
+      label: new Date(year, i, 1).toLocaleString("pt-BR", { month: "short" }),
+      value: 0
+    }));
+    for (const it of filtered) {
+      const base = it.date || it.due_date;
+      if (!base) continue;
+      const dt = new Date(`${base}T00:00:00`);
+      if (Number.isNaN(dt.getTime()) || dt.getFullYear() !== year) continue;
+      months[dt.getMonth()].value += parseNumber(it.total_value);
+    }
+    const max = Math.max(...months.map((m) => m.value), 1);
+    return { year, max, months };
+  }, [filtered]);
+
   const selectedPayItems = useMemo(() => items.filter((x) => selectedIds.includes(x.id)), [items, selectedIds]);
   const reversibleFilteredIds = useMemo(
     () => filtered
@@ -978,14 +996,14 @@ export default function ContasAPagarPage() {
             </div>
           ) : null}
 
-          <section className="grid gap-3 xl:grid-cols-[minmax(0,420px)_1fr] xl:items-start">
+          <section className="grid gap-3 xl:grid-cols-[minmax(0,520px)_minmax(0,1fr)] xl:items-start">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Financeiro</p>
               <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Contas a pagar</h1>
               <p className="mt-1 text-sm text-zinc-300">Consulta e pagamento individual/lote com reflexo no faturamento.</p>
             </div>
             <div className="rounded-3xl border border-white/15 bg-zinc-900/55 p-2.5 backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]">
-              <div className="flex h-full flex-col justify-between gap-1.5">
+              <div className="space-y-2">
                 <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Relatórios</p>
                 <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
               <button
@@ -999,20 +1017,6 @@ export default function ContasAPagarPage() {
                 className="min-h-[36px] rounded-2xl border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12px] font-medium text-zinc-100 hover:bg-white/10"
               >
                 Relatório analítico
-              </button>
-              <button
-                onClick={openBulkReversal}
-                disabled={!reversibleFilteredIds.length}
-                className="min-h-[36px] rounded-2xl border border-zinc-400/25 bg-zinc-500/15 px-3.5 py-1.5 text-[12px] font-medium text-zinc-100 hover:bg-zinc-500/25 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Estornar pagamentos ({reversibleFilteredIds.length})
-              </button>
-              <button
-                onClick={() => openPayFor(selectedIds)}
-                disabled={!selectedIds.length}
-                className="min-h-[36px] rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-3.5 py-1.5 text-[12px] font-black text-emerald-100 hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Pagar selecionados ({selectedIds.length})
               </button>
                 </div>
               </div>
@@ -1053,17 +1057,6 @@ export default function ContasAPagarPage() {
                 <input type="date" value={reportFrom} onChange={(e) => setReportFrom(e.target.value)} className="w-full rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
                 <input type="date" value={reportTo} onChange={(e) => setReportTo(e.target.value)} className="w-full rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
               </div>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <button
-                onClick={toggleAll}
-                className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200 hover:bg-white/10"
-              >
-                {(() => {
-                  const selectableIds = filtered.filter((x) => normalizeStatus(x) !== "paid").map((x) => x.id);
-                  return selectableIds.length > 0 && selectableIds.every((id) => selectedIds.includes(id)) ? "Desmarcar lista" : "Selecionar lista";
-                })()}
-              </button>
             </div>
             {error ? (
               <div className="mt-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm font-semibold text-amber-200">
@@ -1130,10 +1123,83 @@ export default function ContasAPagarPage() {
             ))}
           </section>
 
+          <section className="rounded-3xl border border-white/10 bg-white/5 p-4">
+            <p className="text-sm font-black text-white">Volume mensal de contas a pagar ({monthlyExpenses.year})</p>
+            <p className="mt-1 text-xs text-zinc-400">Total mensal de títulos no ano atual.</p>
+            <div className="mt-4 rounded-2xl border border-white/10 bg-zinc-950/30 p-3">
+              <div className="h-56 w-full">
+                <svg viewBox="0 0 1000 280" className="h-full w-full">
+                  <line x1="44" y1="20" x2="44" y2="230" stroke="rgba(255,255,255,0.22)" strokeWidth="1" />
+                  <line x1="44" y1="230" x2="968" y2="230" stroke="rgba(255,255,255,0.22)" strokeWidth="1" />
+                  {[0, 1, 2, 3].map((i) => {
+                    const y = 230 - (i * 70);
+                    return <line key={`grid-expense-${i}`} x1="44" y1={y} x2="968" y2={y} stroke="rgba(255,255,255,0.08)" strokeWidth="1" strokeDasharray="4 4" />;
+                  })}
+                  {(() => {
+                    const max = monthlyExpenses.max || 1;
+                    const stepX = (968 - 44) / 11;
+                    const toY = (value: number) => 230 - ((value / max) * 210);
+                    const points = monthlyExpenses.months.map((m, i) => ({ x: 44 + (i * stepX), y: toY(m.value), label: m.label, value: m.value }));
+                    const path = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
+                    return <>
+                      <path d={path} fill="none" stroke="rgba(244,63,94,0.95)" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+                      {points.map((p) => (
+                        <g key={`pt-expense-${p.label}`}>
+                          <text
+                            x={p.x}
+                            y={Math.max(p.y - 12, 14)}
+                            textAnchor="middle"
+                            fontSize="10"
+                            fill="rgba(228,228,231,0.95)"
+                            fontWeight="700"
+                          >
+                            {prettyMoney(p.value)}
+                          </text>
+                          <circle cx={p.x} cy={p.y} r="4.5" fill="rgb(244,63,94)" />
+                          <circle cx={p.x} cy={p.y} r="8" fill="rgba(244,63,94,0.22)" />
+                        </g>
+                      ))}
+                    </>;
+                  })()}
+                  {monthlyExpenses.months.map((m, i) => {
+                    const stepX = (968 - 44) / 11;
+                    const x = 44 + (i * stepX);
+                    return <text key={`x-expense-${m.month}`} x={x} y="252" textAnchor="middle" fontSize="11" fill="rgba(228,228,231,0.8)" className="uppercase">{m.label}</text>;
+                  })}
+                </svg>
+              </div>
+            </div>
+          </section>
+
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-black text-white">Lista</p>
-              <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
+                <button
+                  onClick={toggleAll}
+                  className="rounded-2xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-black text-zinc-200 hover:bg-white/10"
+                >
+                  {(() => {
+                    const selectableIds = filtered.filter((x) => normalizeStatus(x) !== "paid").map((x) => x.id);
+                    return selectableIds.length > 0 && selectableIds.every((id) => selectedIds.includes(id)) ? "Desmarcar lista" : "Selecionar lista";
+                  })()}
+                </button>
+                <button
+                  onClick={openBulkReversal}
+                  disabled={!reversibleFilteredIds.length}
+                  className="rounded-2xl border border-zinc-400/25 bg-zinc-500/15 px-3 py-1.5 text-xs font-medium text-zinc-100 hover:bg-zinc-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Estornar ({reversibleFilteredIds.length})
+                </button>
+                <button
+                  onClick={() => openPayFor(selectedIds)}
+                  disabled={!selectedIds.length}
+                  className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-3 py-1.5 text-xs font-black text-emerald-100 hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Pagar selecionados ({selectedIds.length})
+                </button>
+              </div>
             </div>
 
             <div className="mt-3 overflow-x-auto">

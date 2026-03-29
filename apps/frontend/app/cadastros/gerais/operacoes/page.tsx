@@ -194,9 +194,10 @@ export default function OperacoesPage() {
   }
 
   return (
-    <AuthedAdminShell>
+    <AuthedAdminShell hideHeader>
       {() => (
         <div className="space-y-6">
+          <div className={`space-y-6 transition-all duration-200 ${modalOpen ? "blur-[2px] saturate-75" : ""}`}>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Cadastros · Gerais</p>
@@ -289,14 +290,15 @@ export default function OperacoesPage() {
               <div className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : "Ordenado A-Z"}</div>
             </div>
 
-            <div className="mt-3 hidden grid-cols-12 gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 sm:grid">
-              <div className="col-span-7">Operacao</div>
-              <div className="col-span-3">Tipo</div>
-              <div className="col-span-2 text-right">Status</div>
-            </div>
+            <div className="mt-3 overflow-x-auto">
+              <div className="min-w-[920px] space-y-2">
+                <div className="grid grid-cols-[2fr_1.3fr_1fr_64px] items-center gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.22em] text-zinc-400">
+                  <div>Operacao</div>
+                  <div>Tipo</div>
+                  <div>Status</div>
+                  <div className="text-right">Acoes</div>
+                </div>
 
-            <div className={`mt-4 pr-1 ${filtered.length > 10 ? "max-h-[560px] overflow-auto" : ""}`}>
-              <div className="space-y-2">
                 {filtered.map((it) => {
                   const badge = it.is_active
                     ? "bg-emerald-500/10 text-emerald-200 ring-emerald-500/20"
@@ -319,44 +321,42 @@ export default function OperacoesPage() {
                   return (
                     <div
                       key={it.id}
-                      className="group flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3 transition-colors hover:bg-white/5"
+                      className="grid grid-cols-[2fr_1.3fr_1fr_64px] items-center gap-3 rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5 text-[10px]"
                     >
-                      <button onClick={() => openEdit(it.id)} className="grid min-w-0 flex-1 grid-cols-12 items-center gap-3 text-left">
-                        <div className="col-span-7 min-w-0">
-                          <p className="truncate text-sm font-black text-white">{it.name}</p>
-                          <p className="mt-0.5 text-xs font-semibold text-zinc-400">ID: {it.id}</p>
-                        </div>
-                        <div className="col-span-3">
-                          <span className={`inline-flex items-center rounded-full px-2 py-1 text-[11px] font-black ring-1 ${kindBadge}`}>
-                            {kindLabel(it.kind)}
-                          </span>
-                        </div>
-                        <div className="col-span-2 text-right">
-                          <span className={`inline-flex items-center rounded-full px-2 py-1 text-[11px] font-black ring-1 ${badge}`}>
-                            {it.is_active ? "Ativo" : "Inativo"}
-                          </span>
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => openEdit(it.id)}
-                        className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-zinc-950/30 text-zinc-300 hover:bg-white/5"
-                        aria-label="Editar"
-                        title="Editar"
-                      >
-                        <IconPencil />
-                      </button>
+                      <div className="truncate font-semibold text-zinc-100">{it.name}</div>
+                      <div className="truncate">
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ${kindBadge}`}>
+                          {kindLabel(it.kind)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ${badge}`}>
+                          {it.is_active ? "Ativo" : "Inativo"}
+                        </span>
+                      </div>
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => openEdit(it.id)}
+                          className="grid h-7 w-7 place-items-center rounded-lg border border-white/10 bg-zinc-950/30 text-zinc-300 hover:bg-white/5"
+                          aria-label="Editar"
+                          title="Editar"
+                        >
+                          <IconPencil className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
                   );
                 })}
 
                 {!loading && filtered.length === 0 ? (
-                  <div className="rounded-2xl border border-white/10 bg-zinc-950/30 p-4 text-sm text-zinc-300">Nenhuma operacao encontrada.</div>
+                  <div className="rounded-2xl border border-white/10 bg-zinc-950/30 p-3 text-xs text-zinc-300">Nenhuma operacao encontrada.</div>
                 ) : null}
               </div>
             </div>
           </section>
+
+          </div>
 
           <Modal
             open={modalOpen}

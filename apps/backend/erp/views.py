@@ -1,5 +1,7 @@
+from django.db import transaction
 from django.db.utils import IntegrityError, OperationalError, ProgrammingError
 from rest_framework import permissions, status, viewsets
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from accounts.permissions import get_current_company
@@ -151,6 +153,31 @@ class FaturamentoCompraViewSet(CompanyScopedViewSet):
         ).prefetch_related("items", "items__pedido_item", "items__produto")
     )
     serializer_class = serializers.FaturamentoCompraSerializer
+
+    def perform_destroy(self, instance):
+        with transaction.atomic():
+            contas_nf = models.ContaPagar.objects.filter(
+                faturamento=instance,
+                origem=models.ContaPagar.Origem.NOTA_FISCAL,
+            )
+            if contas_nf.filter(paid_value__gt=0).exists():
+                raise ValidationError(
+                    {
+                        "detail": (
+                            "Nao e permitido excluir faturamento com pagamento registrado em Contas a Pagar. "
+                            "Estorne o pagamento primeiro."
+                        )
+                    }
+                )
+
+            pedido = instance.pedido
+            contas_nf.delete()
+            super().perform_destroy(instance)
+
+            if pedido:
+                sync = serializers.FaturamentoCompraSerializer(context={"request": self.request})
+                sync._recalc_pedido_status(pedido)
+                sync._sync_contas_por_pedido(pedido)
 
 
 class ContaPagarViewSet(CompanyScopedViewSet):

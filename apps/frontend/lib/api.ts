@@ -101,7 +101,15 @@ async function request<T>(path: string, options: RequestInit = {}, token?: strin
     throw new ApiError(extractErrorMessage(errorPayload), response.status);
   }
 
-  return (await response.json()) as T;
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  const payloadText = await response.text();
+  if (!payloadText.trim()) {
+    return undefined as T;
+  }
+  return JSON.parse(payloadText) as T;
 }
 
 async function requestBlob(path: string, options: RequestInit = {}, token?: string): Promise<Response> {
@@ -1335,6 +1343,8 @@ export function updateContaReceberStatus(
 export type FaturamentoCompraItem = {
   id: number;
   pedido_item_id?: number | null;
+  produto_id?: number | null;
+  peca_id?: number | null;
   produto: { id: number; name: string } | null;
   quantity: string;
   price: string;
@@ -1387,6 +1397,8 @@ export function createFaturamentoCompra(
     due_date: string | null;
     items: Array<{
       pedido_item_id: number | null;
+      produto_id?: number | null;
+      peca_id?: number | null;
       quantity: string | number;
       price: string | number;
     }>;
@@ -1415,6 +1427,8 @@ export function updateFaturamentoCompra(
     due_date: string | null;
     items: Array<{
       pedido_item_id: number | null;
+      produto_id?: number | null;
+      peca_id?: number | null;
       quantity: string | number;
       price: string | number;
     }>;

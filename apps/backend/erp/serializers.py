@@ -1236,6 +1236,12 @@ class FaturamentoCompraItemSerializer(serializers.ModelSerializer):
     pedido_item_id = serializers.PrimaryKeyRelatedField(
         source="pedido_item", queryset=models.PedidoCompraItem.objects.all(), allow_null=True, required=False
     )
+    produto_id = serializers.PrimaryKeyRelatedField(
+        source="produto", queryset=models.Insumo.objects.all(), allow_null=True, required=False
+    )
+    peca_id = serializers.PrimaryKeyRelatedField(
+        source="peca", queryset=models.Peca.objects.all(), allow_null=True, required=False
+    )
     produto = serializers.SerializerMethodField()
 
     class Meta:
@@ -1243,6 +1249,8 @@ class FaturamentoCompraItemSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "pedido_item_id",
+            "produto_id",
+            "peca_id",
             "produto",
             "quantity",
             "price",
@@ -1252,6 +1260,8 @@ class FaturamentoCompraItemSerializer(serializers.ModelSerializer):
         ]
 
     def get_produto(self, obj):
+        if getattr(obj, "peca_id", None):
+            return {"id": obj.peca_id, "name": obj.peca.name}
         if getattr(obj, "produto_id", None):
             return {"id": obj.produto_id, "name": obj.produto.name}
         if getattr(obj, "pedido_item_id", None) and getattr(obj.pedido_item, "produto_id", None):
@@ -1261,6 +1271,10 @@ class FaturamentoCompraItemSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         company = get_current_company(self.context["request"].user) if self.context.get("request") else None
         _validate_fk_company(attrs.get("pedido_item"), company, "pedido_item_id")
+        _validate_fk_company(attrs.get("produto"), company, "produto_id")
+        _validate_fk_company(attrs.get("peca"), company, "peca_id")
+        if not attrs.get("pedido_item") and not attrs.get("produto") and not attrs.get("peca"):
+            raise serializers.ValidationError({"items": "Informe pedido_item_id, produto_id ou peca_id."})
         qty = attrs.get("quantity")
         if qty is not None and qty <= 0:
             raise serializers.ValidationError({"quantity": "Quantidade deve ser maior que zero."})
@@ -1541,12 +1555,14 @@ class FaturamentoCompraSerializer(serializers.ModelSerializer):
         total = Decimal("0")
         for it in items_data or []:
             pedido_item: models.PedidoCompraItem | None = it.get("pedido_item")
+            produto: models.Insumo | None = it.get("produto")
+            peca: models.Peca | None = it.get("peca")
             qty = it.get("quantity") or Decimal("0")
             price = it.get("price") or Decimal("0")
 
-            if not pedido_item:
-                raise serializers.ValidationError({"items": "pedido_item_id é obrigatório."})
-            if not getattr(fat, "pedido_id", None) or pedido_item.pedido_id != fat.pedido_id:
+            if not pedido_item and not (produto or peca):
+                raise serializers.ValidationError({"items": "Informe pedido_item_id, produto_id ou peca_id."})
+            if pedido_item and (not getattr(fat, "pedido_id", None) or pedido_item.pedido_id != fat.pedido_id):
                 raise serializers.ValidationError({"items": "Item não pertence ao pedido selecionado."})
 
             billed = (
@@ -1562,9 +1578,9 @@ class FaturamentoCompraSerializer(serializers.ModelSerializer):
                 .exclude(faturamento_id=fat.id)
                 .aggregate(v=Coalesce(Sum("quantity"), Decimal("0")))["v"]
                 or Decimal("0")
-            )
-            remaining = (pedido_item.quantity or Decimal("0")) - billed
-            if qty > remaining:
+            ) if pedido_item else Decimal("0")
+            remaining = (pedido_item.quantity or Decimal("0")) - billed if pedido_item else Decimal("0")
+            if pedido_item and qty > remaining:
                 raise serializers.ValidationError({"items": f"Quantidade acima do saldo a faturar para '{pedido_item.produto.name if pedido_item.produto_id else 'PRODUTO'}'."})
 
             total_item = (qty * price)
@@ -1572,7 +1588,8 @@ class FaturamentoCompraSerializer(serializers.ModelSerializer):
                 company=fat.company,
                 faturamento=fat,
                 pedido_item=pedido_item,
-                produto=pedido_item.produto,
+                produto=pedido_item.produto if pedido_item else produto,
+                peca=peca,
                 quantity=qty,
                 price=price,
                 total_item=total_item,

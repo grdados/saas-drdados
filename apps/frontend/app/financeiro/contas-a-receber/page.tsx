@@ -514,30 +514,30 @@ export default function ContasAReceberPage() {
       {() => (
         <div className="space-y-5">
           {toast ? <div className="pointer-events-none fixed right-4 top-4 z-[70]"><div className={`rounded-2xl border px-4 py-3 text-sm font-bold ${toast.kind === "success" ? "border-emerald-400/35 bg-emerald-500/20 text-emerald-100" : "border-rose-400/35 bg-rose-500/20 text-rose-100"}`}>{toast.msg}</div></div> : null}
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Financeiro</p>
-            <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Contas a receber</h1>
-            <p className="mt-1 text-sm text-zinc-300">Mesmo padrão de Contas a Pagar com recebimento em lote e estorno.</p>
-          </div>
-          <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-4">
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <button onClick={openResumoReport} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10">Relatório resumo</button>
-              <button onClick={openAnaliticoReport} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-black text-zinc-100 hover:bg-white/10">Relatório analítico</button>
-              <button onClick={() => requestEstorno(reversibleIds)} disabled={!reversibleIds.length} className="rounded-2xl border border-zinc-400/25 bg-zinc-500/15 px-4 py-2 text-sm font-black text-zinc-100 disabled:opacity-50">Estornar recebidos ({reversibleIds.length})</button>
-              <button onClick={() => openReceive(selectedIds)} disabled={!selectedIds.length} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-4 py-2 text-sm font-black text-emerald-100 disabled:opacity-50">Receber selecionados ({selectedIds.length})</button>
+          <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_420px]">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Financeiro</p>
+              <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Contas a receber</h1>
+              <p className="mt-1 text-sm text-zinc-300">Faturas de Contratos e Vendas de produtos.</p>
+            </div>
+            <div className="rounded-3xl border border-white/15 bg-zinc-900/55 p-4">
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Relatorios</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button onClick={openResumoReport} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-100 hover:bg-white/10">Resumo</button>
+                  <button onClick={openAnaliticoReport} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-zinc-100 hover:bg-white/10">Analitico</button>
+                </div>
+              </div>
             </div>
           </section>
           <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-3.5 backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]">
             <div className="flex flex-wrap items-center gap-2">
-              <select value={safraId} onChange={(e) => setSafraId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Safra</option>{safras.map((s) => <option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>)}</select>
-              <select value={grupoId} onChange={(e) => setGrupoId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Grupo</option>{grupos.map((g) => <option key={g.id} value={g.id} style={optionStyle}>{g.name}</option>)}</select>
-              <select value={produtorId} onChange={(e) => setProdutorId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Produtor</option>{produtores.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{produtorDisplayLabel(p)}</option>)}</select>
-              <select value={clienteId} onChange={(e) => setClienteId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Cliente</option>{clientes.map((c) => <option key={c.id} value={c.id} style={optionStyle}>{c.name}</option>)}</select>
-              <select value={status} onChange={(e) => setStatus(e.target.value as "all" | Status)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="all" style={optionStyle}>Status</option><option value="open" style={optionStyle}>Pendente</option><option value="overdue" style={optionStyle}>Vencido</option><option value="partial" style={optionStyle}>Parcial</option><option value="paid" style={optionStyle}>Recebido</option><option value="canceled" style={optionStyle}>Cancelado</option></select>
+              <select value={safraId} onChange={(e) => setSafraId(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[126px] flex-1 rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[11px] text-zinc-100"><option value="" style={optionStyle}>Safra</option>{safras.map((s) => <option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>)}</select>
+              <select value={grupoId} onChange={(e) => setGrupoId(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[126px] flex-1 rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[11px] text-zinc-100"><option value="" style={optionStyle}>Grupo</option>{grupos.map((g) => <option key={g.id} value={g.id} style={optionStyle}>{g.name}</option>)}</select>
+              <select value={produtorId} onChange={(e) => setProdutorId(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[126px] flex-1 rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[11px] text-zinc-100"><option value="" style={optionStyle}>Produtor</option>{produtores.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{produtorDisplayLabel(p)}</option>)}</select>
+              <select value={clienteId} onChange={(e) => setClienteId(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[126px] flex-1 rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[11px] text-zinc-100"><option value="" style={optionStyle}>Cliente</option>{clientes.map((c) => <option key={c.id} value={c.id} style={optionStyle}>{c.name}</option>)}</select>
+              <select value={status} onChange={(e) => setStatus(e.target.value as "all" | Status)} className="min-w-[126px] flex-1 rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[11px] text-zinc-100"><option value="all" style={optionStyle}>Status</option><option value="open" style={optionStyle}>Pendente</option><option value="overdue" style={optionStyle}>Vencido</option><option value="partial" style={optionStyle}>Parcial</option><option value="paid" style={optionStyle}>Recebido</option><option value="canceled" style={optionStyle}>Cancelado</option></select>
               <div className="flex min-w-[260px] flex-1 gap-2"><input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[11px] text-zinc-100 [color-scheme:dark]" /><input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[11px] text-zinc-100 [color-scheme:dark]" /></div>
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <button onClick={toggleAll} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200">Selecionar lista</button>
             </div>
             {error ? <div className="mt-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm font-semibold text-amber-200">{error}</div> : null}
           </section>
@@ -581,8 +581,23 @@ export default function ContasAReceberPage() {
                     const points = monthlySales.months.map((m, i) => ({ x: 44 + (i * stepX), y: toY(m.value), label: m.label, value: m.value }));
                     const path = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
                     return <>
-                      <path d={path} fill="none" stroke="rgba(56,189,248,0.95)" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
-                      {points.map((p) => <g key={`pt-${p.label}`}><circle cx={p.x} cy={p.y} r="4.5" fill="rgb(56,189,248)" /><circle cx={p.x} cy={p.y} r="8" fill="rgba(56,189,248,0.22)" /></g>)}
+                      <path d={path} fill="none" stroke="rgba(16,185,129,0.95)" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+                      {points.map((p) => (
+                        <g key={`pt-${p.label}`}>
+                          <text
+                            x={p.x}
+                            y={Math.max(p.y - 12, 14)}
+                            textAnchor="middle"
+                            fontSize="10"
+                            fill="rgba(228,228,231,0.95)"
+                            fontWeight="700"
+                          >
+                            {money(p.value)}
+                          </text>
+                          <circle cx={p.x} cy={p.y} r="4.5" fill="rgb(16,185,129)" />
+                          <circle cx={p.x} cy={p.y} r="8" fill="rgba(16,185,129,0.22)" />
+                        </g>
+                      ))}
                     </>;
                   })()}
                   {monthlySales.months.map((m, i) => {
@@ -592,13 +607,18 @@ export default function ContasAReceberPage() {
                   })}
                 </svg>
               </div>
-              <div className="mt-2 grid gap-1 sm:grid-cols-2 lg:grid-cols-4">
-                {monthlySales.months.map((m) => <div key={`meta-${m.month}`} className="flex items-center justify-between rounded-xl border border-white/10 bg-zinc-900/55 px-2.5 py-1.5 text-[11px]"><span className="font-black uppercase text-zinc-400">{m.label}</span><span className="font-black text-zinc-200">{money(m.value)}</span></div>)}
-              </div>
             </div>
           </section>
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4">
-            <div className="flex items-center justify-between"><p className="text-sm font-black text-white">Lista</p><p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p></div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-black text-white">Lista</p>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
+                <button onClick={toggleAll} className="rounded-2xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-black text-zinc-200">Selecionar lista</button>
+                <button onClick={() => requestEstorno(reversibleIds)} disabled={!reversibleIds.length} className="rounded-2xl border border-zinc-400/25 bg-zinc-500/15 px-3 py-1.5 text-xs font-medium text-zinc-100 disabled:opacity-50">Estornar ({reversibleIds.length})</button>
+                <button onClick={() => openReceive(selectedIds)} disabled={!selectedIds.length} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-3 py-1.5 text-xs font-black text-emerald-100 disabled:opacity-50">Receber selecionados ({selectedIds.length})</button>
+              </div>
+            </div>
             <div className="mt-3 overflow-x-auto">
               <div className="hidden min-w-[1188px] grid-cols-[40px_88px_82px_78px_84px_96px_130px_130px_96px_96px_96px_82px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
                 <div>Sel</div><div>Status</div><div>Venc.</div><div>Origem</div><div>Doc.</div><div>Contrato</div><div>Cliente</div><div>Produtor</div><div>Total</div><div>Recebido</div><div>Saldo</div><div className="text-right">Ações</div>

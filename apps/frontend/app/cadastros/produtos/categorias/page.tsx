@@ -10,6 +10,8 @@ export default function CategoriasPage() {
       title="Categorias"
       description="Cadastre categorias para organizar insumos, pecas e produtos."
       fieldLabel="Categoria"
+      hideHeader
+      tableMode
       api={{
         list: listCategorias,
         create: createCategoria,
@@ -18,4 +20,3 @@ export default function CategoriasPage() {
     />
   );
 }
-
