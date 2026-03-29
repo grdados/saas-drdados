@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
@@ -113,6 +113,7 @@ type ReceiveState = {
   conta_id: number | "";
   status: Status;
 };
+type ReceiveStep = 1 | 2 | 3 | 4;
 
 const DEFAULT_RECEIVE: ReceiveState = {
   receive_date: "",
@@ -130,6 +131,25 @@ function statusMeta(s: Status) {
   if (s === "overdue") return { label: "Vencido", cls: "border-rose-400/30 bg-rose-500/15 text-rose-200" };
   if (s === "canceled") return { label: "Cancelado", cls: "border-zinc-400/30 bg-zinc-500/15 text-zinc-200" };
   return { label: "Pendente", cls: "border-amber-400/30 bg-amber-500/15 text-amber-200" };
+}
+function CardIcon({
+  tone,
+  children
+}: {
+  tone: "amber" | "sky" | "emerald" | "rose" | "slate";
+  children: ReactNode;
+}) {
+  const toneClass =
+    tone === "amber"
+      ? "border-amber-400/35 bg-amber-500/10 text-amber-300"
+      : tone === "sky"
+      ? "border-sky-400/35 bg-sky-500/10 text-sky-300"
+      : tone === "emerald"
+      ? "border-emerald-400/35 bg-emerald-500/10 text-emerald-300"
+      : tone === "rose"
+      ? "border-rose-400/35 bg-rose-500/10 text-rose-300"
+      : "border-white/20 bg-white/10 text-zinc-300";
+  return <div className={`grid h-10 w-10 place-items-center rounded-2xl border ${toneClass}`}>{children}</div>;
 }
 function normalizeStatus(it: ContaReceber): Status {
   if (it.status === "paid" || it.status === "partial" || it.status === "canceled" || it.status === "overdue") return it.status;
@@ -150,7 +170,6 @@ export default function ContasAReceberPage() {
   const [contas, setContas] = useState<ContaFinanceira[]>([]);
   const [error, setError] = useState("");
 
-  const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | Status>("all");
   const [safraId, setSafraId] = useState<number | "">("");
   const [grupoId, setGrupoId] = useState<number | "">("");
@@ -160,8 +179,10 @@ export default function ContasAReceberPage() {
   const [toDate, setToDate] = useState("");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
+  const [receiveWizardOpen, setReceiveWizardOpen] = useState(false);
   const [receiveOpen, setReceiveOpen] = useState(false);
   const [receiveConfirmOpen, setReceiveConfirmOpen] = useState(false);
+  const [receiveStep, setReceiveStep] = useState<ReceiveStep>(1);
   const [receive, setReceive] = useState<ReceiveState>(DEFAULT_RECEIVE);
   const [receiving, setReceiving] = useState(false);
 
@@ -207,7 +228,6 @@ export default function ContasAReceberPage() {
   }, [items, contratos]);
 
   const filtered = useMemo(() => {
-    const needle = q.trim().toLowerCase();
     return items.filter((it) => {
       const st = normalizeStatus(it);
       if (status !== "all" && st !== status) return false;
@@ -219,15 +239,9 @@ export default function ContasAReceberPage() {
       const periodValue = it.due_date || it.date || "";
       if (fromDate && periodValue && periodValue < fromDate) return false;
       if (toDate && periodValue && periodValue > toDate) return false;
-      if (!needle) return true;
-      return (
-        (it.document_number || "").toLowerCase().includes(needle) ||
-        (it.cliente?.name ?? "").toLowerCase().includes(needle) ||
-        (it.produtor?.name ?? "").toLowerCase().includes(needle) ||
-        (it.contrato?.code ?? "").toLowerCase().includes(needle)
-      );
+      return true;
     });
-  }, [items, q, status, safraId, grupoId, produtorId, clienteId, fromDate, toDate, contractById]);
+  }, [items, status, safraId, grupoId, produtorId, clienteId, fromDate, toDate, contractById]);
 
   const monthlySales = useMemo(() => {
     const year = new Date().getFullYear();
@@ -292,8 +306,17 @@ export default function ContasAReceberPage() {
     if (!receivable.length) return;
     setSelectedIds(receivable);
     setReceive({ ...DEFAULT_RECEIVE, status: "paid" });
+    setReceiveOpen(false);
     setReceiveConfirmOpen(false);
-    setReceiveOpen(true);
+    setReceiveWizardOpen(true);
+    setReceiveStep(1);
+  }
+  function closeReceiveModal() {
+    if (receiving) return;
+    setReceiveWizardOpen(false);
+    setReceiveOpen(false);
+    setReceiveConfirmOpen(false);
+    setReceiveStep(1);
   }
   function requestEstorno(ids: number[]) {
     const rev = ids.filter((id) => {
@@ -323,7 +346,7 @@ export default function ContasAReceberPage() {
         status: receive.status
       };
       await Promise.all(selectedIds.map((id) => updateContaReceberStatus(token, id, payload)));
-      setReceiveConfirmOpen(false); setReceiveOpen(false); await refresh(); showToast("success", "Recebimento efetuado.");
+      closeReceiveModal(); await refresh(); showToast("success", "Recebimento efetuado.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao efetuar recebimento.");
       showToast("error", err instanceof Error ? err.message : "Falha ao efetuar recebimento.");
@@ -344,6 +367,46 @@ export default function ContasAReceberPage() {
   }
 
   const optionStyle = { backgroundColor: "#e5e7eb", color: "#111827" } as const;
+  const receiveSteps: Array<{ id: ReceiveStep; label: string }> = [
+    { id: 1, label: "Recebimento" },
+    { id: 2, label: "Ajustes" },
+    { id: 3, label: "Conta" },
+    { id: 4, label: "Resumo" }
+  ];
+
+  function validateReceiveStep(step: ReceiveStep) {
+    if (step === 1) {
+      const increment = n(receive.receive_increment || "0");
+      if (!receive.receive_date) {
+        setError("Informe a data de recebimento.");
+        return false;
+      }
+      if (increment <= 0) {
+        setError("Informe um valor de recebimento maior que zero.");
+        return false;
+      }
+      if (increment > selectedPending + 0.00001) {
+        setError(`Valor acima do saldo pendente (${money(selectedPending)}).`);
+        return false;
+      }
+    }
+    if (step === 3 && receive.conta_id === "") {
+      setError("Selecione a conta financeira para concluir.");
+      return false;
+    }
+    return true;
+  }
+
+  function nextReceiveStep() {
+    if (!validateReceiveStep(receiveStep)) return;
+    setError("");
+    setReceiveStep((prev) => Math.min(4, (prev + 1) as ReceiveStep) as ReceiveStep);
+  }
+
+  function prevReceiveStep() {
+    setError("");
+    setReceiveStep((prev) => Math.max(1, (prev - 1) as ReceiveStep) as ReceiveStep);
+  }
 
   function openResumoReport() {
     const rowsMap = new Map<string, { safra: string; cliente: string; venc: string; contas: number; total: number; recebido: number; saldo: number }>();
@@ -447,7 +510,7 @@ export default function ContasAReceberPage() {
   }
 
   return (
-    <AuthedAdminShell>
+    <AuthedAdminShell hideHeader>
       {() => (
         <div className="space-y-5">
           {toast ? <div className="pointer-events-none fixed right-4 top-4 z-[70]"><div className={`rounded-2xl border px-4 py-3 text-sm font-bold ${toast.kind === "success" ? "border-emerald-400/35 bg-emerald-500/20 text-emerald-100" : "border-rose-400/35 bg-rose-500/20 text-rose-100"}`}>{toast.msg}</div></div> : null}
@@ -464,28 +527,39 @@ export default function ContasAReceberPage() {
               <button onClick={() => openReceive(selectedIds)} disabled={!selectedIds.length} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-4 py-2 text-sm font-black text-emerald-100 disabled:opacity-50">Receber selecionados ({selectedIds.length})</button>
             </div>
           </section>
-          <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-4">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-12">
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por documento, cliente, produtor ou contrato..." className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-2.5 text-sm text-zinc-100 xl:col-span-3" />
+          <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-3.5 backdrop-blur-xl shadow-[0_0_0_1px_rgba(255,255,255,0.04)_inset]">
+            <div className="flex flex-wrap items-center gap-2">
               <select value={safraId} onChange={(e) => setSafraId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Safra</option>{safras.map((s) => <option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>)}</select>
               <select value={grupoId} onChange={(e) => setGrupoId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Grupo</option>{grupos.map((g) => <option key={g.id} value={g.id} style={optionStyle}>{g.name}</option>)}</select>
               <select value={produtorId} onChange={(e) => setProdutorId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Produtor</option>{produtores.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{produtorDisplayLabel(p)}</option>)}</select>
               <select value={clienteId} onChange={(e) => setClienteId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Cliente</option>{clientes.map((c) => <option key={c.id} value={c.id} style={optionStyle}>{c.name}</option>)}</select>
               <select value={status} onChange={(e) => setStatus(e.target.value as "all" | Status)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="all" style={optionStyle}>Status</option><option value="open" style={optionStyle}>Pendente</option><option value="overdue" style={optionStyle}>Vencido</option><option value="partial" style={optionStyle}>Parcial</option><option value="paid" style={optionStyle}>Recebido</option><option value="canceled" style={optionStyle}>Cancelado</option></select>
-              <div className="flex gap-2 sm:col-span-2 xl:col-span-2"><input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark]" /><input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark]" /></div>
-              <button onClick={toggleAll} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200 xl:col-span-1">Selecionar lista</button>
+              <div className="flex min-w-[260px] flex-1 gap-2"><input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[11px] text-zinc-100 [color-scheme:dark]" /><input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[11px] text-zinc-100 [color-scheme:dark]" /></div>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button onClick={toggleAll} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200">Selecionar lista</button>
             </div>
             {error ? <div className="mt-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm font-semibold text-amber-200">{error}</div> : null}
           </section>
-          <section className="grid gap-4 lg:grid-cols-5">
+          <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {[
-              { label: "Valor total", value: stats.total, tone: "border-amber-400/30 bg-amber-500/10" },
-              { label: "Pendente", value: stats.open, tone: "border-amber-400/30 bg-amber-500/10" },
-              { label: "Parcial", value: stats.partial, tone: "border-sky-400/30 bg-sky-500/10" },
-              { label: "Vencido", value: stats.overdue, tone: "border-rose-400/30 bg-rose-500/10" },
-              { label: "Recebido", value: stats.paid, tone: "border-emerald-400/30 bg-emerald-500/10" }
+              { label: "Valor total", value: stats.total, tone: "border-amber-400/30 bg-amber-500/10", icon: "R$", itone: "amber" as const },
+              { label: "Pendente (R$)", value: stats.open, tone: "border-amber-400/30 bg-amber-500/10", icon: "P", itone: "amber" as const },
+              { label: "Parcial (R$)", value: stats.partial, tone: "border-sky-400/30 bg-sky-500/10", icon: "1/2", itone: "sky" as const },
+              { label: "Vencido (R$)", value: stats.overdue, tone: "border-rose-400/30 bg-rose-500/10", icon: "!", itone: "rose" as const },
+              { label: "Recebido (R$)", value: stats.paid, tone: "border-emerald-400/30 bg-emerald-500/10", icon: "✓", itone: "emerald" as const }
             ].map((card) => (
-              <div key={card.label} className={`rounded-3xl border p-4 ${card.tone}`}><p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">{card.label}</p><p className="mt-2 text-2xl font-black text-white">{money(card.value)}</p></div>
+              <article key={card.label} className={`h-[96px] rounded-3xl border px-3 py-2.5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] ${card.tone}`}>
+                <div className="grid h-full grid-cols-[40px_1fr] items-center gap-2.5">
+                  <CardIcon tone={card.itone}>
+                    <span className="text-[12px] font-black">{card.icon}</span>
+                  </CardIcon>
+                  <div className="text-right">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300/90">{card.label}</p>
+                    <p className="mt-0.5 text-[16px] font-black leading-none text-white">{money(card.value).replace(/^R\$\s?/, "")}</p>
+                  </div>
+                </div>
+              </article>
             ))}
           </section>
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4">
@@ -526,33 +600,137 @@ export default function ContasAReceberPage() {
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4">
             <div className="flex items-center justify-between"><p className="text-sm font-black text-white">Lista</p><p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p></div>
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden min-w-[1400px] grid-cols-[56px_120px_110px_100px_130px_130px_170px_170px_110px_110px_110px_170px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid">
+              <div className="hidden min-w-[1188px] grid-cols-[40px_88px_82px_78px_84px_96px_130px_130px_96px_96px_96px_82px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
                 <div>Sel</div><div>Status</div><div>Venc.</div><div>Origem</div><div>Doc.</div><div>Contrato</div><div>Cliente</div><div>Produtor</div><div>Total</div><div>Recebido</div><div>Saldo</div><div className="text-right">Ações</div>
               </div>
-              <div className="mt-3 space-y-2 xl:min-w-[1400px]">
+              <div className="mt-3 space-y-2 xl:min-w-[1188px]">
                 {filtered.map((it) => {
                   const st = normalizeStatus(it);
                   const m = statusMeta(st);
-                  return <div key={it.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3">
-                    <div className="grid grid-cols-1 gap-2 xl:grid-cols-[56px_120px_110px_100px_130px_130px_170px_170px_110px_110px_110px_170px] xl:items-center xl:gap-3">
+                  return <div key={it.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5 hover:bg-white/5">
+                    <div className="grid grid-cols-1 gap-1.5 xl:grid-cols-[40px_88px_82px_78px_84px_96px_130px_130px_96px_96px_96px_82px] xl:items-center xl:gap-2">
                       <div><input type="checkbox" checked={selectedIds.includes(it.id)} disabled={st === "paid"} onChange={() => toggleOne(it.id)} className="h-4 w-4 rounded border-white/20 bg-zinc-900" /></div>
-                      <div><span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-bold ${m.cls}`}>{m.label}</span></div>
-                      <div className="text-sm font-semibold text-zinc-100">{d(it.due_date)}</div>
-                      <div className="text-sm font-semibold text-zinc-100">{origem(it)}</div>
-                      <div className="text-sm font-black text-zinc-100">{it.document_number || "-"}</div>
-                      <div className="text-sm font-semibold text-zinc-100">{it.contrato?.code ?? "-"}</div>
-                      <div className="truncate text-sm font-semibold text-zinc-100">{it.cliente?.name ?? "-"}</div>
-                      <div className="truncate text-sm font-semibold text-zinc-100">{it.produtor?.name ?? "-"}</div>
-                      <div className="text-sm font-black text-zinc-100">{money(it.total_value)}</div>
-                      <div className="text-sm font-black text-zinc-100">{money(it.received_value)}</div>
-                      <div className="text-sm font-black text-zinc-100">{money(it.balance_value)}</div>
-                      <div className="text-right"><button onClick={() => (st === "paid" ? requestEstorno([it.id]) : openReceive([it.id]))} className={`rounded-xl px-3 py-1.5 text-[11px] font-black ${st === "paid" ? "border border-zinc-500/25 bg-zinc-500/15 text-zinc-200" : "border border-emerald-400/25 bg-emerald-500/15 text-emerald-100"}`}>{st === "paid" ? "Estornar" : "Receber"}</button></div>
+                      <div><span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${m.cls}`}>{m.label}</span></div>
+                      <div className="text-[12px] font-medium text-zinc-100">{d(it.due_date)}</div>
+                      <div className="text-[12px] font-medium text-zinc-100">{origem(it)}</div>
+                      <div className="text-[10px] font-semibold text-zinc-100">{it.document_number || "-"}</div>
+                      <div className="text-[12px] font-medium text-zinc-100">{it.contrato?.code ?? "-"}</div>
+                      <div className="truncate text-[12px] font-medium text-zinc-100">{it.cliente?.name ?? "-"}</div>
+                      <div className="truncate text-[12px] font-medium text-zinc-100">{it.produtor?.name ?? "-"}</div>
+                      <div className="text-[10px] font-semibold text-zinc-100">{money(it.total_value)}</div>
+                      <div className="text-[10px] font-semibold text-zinc-100">{money(it.received_value)}</div>
+                      <div className="text-[10px] font-semibold text-zinc-100">{money(it.balance_value)}</div>
+                      <div className="flex justify-end whitespace-nowrap"><button onClick={() => (st === "paid" ? requestEstorno([it.id]) : openReceive([it.id]))} className={`rounded-xl px-1.5 py-1 text-[10px] font-semibold ${st === "paid" ? "border border-zinc-500/25 bg-zinc-500/15 text-zinc-200" : "border border-emerald-400/25 bg-emerald-500/15 text-emerald-100"}`}>{st === "paid" ? "Estornar" : "Receber"}</button></div>
                     </div>
                   </div>;
                 })}
               </div>
             </div>
           </section>
+
+          {receiveWizardOpen ? (
+            <div className="fixed inset-0 z-50 grid place-items-center px-4">
+              <button className="absolute inset-0 bg-zinc-950/60 backdrop-blur-md" onClick={closeReceiveModal} />
+              <div className="relative w-full max-w-[920px] overflow-hidden rounded-3xl border border-white/15 bg-zinc-900/92 shadow-2xl">
+                <div className="border-b border-white/10 p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-black text-white">Novo recebimento</p>
+                      <p className="mt-1 text-xs text-zinc-400">Etapa {receiveStep} de {receiveSteps.length} · {selectedIds.length} conta(s)</p>
+                    </div>
+                    <button onClick={closeReceiveModal} className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10">x</button>
+                  </div>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-4">
+                    {receiveSteps.map((step) => (
+                      <button
+                        key={step.id}
+                        type="button"
+                        onClick={() => {
+                          if (step.id > receiveStep && !validateReceiveStep(receiveStep)) return;
+                          setError("");
+                          setReceiveStep(step.id);
+                        }}
+                        className={`rounded-xl border px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] transition ${
+                          receiveStep === step.id
+                            ? "border-accent-400/40 bg-accent-500/20 text-accent-100"
+                            : "border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10"
+                        }`}
+                      >
+                        {step.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="p-5">
+                  {receiveStep === 1 ? (
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <div className="grid gap-2">
+                        <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Data recebimento</label>
+                        <input type="date" value={receive.receive_date} onChange={(e) => setReceive((p) => ({ ...p, receive_date: e.target.value }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark]" />
+                      </div>
+                      <div className="grid gap-2">
+                        <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Valor recebido (Saldo: {money(selectedPending)})</label>
+                        <input value={receive.receive_increment} onChange={(e) => setReceive((p) => ({ ...p, receive_increment: e.target.value }))} placeholder="0,00" className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100" />
+                      </div>
+                    </div>
+                  ) : null}
+                  {receiveStep === 2 ? (
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <div className="grid gap-2">
+                        <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Desconto</label>
+                        <input value={receive.discount_value} onChange={(e) => setReceive((p) => ({ ...p, discount_value: e.target.value }))} placeholder="0,00" className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100" />
+                      </div>
+                      <div className="grid gap-2">
+                        <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Acréscimo</label>
+                        <input value={receive.addition_value} onChange={(e) => setReceive((p) => ({ ...p, addition_value: e.target.value }))} placeholder="0,00" className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100" />
+                      </div>
+                    </div>
+                  ) : null}
+                  {receiveStep === 3 ? (
+                    <div className="grid gap-4 lg:grid-cols-2">
+                      <div className="grid gap-2">
+                        <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Forma recebimento</label>
+                        <select value={receive.payment_method} onChange={(e) => setReceive((p) => ({ ...p, payment_method: e.target.value as ReceiveState["payment_method"] }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100">
+                          <option value="pix">PIX</option><option value="boleto">Boleto</option><option value="transfer">Transferência</option><option value="card">Cartão</option><option value="cash">Dinheiro</option><option value="other">Outro</option>
+                        </select>
+                      </div>
+                      <div className="grid gap-2">
+                        <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Conta</label>
+                        <select value={receive.conta_id} onChange={(e) => setReceive((p) => ({ ...p, conta_id: e.target.value === "" ? "" : Number(e.target.value) }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100">
+                          <option value="">Selecione</option>{contas.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  ) : null}
+                  {receiveStep === 4 ? (
+                    <div className="grid gap-3">
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <div className="rounded-2xl border border-white/10 bg-zinc-950/40 p-3"><p className="text-[10px] uppercase tracking-[0.2em] text-zinc-400">Contas selecionadas</p><p className="mt-1 text-lg font-black text-white">{selectedIds.length}</p></div>
+                        <div className="rounded-2xl border border-white/10 bg-zinc-950/40 p-3"><p className="text-[10px] uppercase tracking-[0.2em] text-zinc-400">Saldo pendente</p><p className="mt-1 text-lg font-black text-white">{money(selectedPending)}</p></div>
+                        <div className="rounded-2xl border border-white/10 bg-zinc-950/40 p-3"><p className="text-[10px] uppercase tracking-[0.2em] text-zinc-400">Valor informado</p><p className="mt-1 text-lg font-black text-white">{money(receive.receive_increment || "0")}</p></div>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-zinc-950/40 p-3 text-sm text-zinc-300">
+                        <p><span className="text-zinc-400">Data:</span> {receive.receive_date ? d(receive.receive_date) : "-"}</p>
+                        <p><span className="text-zinc-400">Forma:</span> {receive.payment_method.toUpperCase()}</p>
+                        <p><span className="text-zinc-400">Conta:</span> {contas.find((c) => c.id === Number(receive.conta_id))?.name ?? "-"}</p>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="flex items-center justify-between gap-2 border-t border-white/10 p-5">
+                  <button onClick={closeReceiveModal} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200">Cancelar</button>
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={prevReceiveStep} disabled={receiveStep === 1 || receiving} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200 disabled:opacity-50">Voltar</button>
+                    {receiveStep < 4 ? (
+                      <button type="button" onClick={nextReceiveStep} disabled={receiving} className="rounded-2xl border border-accent-400/25 bg-accent-500/15 px-5 py-2.5 text-sm font-black text-accent-100">Próximo</button>
+                    ) : (
+                      <button type="button" onClick={() => void runReceive()} disabled={receiving} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-5 py-2.5 text-sm font-black text-emerald-100">{receiving ? "Processando..." : "Confirmar recebimento"}</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {receiveOpen ? <div className="fixed inset-0 z-50 grid place-items-center px-4"><button className="absolute inset-0 bg-zinc-950/60" onClick={() => setReceiveOpen(false)} /><div className="relative w-full max-w-[860px] rounded-3xl border border-white/15 bg-zinc-900/90"><div className="border-b border-white/10 p-5"><p className="text-sm font-black text-white">Recebimento ({selectedIds.length})</p></div><div className="grid gap-3 p-5 lg:grid-cols-3"><input type="date" value={receive.receive_date} onChange={(e) => setReceive((p) => ({ ...p, receive_date: e.target.value }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark]" /><input value={receive.receive_increment} onChange={(e) => setReceive((p) => ({ ...p, receive_increment: e.target.value }))} placeholder={`Saldo: ${money(selectedPending)}`} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-right text-sm text-zinc-100" /><select value={receive.conta_id} onChange={(e) => setReceive((p) => ({ ...p, conta_id: e.target.value === "" ? "" : Number(e.target.value) }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="">Conta</option>{contas.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div><div className="flex justify-end gap-2 border-t border-white/10 p-5"><button onClick={() => setReceiveOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200">Cancelar</button><button onClick={() => setReceiveConfirmOpen(true)} disabled={receiving} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-5 py-2.5 text-sm font-black text-emerald-100">{receiving ? "Processando..." : "Efetuar recebimento"}</button></div></div></div> : null}
           {receiveConfirmOpen ? <div className="fixed inset-0 z-[60] grid place-items-center px-4"><button className="absolute inset-0 bg-zinc-950/60" onClick={() => setReceiveConfirmOpen(false)} /><div className="relative w-full max-w-[560px] rounded-3xl border border-white/15 bg-zinc-900/95"><div className="border-b border-white/10 p-5"><p className="text-lg font-black text-white">Confirmar recebimento</p><div className="mt-3 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-3"><p className="text-sm font-semibold text-emerald-100">Marcação: ao confirmar, o sistema vai registrar o recebimento de {selectedIds.length} título(s), atualizar os valores recebidos e recalcular o saldo pendente.</p></div></div><div className="flex justify-end gap-2 p-5"><button onClick={() => setReceiveConfirmOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200">Não</button><button onClick={() => void runReceive()} disabled={receiving} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-5 py-2.5 text-sm font-black text-emerald-100">{receiving ? "Processando..." : "Sim, confirmar"}</button></div></div></div> : null}
