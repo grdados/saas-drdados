@@ -206,6 +206,7 @@ export default function FaturamentoCompraPage() {
   const [reportTo, setReportTo] = useState("");
 
   const [open, setOpen] = useState(false);
+  const [formStep, setFormStep] = useState(0);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formDate, setFormDate] = useState("");
   const [formNF, setFormNF] = useState("");
@@ -490,6 +491,7 @@ export default function FaturamentoCompraPage() {
       if (editingId) setFats((prev) => prev.map((x) => (x.id === editingId ? res : x)));
       else setFats((prev) => [res, ...prev]);
       setOpen(false);
+      setFormStep(0);
       setEditingId(null);
       await refresh();
     } catch (err) {
@@ -506,6 +508,7 @@ export default function FaturamentoCompraPage() {
   function openCreate() {
     setEditingId(null);
     setOpen(true);
+    setFormStep(0);
     setFormDate("");
     setFormNF("");
     setFormSafraId(safraId === "" ? "" : Number(safraId));
@@ -525,6 +528,7 @@ export default function FaturamentoCompraPage() {
     if (!ok) return;
     setEditingId(f.id);
     setOpen(true);
+    setFormStep(0);
     setFormDate(f.date ?? "");
     setFormNF(f.invoice_number ?? "");
     setFormSafraId(f.pedido?.id ? (pedidos.find((p) => p.id === f.pedido?.id)?.safra?.id ?? "") : "");
@@ -1126,14 +1130,14 @@ export default function FaturamentoCompraPage() {
 
           {open ? (
             <div className="fixed inset-0 z-50 grid place-items-center px-4">
-              <button className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm" onClick={() => setOpen(false)} aria-label="Fechar" />
+              <button className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm" onClick={() => { setOpen(false); setFormStep(0); }} aria-label="Fechar" />
               <div className="relative w-full max-w-[980px] xl:max-w-[1100px] overflow-hidden rounded-3xl border border-white/15 bg-zinc-900/85 shadow-2xl">
                 <div className="flex items-start justify-between gap-3 border-b border-white/10 p-5">
                   <div>
                     <p className="text-sm font-black text-white">{editingId ? "Editar faturamento" : "Novo faturamento"}</p>
-                  <p className="mt-1 text-xs text-zinc-400">Formulário pai e itens (filho).</p>
+                    <p className="mt-1 text-xs text-zinc-400">Etapa {formStep + 1} de 3</p>
                   </div>
-                  <button onClick={() => setOpen(false)} className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10" aria-label="Fechar modal" title="Fechar">
+                  <button onClick={() => { setOpen(false); setFormStep(0); }} className="grid h-10 w-10 place-items-center rounded-2xl border border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10" aria-label="Fechar modal" title="Fechar">
                     ×
                   </button>
                 </div>
@@ -1151,6 +1155,13 @@ export default function FaturamentoCompraPage() {
                     focusNextInForm(target);
                   }}
                 >
+                  <div className="mb-4 grid grid-cols-3 gap-2 text-[11px] font-black uppercase tracking-[0.18em]">
+                    <button type="button" onClick={() => setFormStep(0)} className={`rounded-xl border px-3 py-2 ${formStep === 0 ? "border-accent-400/60 bg-accent-500/15 text-accent-200" : "border-white/15 bg-white/5 text-zinc-400"}`}>Dados</button>
+                    <button type="button" onClick={() => setFormStep(1)} className={`rounded-xl border px-3 py-2 ${formStep === 1 ? "border-accent-400/60 bg-accent-500/15 text-accent-200" : "border-white/15 bg-white/5 text-zinc-400"}`}>Itens</button>
+                    <button type="button" onClick={() => setFormStep(2)} className={`rounded-xl border px-3 py-2 ${formStep === 2 ? "border-accent-400/60 bg-accent-500/15 text-accent-200" : "border-white/15 bg-white/5 text-zinc-400"}`}>Resumo</button>
+                  </div>
+
+                  {formStep === 0 ? (
                   <div className="grid gap-4 lg:grid-cols-3">
                     <div className="grid gap-2">
                       <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Data</label>
@@ -1233,11 +1244,13 @@ export default function FaturamentoCompraPage() {
                       </select>
                     </div>
                   </div>
+                  ) : null}
 
-                  <div className="mt-5 rounded-3xl border border-white/10 bg-white/5 p-4">
+                  {formStep === 1 ? (
+                  <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-black text-white">Itens</p>
-                      <button onClick={() => setRows((prev) => [...prev, { pedido_item_id: null, quantity: "0", price: "0" }])} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-3 py-2 text-sm font-black text-emerald-100 hover:bg-emerald-500/20">
+                      <button type="button" onClick={() => setRows((prev) => [...prev, { pedido_item_id: null, quantity: "0", price: "0" }])} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-3 py-2 text-sm font-black text-emerald-100 hover:bg-emerald-500/20">
                         Adicionar
                       </button>
                     </div>
@@ -1282,7 +1295,7 @@ export default function FaturamentoCompraPage() {
                             </div>
                             <div className="grid gap-1">
                               <label className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">Acao</label>
-                              <button onClick={() => setRows((prev) => prev.filter((_, i) => i !== idx))} className="grid place-items-center rounded-2xl border border-rose-400/25 bg-rose-500/10 px-3 py-2.5 text-sm font-black text-rose-200 hover:bg-rose-500/15" aria-label="Remover" title="Remover">
+                              <button type="button" onClick={() => setRows((prev) => prev.filter((_, i) => i !== idx))} className="grid place-items-center rounded-2xl border border-rose-400/25 bg-rose-500/10 px-3 py-2.5 text-sm font-black text-rose-200 hover:bg-rose-500/15" aria-label="Remover" title="Remover">
                                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                                   <path d="M3 6h18" />
                                   <path d="M8 6V4h8v2" />
@@ -1302,6 +1315,46 @@ export default function FaturamentoCompraPage() {
                       </div>
                     </div>
                   </div>
+                  ) : null}
+
+                  {formStep === 2 ? (
+                  <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-sm font-black text-white">Resumo para confirmação</p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <div className="rounded-2xl border border-white/10 bg-zinc-950/35 p-3 text-[12px] text-zinc-200">NF: <span className="font-semibold text-white">{formNF || "-"}</span></div>
+                      <div className="rounded-2xl border border-white/10 bg-zinc-950/35 p-3 text-[12px] text-zinc-200">Data: <span className="font-semibold text-white">{prettyDateBR(formDate) || "-"}</span></div>
+                      <div className="rounded-2xl border border-white/10 bg-zinc-950/35 p-3 text-[12px] text-zinc-200">Pedido: <span className="font-semibold text-white">{formPedidoId === "" ? "-" : pedidos.find((p) => p.id === Number(formPedidoId))?.code ?? "-"}</span></div>
+                      <div className="rounded-2xl border border-white/10 bg-zinc-950/35 p-3 text-[12px] text-zinc-200">Fornecedor: <span className="font-semibold text-white">{formFornecedorId === "" ? "-" : fornecedores.find((f) => f.id === Number(formFornecedorId))?.name ?? "-"}</span></div>
+                      <div className="rounded-2xl border border-white/10 bg-zinc-950/35 p-3 text-[12px] text-zinc-200">Vencimento: <span className="font-semibold text-white">{prettyDateBR(formDueDate) || "-"}</span></div>
+                      <div className="rounded-2xl border border-white/10 bg-zinc-950/35 p-3 text-[12px] text-zinc-200">Forma pagto: <span className="font-semibold text-white">{String(formPaymentMethod).toUpperCase()}</span></div>
+                    </div>
+                    <div className="mt-3 rounded-2xl border border-white/10 bg-zinc-950/35 p-3">
+                      <p className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Itens ({rows.length})</p>
+                      <div className="mt-2 space-y-1.5">
+                        {rows.map((r, idx) => {
+                          const it = itensPendentes.find((x) => x.id === r.pedido_item_id) ?? null;
+                          const nome = it?.produto?.name ?? "Item";
+                          const qtd = parseNumber(r.quantity);
+                          const preco = parseNumber(r.price);
+                          const subtotal = Math.max(0, qtd * preco);
+                          return (
+                            <div key={idx} className="flex items-center justify-between gap-2 text-[12px]">
+                              <p className="truncate text-zinc-200">{nome}</p>
+                              <p className="whitespace-nowrap text-zinc-100">{qtd.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} x {preco.toLocaleString("pt-BR", { minimumFractionDigits: 5, maximumFractionDigits: 5 })}</p>
+                              <p className="whitespace-nowrap font-semibold text-white">{money(subtotal)}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="mt-3 flex justify-end">
+                      <div className="rounded-2xl border border-white/10 bg-zinc-950/30 px-4 py-3">
+                        <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Total</p>
+                        <p className="mt-1 text-lg font-black text-white">{money(total)}</p>
+                      </div>
+                    </div>
+                  </div>
+                  ) : null}
 
                   {saveMessage ? (
                     <div
@@ -1316,12 +1369,31 @@ export default function FaturamentoCompraPage() {
                   ) : null}
 
                   <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-                    <button type="submit" disabled={saving || formNF.trim().length < 1 || formPedidoId === ""} className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-5 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-60">
-                      {saving ? "Salvando..." : "Salvar"}
-                    </button>
-                    <button disabled={saving} onClick={() => setOpen(false)} className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60">
+                    <button type="button" disabled={saving} onClick={() => { setOpen(false); setFormStep(0); }} className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60">
                       Cancelar
                     </button>
+                    <button
+                      type="button"
+                      disabled={saving || formStep === 0}
+                      onClick={() => setFormStep((s) => Math.max(0, s - 1))}
+                      className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-black text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Voltar
+                    </button>
+                    {formStep < 2 ? (
+                      <button
+                        type="button"
+                        disabled={saving || (formStep === 0 && (formNF.trim().length < 1 || formPedidoId === ""))}
+                        onClick={() => setFormStep((s) => Math.min(2, s + 1))}
+                        className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-5 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        Proximo
+                      </button>
+                    ) : (
+                      <button type="submit" disabled={saving || formNF.trim().length < 1 || formPedidoId === ""} className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-5 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-60">
+                        {saving ? "Salvando..." : "Confirmar e salvar"}
+                      </button>
+                    )}
                   </div>
                 </form>
               </div>

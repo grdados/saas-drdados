@@ -120,6 +120,37 @@ function PriceTimelineChart({
   );
 }
 
+function SupplierChart({
+  items
+}: {
+  items: Array<[string, number]>;
+}) {
+  if (!items.length) {
+    return <p className="text-[11px] text-zinc-400">Sem dados para o grafico.</p>;
+  }
+  const max = Math.max(1, ...items.map(([, v]) => v));
+  return (
+    <div className="rounded-3xl border border-white/10 bg-zinc-950/35 p-4">
+      <div className="space-y-2.5">
+        {items.slice(0, 8).map(([label, value]) => {
+          const pct = Math.max(2, Math.round((value / max) * 100));
+          return (
+            <div key={label} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="truncate text-[11px] font-medium text-zinc-100">{label}</p>
+                <p className="text-[11px] font-semibold text-zinc-100">{money(value)}</p>
+              </div>
+              <div className="mt-2 h-2 rounded-full bg-white/10">
+                <div className="h-full rounded-full bg-accent-500" style={{ width: `${pct}%` }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function CompraProdutosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -414,24 +445,20 @@ export default function CompraProdutosPage() {
             </div>
           </section>
 
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-            <p className="text-[13px] font-black text-white">Precos pagos por produto ao longo do tempo</p>
-            <p className="mt-1 text-[11px] text-zinc-400">Media mensal de preco por produto (top 5 conforme filtros).</p>
-            <div className="mt-4">
-              <PriceTimelineChart months={timeline.months} series={timeline.series} />
+          <section className="grid gap-3 lg:grid-cols-2">
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
+              <p className="text-[13px] font-black text-white">Precos pagos por produto ao longo do tempo</p>
+              <p className="mt-1 text-[11px] text-zinc-400">Media mensal de preco por produto (top 5 conforme filtros).</p>
+              <div className="mt-4">
+                <PriceTimelineChart months={timeline.months} series={timeline.series} />
+              </div>
             </div>
-          </section>
-
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-            <p className="text-[13px] font-black text-white">Por fornecedor</p>
-            <div className="mt-3 space-y-2">
-              {byFornecedor.map(([label, value]) => (
-                <div key={label} className="flex items-center justify-between rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2">
-                  <p className="truncate text-[11px] font-medium text-zinc-100">{label}</p>
-                  <p className="text-[11px] font-semibold text-zinc-100">{money(value)}</p>
-                </div>
-              ))}
-              {!loading && byFornecedor.length === 0 ? <p className="text-[11px] text-zinc-400">Sem dados para o periodo.</p> : null}
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
+              <p className="text-[13px] font-black text-white">Valores por fornecedor</p>
+              <p className="mt-1 text-[11px] text-zinc-400">Top fornecedores por valor no periodo.</p>
+              <div className="mt-4">
+                <SupplierChart items={byFornecedor} />
+              </div>
             </div>
           </section>
 
