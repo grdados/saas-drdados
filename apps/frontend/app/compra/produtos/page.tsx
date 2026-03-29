@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
@@ -29,6 +29,24 @@ function dbr(value?: string | null) {
   return formatDateBR(dt);
 }
 
+function CardIcon({
+  tone,
+  children
+}: {
+  tone: "amber" | "sky" | "emerald" | "rose";
+  children: ReactNode;
+}) {
+  const toneClass =
+    tone === "amber"
+      ? "border-amber-400/35 bg-amber-500/10 text-amber-300"
+      : tone === "sky"
+      ? "border-sky-400/35 bg-sky-500/10 text-sky-300"
+      : tone === "rose"
+      ? "border-rose-400/35 bg-rose-500/10 text-rose-300"
+      : "border-emerald-400/35 bg-emerald-500/10 text-emerald-300";
+  return <div className={`grid h-10 w-10 place-items-center rounded-2xl border ${toneClass}`}>{children}</div>;
+}
+
 type ProductRow = {
   produtoId: number;
   produto: string;
@@ -49,7 +67,7 @@ function PriceTimelineChart({
   series: Array<{ label: string; values: number[]; color: string }>;
 }) {
   if (!months.length || !series.length) {
-    return <p className="text-sm text-zinc-400">Sem dados para o gráfico.</p>;
+    return <p className="text-[11px] text-zinc-400">Sem dados para o grafico.</p>;
   }
   const w = 940;
   const h = 260;
@@ -94,7 +112,7 @@ function PriceTimelineChart({
         {series.map((s) => (
           <div key={s.label} className="inline-flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: s.color }} />
-            <span className="text-xs font-semibold text-zinc-300">{s.label}</span>
+            <span className="text-[11px] font-medium text-zinc-300">{s.label}</span>
           </div>
         ))}
       </div>
@@ -121,10 +139,7 @@ export default function CompraProdutosPage() {
       setLoading(true);
       setError("");
       try {
-        const [fat, ins] = await Promise.all([
-          listFaturamentosCompra(token),
-          listInsumos(token)
-        ]);
+        const [fat, ins] = await Promise.all([listFaturamentosCompra(token), listInsumos(token)]);
         setFaturamentos(fat);
         setInsumos(ins);
       } catch (err) {
@@ -220,10 +235,7 @@ export default function CompraProdutosPage() {
     }
     const months = [...monthSet].sort((a, b) => a.localeCompare(b));
     const topProducts = [...byProduct.entries()]
-      .map(([name, m]) => ({
-        name,
-        total: [...m.values()].reduce((acc, v) => acc + v.count, 0)
-      }))
+      .map(([name, m]) => ({ name, total: [...m.values()].reduce((acc, v) => acc + v.count, 0) }))
       .sort((a, b) => b.total - a.total)
       .slice(0, 5)
       .map((x) => x.name);
@@ -293,15 +305,13 @@ export default function CompraProdutosPage() {
     }
     const rows = [...map.values()].sort((a, b) => b.total - a.total);
     const htmlRows = rows
-      .map(
-        (r) => `<tr><td>${escapeHtml(r.produto)}</td><td>${escapeHtml(r.categoria)}</td><td class="num">${r.qtd.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td><td class="num">${money(r.count > 0 ? r.avg / r.count : 0)}</td><td class="num">${money(r.total)}</td></tr>`
-      )
+      .map((r) => `<tr><td>${escapeHtml(r.produto)}</td><td>${escapeHtml(r.categoria)}</td><td class="num">${r.qtd.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td><td class="num">${money(r.count > 0 ? r.avg / r.count : 0)}</td><td class="num">${money(r.total)}</td></tr>`)
       .join("");
     openPrintHtml(
       "Relatorio resumo de produtos",
       `<div class="kpi">
         <div class="card"><div class="label">Produtos</div><div class="value">${rows.length}</div></div>
-        <div class="card"><div class="label">Quantidade</div><div class="value">${metrics.totalQty.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</div></div>
+        <div class="card"><div class="label">Quantidade</div><div class="value">${metrics.totalQty.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div></div>
         <div class="card"><div class="label">Preco medio</div><div class="value">${money(metrics.avgPrice)}</div></div>
         <div class="card"><div class="label">Valor total</div><div class="value">${money(metrics.totalValue)}</div></div>
       </div>
@@ -313,10 +323,7 @@ export default function CompraProdutosPage() {
   function openAnaliticoReport() {
     const rows = [...allRows].sort((a, b) => `${a.produto}|${a.data}|${a.fornecedor}`.localeCompare(`${b.produto}|${b.data}|${b.fornecedor}`, "pt-BR"));
     const htmlRows = rows
-      .map(
-        (r) =>
-          `<tr><td>${escapeHtml(dbr(r.data))}</td><td>${escapeHtml(r.nf)}</td><td>${escapeHtml(r.produto)}</td><td>${escapeHtml(r.categoria)}</td><td>${escapeHtml(r.fornecedor)}</td><td class="num">${r.preco.toLocaleString("pt-BR", { minimumFractionDigits: 5, maximumFractionDigits: 5 })}</td><td class="num">${r.quantidade.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td><td class="num">${money(r.total)}</td></tr>`
-      )
+      .map((r) => `<tr><td>${escapeHtml(dbr(r.data))}</td><td>${escapeHtml(r.nf)}</td><td>${escapeHtml(r.produto)}</td><td>${escapeHtml(r.categoria)}</td><td>${escapeHtml(r.fornecedor)}</td><td class="num">${r.preco.toLocaleString("pt-BR", { minimumFractionDigits: 5, maximumFractionDigits: 5 })}</td><td class="num">${r.quantidade.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td><td class="num">${money(r.total)}</td></tr>`)
       .join("");
     openPrintHtml(
       "Relatorio analitico de produtos",
@@ -326,108 +333,139 @@ export default function CompraProdutosPage() {
   }
 
   return (
-    <AuthedAdminShell>
+    <AuthedAdminShell hideHeader>
       {() => (
         <div className="space-y-5">
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Compra</p>
-            <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Produtos</h1>
-            <p className="mt-1 text-sm text-zinc-300">Visão analítica de preço, quantidade e fornecedores por produto.</p>
-          </div>
+          <section className="grid gap-3 xl:grid-cols-[minmax(0,420px)_1fr] xl:items-start">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Compra</p>
+              <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Produtos</h1>
+              <p className="mt-1 text-sm text-zinc-300">Visao analitica de preco, quantidade e fornecedores por produto.</p>
+            </div>
+            <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+              <div className="rounded-3xl border border-white/15 bg-zinc-900/55 p-2.5">
+                <div className="flex h-full flex-col justify-between gap-1.5">
+                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Filtros</p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className="w-full rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                      <option value="" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>Categoria</option>
+                      {categorias.map((c) => <option key={c} value={c} style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>{c}</option>)}
+                    </select>
+                    <select value={produtoId} onChange={(e) => setProdutoId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
+                      <option value="" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>Produto</option>
+                      {produtos.map((p) => <option key={p.id} value={p.id} style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>{p.name}</option>)}
+                    </select>
+                    <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-full rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
+                    <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-full rounded-2xl border border-white/15 bg-zinc-950/40 px-3 py-1.5 text-[11px] text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-3xl border border-white/15 bg-zinc-900/55 p-2.5">
+                <div className="flex h-full flex-col justify-between gap-1.5">
+                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Relatorios</p>
+                  <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
+                    <button onClick={openResumoReport} className="min-h-[36px] rounded-2xl border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12px] font-medium text-zinc-100 hover:bg-white/10">Resumo</button>
+                    <button onClick={openAnaliticoReport} className="min-h-[36px] rounded-2xl border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12px] font-medium text-zinc-100 hover:bg-white/10">Analitico</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
 
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-            <div className="flex items-center justify-end gap-2">
-              <button onClick={openResumoReport} className="inline-flex items-center justify-center whitespace-nowrap rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-xs font-black text-white hover:bg-white/10">Relatório resumo</button>
-              <button onClick={openAnaliticoReport} className="inline-flex items-center justify-center whitespace-nowrap rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-xs font-black text-white hover:bg-white/10">Relatório analítico</button>
+          {error ? <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm font-semibold text-amber-200">{error}</div> : null}
+
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-accent-400/30 bg-accent-500/10 p-3">
+              <CardIcon tone="amber">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1v22" /><path d="M17 5.5c0-1.7-2.2-3-5-3s-5 1.3-5 3 2.2 3 5 3 5 1.3 5 3-2.2 3-5 3-5-1.3-5-3" /></svg>
+              </CardIcon>
+              <div className="min-w-0 flex-1 text-right">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Preco medio</p>
+                <p className="mt-1.5 truncate text-[16px] font-black leading-tight text-white">{money(metrics.avgPrice)}</p>
+              </div>
+            </div>
+            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-3">
+              <CardIcon tone="emerald">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="m5 13 4 4L19 7" /></svg>
+              </CardIcon>
+              <div className="min-w-0 flex-1 text-right">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Menor preco</p>
+                <p className="mt-1.5 truncate text-[16px] font-black leading-tight text-white">{metrics.min ? money(metrics.min.preco) : money(0)}</p>
+              </div>
+            </div>
+            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-rose-400/30 bg-rose-500/10 p-3">
+              <CardIcon tone="rose">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.3 3.5 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.5a2 2 0 0 0-3.4 0z" /></svg>
+              </CardIcon>
+              <div className="min-w-0 flex-1 text-right">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Maior preco</p>
+                <p className="mt-1.5 truncate text-[16px] font-black leading-tight text-white">{metrics.max ? money(metrics.max.preco) : money(0)}</p>
+              </div>
+            </div>
+            <div className="flex h-[88px] items-center gap-3 rounded-3xl border border-sky-400/30 bg-sky-500/10 p-3">
+              <CardIcon tone="sky">
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7h16M4 12h10M4 17h16" /></svg>
+              </CardIcon>
+              <div className="min-w-0 flex-1 text-right">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Valor no periodo</p>
+                <p className="mt-1.5 truncate text-[16px] font-black leading-tight text-white">{money(metrics.totalValue)}</p>
+                <p className="mt-0.5 text-[10px] font-semibold text-zinc-300">Qtd.: {metrics.totalQty.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+              </div>
             </div>
           </section>
 
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
-                <option value="" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>Categoria</option>
-                {categorias.map((c) => <option key={c} value={c} style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>{c}</option>)}
-              </select>
-              <select value={produtoId} onChange={(e) => setProdutoId(e.target.value === "" ? "" : Number(e.target.value))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50">
-                <option value="" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>Produto</option>
-                {produtos.map((p) => <option key={p.id} value={p.id} style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>{p.name}</option>)}
-              </select>
-              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
-              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-accent-500/50 [color-scheme:dark]" />
-            </div>
-            {error ? <div className="mt-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm font-semibold text-amber-200">{error}</div> : null}
-          </section>
-
-          <section className="grid gap-4 lg:grid-cols-4">
-            <div className="rounded-3xl border border-accent-400/30 bg-accent-500/10 p-4">
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Preço médio</p>
-              <p className="mt-2 text-2xl font-black text-white">{money(metrics.avgPrice)}</p>
-            </div>
-            <div className="rounded-3xl border border-emerald-400/30 bg-emerald-500/10 p-4">
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Menor preço</p>
-              <p className="mt-2 text-2xl font-black text-white">{metrics.min ? money(metrics.min.preco) : money(0)}</p>
-              <p className="mt-2 text-xs text-zinc-300">{metrics.min ? `${dbr(metrics.min.data)} · ${metrics.min.fornecedor}` : "-"}</p>
-            </div>
-            <div className="rounded-3xl border border-rose-400/30 bg-rose-500/10 p-4">
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Maior preço</p>
-              <p className="mt-2 text-2xl font-black text-white">{metrics.max ? money(metrics.max.preco) : money(0)}</p>
-              <p className="mt-2 text-xs text-zinc-300">{metrics.max ? `${dbr(metrics.max.data)} · ${metrics.max.fornecedor}` : "-"}</p>
-            </div>
-            <div className="rounded-3xl border border-sky-400/30 bg-sky-500/10 p-4">
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Relação no período</p>
-              <p className="mt-2 text-2xl font-black text-white">{money(metrics.totalValue)}</p>
-              <p className="mt-2 text-xs text-zinc-300">Qtd.: {metrics.totalQty.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</p>
-            </div>
-          </section>
-
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-            <p className="text-sm font-black text-white">Preços pagos por produto ao longo do tempo</p>
-            <p className="mt-1 text-xs text-zinc-400">Média mensal de preço por produto (top 5 conforme filtros).</p>
+            <p className="text-[13px] font-black text-white">Precos pagos por produto ao longo do tempo</p>
+            <p className="mt-1 text-[11px] text-zinc-400">Media mensal de preco por produto (top 5 conforme filtros).</p>
             <div className="mt-4">
               <PriceTimelineChart months={timeline.months} series={timeline.series} />
             </div>
           </section>
 
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-            <p className="text-sm font-black text-white">Por fornecedor</p>
+            <p className="text-[13px] font-black text-white">Por fornecedor</p>
             <div className="mt-3 space-y-2">
               {byFornecedor.map(([label, value]) => (
                 <div key={label} className="flex items-center justify-between rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2">
-                  <p className="text-sm font-semibold text-zinc-100">{label}</p>
-                  <p className="text-sm font-black text-zinc-100">{money(value)}</p>
+                  <p className="truncate text-[11px] font-medium text-zinc-100">{label}</p>
+                  <p className="text-[11px] font-semibold text-zinc-100">{money(value)}</p>
                 </div>
               ))}
-              {!loading && byFornecedor.length === 0 ? <p className="text-sm text-zinc-400">Sem dados para o período.</p> : null}
+              {!loading && byFornecedor.length === 0 ? <p className="text-[11px] text-zinc-400">Sem dados para o periodo.</p> : null}
             </div>
           </section>
 
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-black text-white">Produtos comprados</p>
-              <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${allRows.length} registro(s)`}</p>
+              <p className="text-[13px] font-black text-white">Produtos comprados</p>
+              <p className="text-[11px] font-semibold text-zinc-400">{loading ? "Carregando..." : `${allRows.length} registro(s)`}</p>
             </div>
-            <div className="mt-3 hidden grid-cols-12 gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 md:grid">
-              <div className="col-span-2">Data</div>
-              <div className="col-span-2">NF</div>
-              <div className="col-span-2">Produto</div>
-              <div className="col-span-2">Categoria</div>
-              <div className="col-span-2">Fornecedor</div>
-              <div className="col-span-1 text-right">Qtd.</div>
-              <div className="col-span-1 text-right">Valor</div>
-            </div>
-            <div className="mt-3 space-y-2">
-              {allRows.map((r, idx) => (
-                <div key={`${r.produtoId}-${idx}-${r.nf}`} className="grid grid-cols-1 gap-2 rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3 md:grid-cols-12 md:items-center md:gap-3">
-                  <div className="md:col-span-2 text-sm font-semibold text-zinc-100">{dbr(r.data)}</div>
-                  <div className="md:col-span-2 text-sm font-semibold text-zinc-100">{r.nf}</div>
-                  <div className="md:col-span-2 text-sm font-black text-zinc-100">{r.produto}</div>
-                  <div className="md:col-span-2 text-sm font-semibold text-zinc-100">{r.categoria}</div>
-                  <div className="md:col-span-2 text-sm font-semibold text-zinc-100">{r.fornecedor}</div>
-                  <div className="md:col-span-1 text-right text-sm font-black text-zinc-100">{r.quantidade.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</div>
-                  <div className="md:col-span-1 text-right text-sm font-black text-zinc-100">{money(r.total)}</div>
-                </div>
-              ))}
-              {!loading && allRows.length === 0 ? <div className="rounded-2xl border border-white/10 bg-zinc-950/30 p-4 text-sm text-zinc-300">Nenhum dado de produto para os filtros selecionados.</div> : null}
+            <div className="mt-3 overflow-x-auto">
+              <div className="hidden min-w-[980px] grid-cols-[88px_90px_160px_130px_170px_86px_110px] gap-1.5 rounded-2xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400 md:grid">
+                <div>Data</div>
+                <div>NF</div>
+                <div>Produto</div>
+                <div>Categoria</div>
+                <div>Fornecedor</div>
+                <div className="text-right">Qtd.</div>
+                <div className="text-right">Valor</div>
+              </div>
+              <div className="mt-3 space-y-2">
+                {allRows.map((r, idx) => (
+                  <div key={`${r.produtoId}-${idx}-${r.nf}`} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5 hover:bg-white/5">
+                    <div className="grid min-w-[980px] grid-cols-1 gap-1.5 md:grid-cols-[88px_90px_160px_130px_170px_86px_110px] md:items-center md:gap-1.5">
+                      <div className="text-[11px] font-medium text-zinc-100">{dbr(r.data)}</div>
+                      <div className="text-[11px] font-medium text-zinc-100">{r.nf}</div>
+                      <div className="truncate text-[11px] font-medium text-zinc-100">{r.produto}</div>
+                      <div className="truncate text-[11px] font-medium text-zinc-100">{r.categoria}</div>
+                      <div className="truncate text-[11px] font-medium text-zinc-100">{r.fornecedor}</div>
+                      <div className="text-right text-[11px] font-medium text-zinc-100">{r.quantidade.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                      <div className="text-right text-[11px] font-medium text-zinc-100">{money(r.total)}</div>
+                    </div>
+                  </div>
+                ))}
+                {!loading && allRows.length === 0 ? <div className="rounded-2xl border border-white/10 bg-zinc-950/30 p-4 text-sm text-zinc-300">Nenhum dado de produto para os filtros selecionados.</div> : null}
+              </div>
             </div>
           </section>
         </div>

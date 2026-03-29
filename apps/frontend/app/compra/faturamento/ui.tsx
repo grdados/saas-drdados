@@ -121,16 +121,15 @@ function CardIcon({
 function SimpleLineChart({ points }: { points: Array<{ label: string; value: number }> }) {
   const w = 720;
   const h = 170;
-  const pad = 12;
+  const pad = 22;
   const max = Math.max(1, ...points.map((p) => p.value));
 
-  const poly = points
-    .map((p, i) => {
-      const x = pad + (i * (w - pad * 2)) / Math.max(1, points.length - 1);
-      const y = pad + (1 - p.value / max) * (h - pad * 2);
-      return `${x},${y}`;
-    })
-    .join(" ");
+  const chartPoints = points.map((p, i) => {
+    const x = pad + (i * (w - pad * 2)) / Math.max(1, points.length - 1);
+    const y = pad + (1 - p.value / max) * (h - pad * 2);
+    return { ...p, x, y };
+  });
+  const poly = chartPoints.map((p) => `${p.x},${p.y}`).join(" ");
 
   return (
     <div className="overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/40 p-4">
@@ -146,6 +145,14 @@ function SimpleLineChart({ points }: { points: Array<{ label: string; value: num
         ))}
         <polyline points={poly} fill="none" stroke="rgba(223,152,48,0.95)" strokeWidth="3" />
         <polygon points={`${poly} ${w - pad},${h - pad} ${pad},${h - pad}`} fill="url(#fillA)" />
+        {chartPoints.map((p) => (
+          <g key={`${p.label}-${p.x}`}>
+            <circle cx={p.x} cy={p.y} r="5.5" fill="rgba(223,152,48,0.95)" stroke="rgba(24,24,27,1)" strokeWidth="2" />
+            <text x={p.x} y={Math.max(14, p.y - 10)} textAnchor="middle" fontSize="11" fontWeight="700" fill="rgba(244,244,245,0.95)">
+              {money(p.value)}
+            </text>
+          </g>
+        ))}
       </svg>
     </div>
   );
@@ -155,20 +162,20 @@ function BarList({ title, items }: { title: string; items: Array<{ label: string
   const max = Math.max(1, ...items.map((i) => i.value));
   return (
     <section className="rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.06)_inset] backdrop-blur-xl">
-      <p className="text-sm font-black text-white">{title}</p>
+      <p className="text-[13px] font-black text-white">{title}</p>
       <div className="mt-4 space-y-2">
         {items.slice(0, 8).map((it) => (
           <div key={it.label} className="rounded-2xl border border-white/10 bg-zinc-950/35 p-3">
-            <div className="flex items-center justify-between gap-3">
-              <p className="truncate text-sm font-semibold text-zinc-100">{it.label}</p>
-              <p className="text-sm font-black text-zinc-100">{money(it.value)}</p>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+              <p className="truncate text-[11px] font-medium text-zinc-100">{it.label}</p>
+              <p className="text-[11px] font-semibold text-zinc-100">{money(it.value)}</p>
             </div>
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/5">
               <div className="h-full rounded-full bg-accent-500/80" style={{ width: `${Math.round((it.value / max) * 100)}%` }} />
             </div>
           </div>
         ))}
-        {items.length === 0 ? <p className="text-sm text-zinc-400">Sem dados.</p> : null}
+        {items.length === 0 ? <p className="text-[11px] text-zinc-400">Sem dados.</p> : null}
       </div>
     </section>
   );
@@ -997,17 +1004,9 @@ export default function FaturamentoCompraPage() {
             <div className="mt-4">
               <SimpleLineChart points={temporalPoints} />
             </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-4">
-              {temporalPoints.map((p) => (
-                <div key={p.label} className="rounded-2xl border border-white/10 bg-zinc-950/35 p-2 text-center">
-                  <p className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">{p.label}</p>
-                  <p className="mt-1 text-sm font-black text-zinc-100">{money(p.value)}</p>
-                </div>
-              ))}
-            </div>
           </section>
 
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             <BarList title="Por categoria" items={byCategoria} />
             <BarList title="Por fornecedor" items={byFornecedor} />
             <BarList title="Por produtor" items={byProdutor} />
