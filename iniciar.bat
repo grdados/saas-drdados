@@ -4,6 +4,7 @@ setlocal
 set "ROOT=%~dp0"
 set "BACKEND_DIR=%ROOT%apps\backend"
 set "FRONTEND_DIR=%ROOT%apps\frontend"
+set "SQLITE_DB=%BACKEND_DIR%\db.sqlite3"
 
 set "PY_EXE=%ROOT%.venv-1\Scripts\python.exe"
 if not exist "%PY_EXE%" set "PY_EXE=%ROOT%.venv\Scripts\python.exe"
@@ -16,7 +17,7 @@ if not exist "%PY_EXE%" (
 )
 
 echo Iniciando backend...
-start "GR Dados Backend" cmd /k "cd /d ""%BACKEND_DIR%"" && set DATABASE_URL=sqlite:///db.sqlite3 && ""%PY_EXE%"" manage.py migrate && ""%PY_EXE%"" manage.py runserver"
+start "GR Dados Backend" cmd /k "cd /d ""%BACKEND_DIR%"" && set DATABASE_URL=sqlite:///%SQLITE_DB:\=/% && ""%PY_EXE%"" manage.py migrate && ""%PY_EXE%"" manage.py runserver"
 
 echo Iniciando frontend...
 start "GR Dados Frontend" cmd /k "cd /d ""%FRONTEND_DIR%"" && npm run dev"

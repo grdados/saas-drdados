@@ -46,6 +46,11 @@ function fmtMm(v: number) {
   return `${v.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 1 })} mm`;
 }
 
+function fmtDateShort(isoDate: string) {
+  if (!isoDate) return "-";
+  return formatDateBR(new Date(`${isoDate}T00:00:00`)).slice(0, 5);
+}
+
 type FormState = {
   date: string;
   empreendimento_id: string;
@@ -179,16 +184,58 @@ export default function ChuvasPage() {
   const acumuladoMm = useMemo(() => filtered.reduce((acc, x) => acc + n(x.volume_mm), 0), [filtered]);
   const classificacao = classificarChuva(acumuladoMm);
 
-  const serie = useMemo(() => {
-    const rows = [...filtered].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
-    let acc = 0;
-    return rows.map((x) => {
-      acc += n(x.volume_mm);
-      return { date: x.date || "", value: acc };
-    });
+  const chartDates = useMemo(() => {
+    return [...new Set(filtered.map((x) => x.date || "").filter(Boolean))].sort((a, b) => a.localeCompare(b));
   }, [filtered]);
 
-  const maxSerie = useMemo(() => Math.max(1, ...serie.map((s) => s.value)), [serie]);
+  const linhasPorEmpreendimento = useMemo(() => {
+    const byEmp = new Map<
+      string,
+      {
+        code: string;
+        volumeByDate: Map<string, number>;
+      }
+    >();
+
+    for (const x of filtered) {
+      const eid = String(x.empreendimento_id ?? x.empreendimento?.id ?? "");
+      const date = x.date || "";
+      if (!eid || !date) continue;
+      const row = byEmp.get(eid) ?? {
+        code: x.empreendimento?.code || `Empreendimento ${eid}`,
+        volumeByDate: new Map<string, number>()
+      };
+      row.volumeByDate.set(date, (row.volumeByDate.get(date) || 0) + n(x.volume_mm));
+      byEmp.set(eid, row);
+    }
+
+    return Array.from(byEmp.entries()).map(([id, row]) => {
+      let acc = 0;
+      const points = chartDates.map((date) => {
+        acc += row.volumeByDate.get(date) || 0;
+        return { date, value: acc };
+      });
+      return { id, code: row.code, points };
+    });
+  }, [filtered, chartDates]);
+
+  const maxSerie = useMemo(
+    () => Math.max(1, ...linhasPorEmpreendimento.flatMap((s) => s.points.map((p) => p.value))),
+    [linhasPorEmpreendimento]
+  );
+
+  const lineColors = useMemo(
+    () => [
+      "rgba(16,185,129,0.95)",
+      "rgba(56,189,248,0.95)",
+      "rgba(250,204,21,0.95)",
+      "rgba(244,114,182,0.95)",
+      "rgba(167,139,250,0.95)",
+      "rgba(251,146,60,0.95)",
+      "rgba(52,211,153,0.95)"
+    ],
+    []
+  );
 
   function openCreate() {
     setEditingId(null);
@@ -355,34 +402,57 @@ export default function ChuvasPage() {
           <section className="rounded-3xl border border-white/10 bg-white/5 p-3.5">
             <div className="mb-3 flex items-center justify-between">
               <p className="text-[14px] font-black text-white">Linha de chuva acumulada</p>
-              <p className="text-xs font-semibold text-zinc-400">{serie.length} ponto(s)</p>
+              <p className="text-xs font-semibold text-zinc-400">{chartDates.length} ponto(s)</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-              {serie.length ? (
-                <svg viewBox="0 0 100 36" className="h-40 w-full">
-                  <polyline
-                    fill="none"
-                    stroke="rgba(16,185,129,0.9)"
-                    strokeWidth="1.2"
-                    points={serie.map((p, i) => {
-                      const x = serie.length > 1 ? (i / (serie.length - 1)) * 100 : 50;
-                      const y = 34 - (p.value / maxSerie) * 30;
-                      return `${x},${y}`;
-                    }).join(" ")}
-                  />
-                  {serie.map((p, i) => {
-                    const x = serie.length > 1 ? (i / (serie.length - 1)) * 100 : 50;
-                    const y = 34 - (p.value / maxSerie) * 30;
-                    return (
-                      <g key={`${p.date}-${i}`}>
-                        <circle cx={x} cy={y} r="0.9" fill="rgba(16,185,129,1)" />
-                        <text x={x} y={Math.max(2, y - 2)} textAnchor="middle" fontSize="2.4" fill="rgba(167,243,208,0.95)">
-                          {Math.round(p.value)}
-                        </text>
-                      </g>
-                    );
-                  })}
-                </svg>
+              {linhasPorEmpreendimento.length && chartDates.length ? (
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    {linhasPorEmpreendimento.map((line, idx) => (
+                      <div key={line.id} className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1">
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: lineColors[idx % lineColors.length] }}
+                        />
+                        <span className="text-[10px] font-semibold text-zinc-200">{line.code}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <svg viewBox="0 0 100 40" className="h-48 w-full">
+                    {linhasPorEmpreendimento.map((line, idx) => {
+                      const color = lineColors[idx % lineColors.length];
+                      return (
+                        <g key={line.id}>
+                          <polyline
+                            fill="none"
+                            stroke={color}
+                            strokeWidth="0.95"
+                            points={line.points
+                              .map((p, i) => {
+                                const x = chartDates.length > 1 ? (i / (chartDates.length - 1)) * 100 : 50;
+                                const y = 32 - (p.value / maxSerie) * 26;
+                                return `${x},${y}`;
+                              })
+                              .join(" ")}
+                          />
+                          {line.points.map((p, i) => {
+                            const x = chartDates.length > 1 ? (i / (chartDates.length - 1)) * 100 : 50;
+                            const y = 32 - (p.value / maxSerie) * 26;
+                            return (
+                              <g key={`${line.id}-${p.date}-${i}`}>
+                                <circle cx={x} cy={y} r="0.65" fill={color} />
+                                <text x={x} y={Math.max(2, y - 1.8)} textAnchor="middle" fontSize="1.9" fill={color}>
+                                  {fmtDateShort(p.date)} • {Math.round(p.value)}
+                                </text>
+                              </g>
+                            );
+                          })}
+                        </g>
+                      );
+                    })}
+                  </svg>
+                </div>
               ) : (
                 <p className="text-sm text-zinc-500">Sem dados para o período.</p>
               )}

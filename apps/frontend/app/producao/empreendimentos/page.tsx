@@ -57,6 +57,12 @@ function classifyRainMm(totalMm: number) {
   if (totalMm <= 100) return "Bom";
   return "Excelente";
 }
+function rainDateShort(value: string) {
+  if (!value) return "-";
+  const dt = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(dt.getTime())) return value;
+  return formatDateBR(dt).slice(0, 5);
+}
 function normalizeText(v: string) {
   return (v || "")
     .normalize("NFD")
@@ -292,29 +298,10 @@ export default function EmpreendimentosPage() {
 
   const chuvaPanel = useMemo(() => {
     const includedIds = new Set(filtered.map((e) => String(e.id)));
-    const bounds = new Map<string, { start?: string; end?: string }>();
-    for (const emp of filtered) {
-      let start = "";
-      let end = "";
-      for (const item of emp.items || []) {
-        const p = item.plant_date || "";
-        if (p && (!start || p < start)) start = p;
-        const c = item.close_date || "";
-        if (c && (!end || c > end)) end = c;
-      }
-      const finalEnd = end || new Date().toISOString().slice(0, 10);
-      bounds.set(String(emp.id), { start: start || undefined, end: finalEnd });
-    }
-
     const base = chuvas
       .filter((x) => {
         const eid = String(x.empreendimento_id ?? x.empreendimento?.id ?? "");
         if (!includedIds.has(eid)) return false;
-        const dt = x.date || "";
-        const b = bounds.get(eid);
-        if (!b) return false;
-        if (b.start && dt && dt < b.start) return false;
-        if (b.end && dt && dt > b.end) return false;
         return true;
       })
       .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
@@ -335,36 +322,46 @@ export default function EmpreendimentosPage() {
 
   const chuvaPanelEmp = useMemo(() => {
     const selectedId = rainEmpFilter || String(filtered[0]?.id ?? "");
-    if (!selectedId) return { totalMm: 0, status: "Pouca chuva", points: [] as Array<{ date: string; value: number }>, max: 1 };
-    const emp = filtered.find((e) => String(e.id) === selectedId);
-    if (!emp) return { totalMm: 0, status: "Pouca chuva", points: [] as Array<{ date: string; value: number }>, max: 1 };
-
-    let start = "";
-    let end = "";
-    for (const item of emp.items || []) {
-      const p = item.plant_date || "";
-      if (p && (!start || p < start)) start = p;
-      const c = item.close_date || "";
-      if (c && (!end || c > end)) end = c;
+    if (!selectedId) {
+      return {
+        totalMm: 0,
+        status: "Pouca chuva",
+        points: [] as Array<{ date: string; value: number; daily: number }>,
+        max: 1
+      };
     }
-    const finalEnd = end || new Date().toISOString().slice(0, 10);
+    const emp = filtered.find((e) => String(e.id) === selectedId);
+    if (!emp) {
+      return {
+        totalMm: 0,
+        status: "Pouca chuva",
+        points: [] as Array<{ date: string; value: number; daily: number }>,
+        max: 1
+      };
+    }
 
     const base = chuvas
       .filter((x) => {
         const eid = String(x.empreendimento_id ?? x.empreendimento?.id ?? "");
         if (eid !== selectedId) return false;
-        const dt = x.date || "";
-        if (start && dt && dt < start) return false;
-        if (finalEnd && dt && dt > finalEnd) return false;
         return true;
       })
       .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
 
+    const dailyByDate = new Map<string, number>();
+    for (const row of base) {
+      const key = row.date || "";
+      if (!key) continue;
+      dailyByDate.set(key, (dailyByDate.get(key) || 0) + n(row.volume_mm));
+    }
+
     let acc = 0;
-    const points = base.map((x) => {
-      acc += n(x.volume_mm);
-      return { date: x.date || "", value: acc };
-    });
+    const points = Array.from(dailyByDate.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, daily]) => {
+        acc += daily;
+        return { date, daily, value: acc };
+      });
     return {
       totalMm: acc,
       status: classifyRainMm(acc),
@@ -1045,8 +1042,8 @@ export default function EmpreendimentosPage() {
                     return (
                       <g key={`${p.date}-${i}`}>
                         <circle cx={x} cy={y} r="0.85" fill="rgba(125,211,252,1)" />
-                        <text x={x} y={Math.max(2, y - 2)} textAnchor="middle" fontSize="2.4" fill="rgba(186,230,253,0.95)">
-                          {Math.round(p.value)}
+                        <text x={x} y={Math.max(2, y - 2)} textAnchor="middle" fontSize="2.1" fill="rgba(186,230,253,0.95)">
+                          {rainDateShort(p.date)} · {p.daily.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}mm
                         </text>
                       </g>
                     );

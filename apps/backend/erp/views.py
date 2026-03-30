@@ -3,10 +3,13 @@ from django.db.utils import IntegrityError, OperationalError, ProgrammingError
 from rest_framework import permissions, status, viewsets
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
+import logging
 
 from accounts.permissions import get_current_company
 
 from . import models, serializers
+
+logger = logging.getLogger(__name__)
 
 
 class CompanyScopedViewSet(viewsets.ModelViewSet):
@@ -37,6 +40,7 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
         Converte alguns erros comuns de banco para JSON amigavel.
         """
         if isinstance(exc, (ProgrammingError, OperationalError)):
+            logger.exception("ERP DB error in %s: %s", self.__class__.__name__, exc)
             return Response(
                 {
                     "detail": "Erro de banco ao acessar o ERP. Verifique se as migracoes foram aplicadas e se a base esta acessivel."
@@ -65,6 +69,7 @@ class CompanyScopedReadOnlyViewSet(viewsets.ReadOnlyModelViewSet):
 
     def handle_exception(self, exc):
         if isinstance(exc, (ProgrammingError, OperationalError)):
+            logger.exception("ERP DB error in %s: %s", self.__class__.__name__, exc)
             return Response(
                 {
                     "detail": "Erro de banco ao acessar o ERP. Verifique se as migracoes foram aplicadas e se a base esta acessivel."
