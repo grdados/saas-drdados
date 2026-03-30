@@ -794,16 +794,16 @@ export default function PedidoCompraPage() {
     <AuthedAdminShell hideHeader>
       {() => (
         <div className="space-y-5">
-          <section className="grid gap-3 xl:grid-cols-[minmax(0,420px)_1fr] xl:items-start">
+          <section className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Compra</p>
               <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Pedido</h1>
               <p className="mt-1 text-sm text-zinc-300">Pedidos de compra de insumos.</p>
             </div>
-            <div className="rounded-3xl border border-white/15 bg-zinc-900/55 p-2.5">
+            <div className="w-full rounded-3xl border border-white/15 bg-zinc-900/55 p-2.5 xl:w-auto xl:min-w-[520px]">
               <div className="flex h-full flex-col justify-between gap-1.5">
                 <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Relatórios</p>
-                <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
+                <div className="flex flex-wrap items-center gap-1.5 xl:justify-end">
                   <button onClick={openResumoReport} className="min-h-[36px] rounded-2xl border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12px] font-medium text-zinc-100 hover:bg-white/10">Relatório resumo</button>
                   <button onClick={openAnaliticoReport} className="min-h-[36px] rounded-2xl border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12px] font-medium text-zinc-100 hover:bg-white/10">Relatório analítico</button>
                   <button onClick={openCreate} className="min-h-[36px] rounded-2xl bg-accent-500 px-3.5 py-1.5 text-[12px] font-black text-zinc-950 hover:bg-accent-400">Novo pedido</button>

@@ -346,13 +346,13 @@ export default function ChuvasPage() {
     <AuthedAdminShell hideHeader>
       {() => (
         <div className="space-y-5">
-          <section className="grid gap-3 xl:grid-cols-[minmax(320px,0.95fr)_minmax(0,2.05fr)] xl:items-start">
+          <section className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Produção</p>
               <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Chuvas</h1>
               <p className="mt-1 text-sm text-zinc-300">Registro e monitoramento de volume de chuva por empreendimento.</p>
             </div>
-            <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-3.5">
+            <section className="w-full rounded-3xl border border-white/15 bg-zinc-900/55 p-3.5 xl:w-auto xl:min-w-[420px]">
               <p className="mb-2 text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Relatórios</p>
               <div className="flex flex-wrap items-center gap-2">
                 <button onClick={() => window.print()} className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-zinc-100 hover:bg-white/10">Resumo</button>
