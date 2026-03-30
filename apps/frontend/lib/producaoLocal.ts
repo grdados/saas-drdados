@@ -44,6 +44,7 @@ export type Romaneio = {
   operacao_id: number | null;
   safra_id: number | null;
   produtor_id: number | null;
+  produto_id?: number | null;
   contrato_id: number | null;
   empreendimento_id: string | null;
   propriedade_id: number | null;
@@ -62,10 +63,28 @@ export type Romaneio = {
   ardido: number;
   others: number;
   net_weight: number;
+  status?: "pending" | "ok";
+};
+
+export type ContraNotaEntrada = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  romaneio_id: string;
+  romaneio_code: string;
+  nfp_ref: string;
+  operacao: "remessa_deposito" | "a_fixar";
+  date: string;
+  nota_fiscal: string;
+  chave: string;
 };
 
 const EMPREENDIMENTOS_KEY = "grdados.producao.empreendimentos.v1";
 const ROMANEIOS_KEY = "grdados.producao.romaneios.v1";
+const CONTRA_NOTAS_KEY = "grdados.producao.contra_notas_entrada.v1";
+const EMPREENDIMENTOS_LEGACY_KEYS = ["grdados.producao.empreendimentos"];
+const ROMANEIOS_LEGACY_KEYS = ["grdados.producao.romaneios"];
+const CONTRA_NOTAS_LEGACY_KEYS = ["grdados.producao.contra_notas_entrada"];
 
 function safeRead<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -93,7 +112,16 @@ export function uid(prefix: string) {
 }
 
 export function loadEmpreendimentos() {
-  return safeRead<Empreendimento[]>(EMPREENDIMENTOS_KEY, []);
+  const current = safeRead<Empreendimento[]>(EMPREENDIMENTOS_KEY, []);
+  if (current.length || typeof window === "undefined") return current;
+  for (const key of EMPREENDIMENTOS_LEGACY_KEYS) {
+    const rows = safeRead<Empreendimento[]>(key, []);
+    if (rows.length) {
+      safeWrite(EMPREENDIMENTOS_KEY, rows);
+      return rows;
+    }
+  }
+  return current;
 }
 
 export function saveEmpreendimentos(rows: Empreendimento[]) {
@@ -101,11 +129,37 @@ export function saveEmpreendimentos(rows: Empreendimento[]) {
 }
 
 export function loadRomaneios() {
-  return safeRead<Romaneio[]>(ROMANEIOS_KEY, []);
+  const current = safeRead<Romaneio[]>(ROMANEIOS_KEY, []);
+  if (current.length || typeof window === "undefined") return current;
+  for (const key of ROMANEIOS_LEGACY_KEYS) {
+    const rows = safeRead<Romaneio[]>(key, []);
+    if (rows.length) {
+      safeWrite(ROMANEIOS_KEY, rows);
+      return rows;
+    }
+  }
+  return current;
 }
 
 export function saveRomaneios(rows: Romaneio[]) {
   safeWrite(ROMANEIOS_KEY, rows);
+}
+
+export function loadContraNotasEntrada() {
+  const current = safeRead<ContraNotaEntrada[]>(CONTRA_NOTAS_KEY, []);
+  if (current.length || typeof window === "undefined") return current;
+  for (const key of CONTRA_NOTAS_LEGACY_KEYS) {
+    const rows = safeRead<ContraNotaEntrada[]>(key, []);
+    if (rows.length) {
+      safeWrite(CONTRA_NOTAS_KEY, rows);
+      return rows;
+    }
+  }
+  return current;
+}
+
+export function saveContraNotasEntrada(rows: ContraNotaEntrada[]) {
+  safeWrite(CONTRA_NOTAS_KEY, rows);
 }
 
 export function calcItemProduction(unit: UnidadeProducao, areaHa: number, produtividade: number) {

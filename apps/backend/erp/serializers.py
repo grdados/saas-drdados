@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 from uuid import uuid4
 
+from django.db import transaction
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
 from rest_framework import serializers
@@ -1976,3 +1977,456 @@ class DepositoSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Deposito
         fields = ["id", "name", "tipo", "is_active", "created_at", "updated_at"]
+
+
+class RomaneioGraosSerializer(serializers.ModelSerializer):
+    safra = serializers.SerializerMethodField()
+    safra_id = serializers.PrimaryKeyRelatedField(source="safra", queryset=models.Safra.objects.all(), allow_null=True, required=False)
+    produtor = serializers.SerializerMethodField()
+    produtor_id = serializers.PrimaryKeyRelatedField(source="produtor", queryset=models.Produtor.objects.all(), allow_null=True, required=False)
+    cliente = serializers.SerializerMethodField()
+    cliente_id = serializers.PrimaryKeyRelatedField(source="cliente", queryset=models.Cliente.objects.all(), allow_null=True, required=False)
+    produto = serializers.SerializerMethodField()
+    produto_id = serializers.PrimaryKeyRelatedField(source="produto", queryset=models.Produto.objects.all(), allow_null=True, required=False)
+    deposito = serializers.SerializerMethodField()
+    deposito_id = serializers.PrimaryKeyRelatedField(source="deposito", queryset=models.Deposito.objects.all(), allow_null=True, required=False)
+    operacao = serializers.SerializerMethodField()
+    operacao_id = serializers.PrimaryKeyRelatedField(source="operacao", queryset=models.Operacao.objects.all(), allow_null=True, required=False)
+
+    class Meta:
+        model = models.RomaneioGraos
+        fields = [
+            "id",
+            "date",
+            "code",
+            "nfp",
+            "safra",
+            "safra_id",
+            "produtor",
+            "produtor_id",
+            "cliente",
+            "cliente_id",
+            "produto",
+            "produto_id",
+            "deposito",
+            "deposito_id",
+            "operacao",
+            "operacao_id",
+            "quantity_kg",
+            "status",
+            "notes",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_safra(self, obj):
+        if not getattr(obj, "safra_id", None):
+            return None
+        return {"id": obj.safra_id, "name": obj.safra.name}
+
+    def get_produtor(self, obj):
+        if not getattr(obj, "produtor_id", None):
+            return None
+        return {"id": obj.produtor_id, "name": obj.produtor.name}
+
+    def get_cliente(self, obj):
+        if not getattr(obj, "cliente_id", None):
+            return None
+        return {"id": obj.cliente_id, "name": obj.cliente.name}
+
+    def get_produto(self, obj):
+        if not getattr(obj, "produto_id", None):
+            return None
+        return {"id": obj.produto_id, "name": obj.produto.name}
+
+    def get_deposito(self, obj):
+        if not getattr(obj, "deposito_id", None):
+            return None
+        return {"id": obj.deposito_id, "name": obj.deposito.name, "tipo": obj.deposito.tipo}
+
+    def get_operacao(self, obj):
+        if not getattr(obj, "operacao_id", None):
+            return None
+        return {"id": obj.operacao_id, "name": obj.operacao.name, "kind": obj.operacao.kind}
+
+    def validate(self, attrs):
+        company = get_current_company(self.context["request"].user) if self.context.get("request") else None
+        _validate_fk_company(attrs.get("safra"), company, "safra_id")
+        _validate_fk_company(attrs.get("produtor"), company, "produtor_id")
+        _validate_fk_company(attrs.get("cliente"), company, "cliente_id")
+        _validate_fk_company(attrs.get("produto"), company, "produto_id")
+        _validate_fk_company(attrs.get("deposito"), company, "deposito_id")
+        _validate_fk_company(attrs.get("operacao"), company, "operacao_id")
+        return attrs
+
+
+class EstoqueGraosSaldoSerializer(serializers.ModelSerializer):
+    safra = serializers.SerializerMethodField()
+    produtor = serializers.SerializerMethodField()
+    cliente = serializers.SerializerMethodField()
+    produto = serializers.SerializerMethodField()
+    deposito = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.EstoqueGraosSaldo
+        fields = [
+            "id",
+            "safra",
+            "produtor",
+            "cliente",
+            "produto",
+            "deposito",
+            "saldo_em_deposito_kg",
+            "saldo_a_fixar_kg",
+            "total_devolucao_kg",
+            "total_vendas_kg",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_safra(self, obj):
+        if not getattr(obj, "safra_id", None):
+            return None
+        return {"id": obj.safra_id, "name": obj.safra.name}
+
+    def get_produtor(self, obj):
+        if not getattr(obj, "produtor_id", None):
+            return None
+        return {"id": obj.produtor_id, "name": obj.produtor.name}
+
+    def get_cliente(self, obj):
+        if not getattr(obj, "cliente_id", None):
+            return None
+        return {"id": obj.cliente_id, "name": obj.cliente.name}
+
+    def get_produto(self, obj):
+        if not getattr(obj, "produto_id", None):
+            return None
+        return {"id": obj.produto_id, "name": obj.produto.name}
+
+    def get_deposito(self, obj):
+        if not getattr(obj, "deposito_id", None):
+            return None
+        return {"id": obj.deposito_id, "name": obj.deposito.name, "tipo": obj.deposito.tipo}
+
+
+class NotaFiscalGraosSerializer(serializers.ModelSerializer):
+    romaneio = serializers.SerializerMethodField()
+    romaneio_id = serializers.PrimaryKeyRelatedField(source="romaneio", queryset=models.RomaneioGraos.objects.all(), allow_null=True, required=False)
+    nota_entrada_ref = serializers.SerializerMethodField()
+    nota_entrada_ref_id = serializers.PrimaryKeyRelatedField(source="nota_entrada_ref", queryset=models.NotaFiscalGraos.objects.all(), allow_null=True, required=False)
+    safra = serializers.SerializerMethodField()
+    safra_id = serializers.PrimaryKeyRelatedField(source="safra", queryset=models.Safra.objects.all(), allow_null=True, required=False)
+    produtor = serializers.SerializerMethodField()
+    produtor_id = serializers.PrimaryKeyRelatedField(source="produtor", queryset=models.Produtor.objects.all(), allow_null=True, required=False)
+    cliente = serializers.SerializerMethodField()
+    cliente_id = serializers.PrimaryKeyRelatedField(source="cliente", queryset=models.Cliente.objects.all(), allow_null=True, required=False)
+    produto = serializers.SerializerMethodField()
+    produto_id = serializers.PrimaryKeyRelatedField(source="produto", queryset=models.Produto.objects.all(), allow_null=True, required=False)
+    deposito = serializers.SerializerMethodField()
+    deposito_id = serializers.PrimaryKeyRelatedField(source="deposito", queryset=models.Deposito.objects.all(), allow_null=True, required=False)
+    operacao = serializers.SerializerMethodField()
+    operacao_id = serializers.PrimaryKeyRelatedField(source="operacao", queryset=models.Operacao.objects.all(), allow_null=True, required=False)
+
+    class Meta:
+        model = models.NotaFiscalGraos
+        fields = [
+            "id",
+            "tipo",
+            "finalidade",
+            "status",
+            "date",
+            "due_date",
+            "number",
+            "romaneio",
+            "romaneio_id",
+            "nota_entrada_ref",
+            "nota_entrada_ref_id",
+            "safra",
+            "safra_id",
+            "produtor",
+            "produtor_id",
+            "cliente",
+            "cliente_id",
+            "produto",
+            "produto_id",
+            "deposito",
+            "deposito_id",
+            "operacao",
+            "operacao_id",
+            "quantity_kg",
+            "price",
+            "discount",
+            "total_value",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["total_value"]
+
+    def get_romaneio(self, obj):
+        if not getattr(obj, "romaneio_id", None):
+            return None
+        return {"id": obj.romaneio_id, "code": obj.romaneio.code, "nfp": obj.romaneio.nfp}
+
+    def get_nota_entrada_ref(self, obj):
+        if not getattr(obj, "nota_entrada_ref_id", None):
+            return None
+        return {"id": obj.nota_entrada_ref_id, "number": obj.nota_entrada_ref.number}
+
+    def get_safra(self, obj):
+        if not getattr(obj, "safra_id", None):
+            return None
+        return {"id": obj.safra_id, "name": obj.safra.name}
+
+    def get_produtor(self, obj):
+        if not getattr(obj, "produtor_id", None):
+            return None
+        return {"id": obj.produtor_id, "name": obj.produtor.name}
+
+    def get_cliente(self, obj):
+        if not getattr(obj, "cliente_id", None):
+            return None
+        return {"id": obj.cliente_id, "name": obj.cliente.name}
+
+    def get_produto(self, obj):
+        if not getattr(obj, "produto_id", None):
+            return None
+        return {"id": obj.produto_id, "name": obj.produto.name}
+
+    def get_deposito(self, obj):
+        if not getattr(obj, "deposito_id", None):
+            return None
+        return {"id": obj.deposito_id, "name": obj.deposito.name, "tipo": obj.deposito.tipo}
+
+    def get_operacao(self, obj):
+        if not getattr(obj, "operacao_id", None):
+            return None
+        return {"id": obj.operacao_id, "name": obj.operacao.name, "kind": obj.operacao.kind}
+
+    def _copy_context_from_reference(self, attrs):
+        ref = attrs.get("nota_entrada_ref")
+        if not ref:
+            return
+        attrs.setdefault("safra", ref.safra)
+        attrs.setdefault("produtor", ref.produtor)
+        attrs.setdefault("cliente", ref.cliente)
+        attrs.setdefault("produto", ref.produto)
+        attrs.setdefault("deposito", ref.deposito)
+
+    def _copy_context_from_romaneio(self, attrs):
+        rom = attrs.get("romaneio")
+        if not rom:
+            return
+        attrs.setdefault("safra", rom.safra)
+        attrs.setdefault("produtor", rom.produtor)
+        attrs.setdefault("cliente", rom.cliente)
+        attrs.setdefault("produto", rom.produto)
+        attrs.setdefault("deposito", rom.deposito)
+        attrs.setdefault("operacao", rom.operacao)
+
+    def _validate_saida_saldo(self, attrs):
+        if attrs.get("tipo") != models.NotaFiscalGraos.Tipo.SAIDA:
+            return
+        entrada = attrs.get("nota_entrada_ref")
+        if not entrada:
+            raise serializers.ValidationError({"nota_entrada_ref_id": "Informe a NF de entrada de referencia."})
+        qty = attrs.get("quantity_kg") or Decimal("0")
+        if qty <= 0:
+            raise serializers.ValidationError({"quantity_kg": "Quantidade deve ser maior que zero."})
+        if entrada.tipo != models.NotaFiscalGraos.Tipo.ENTRADA:
+            raise serializers.ValidationError({"nota_entrada_ref_id": "A referencia deve ser uma NF de entrada."})
+        used_qs = models.NotaFiscalGraos.objects.filter(
+            nota_entrada_ref=entrada,
+            tipo=models.NotaFiscalGraos.Tipo.SAIDA,
+        ).exclude(status=models.NotaFiscalGraos.Status.CANCELED)
+        if self.instance and self.instance.pk:
+            used_qs = used_qs.exclude(pk=self.instance.pk)
+        used = used_qs.aggregate(v=Coalesce(Sum("quantity_kg"), Decimal("0")))["v"] or Decimal("0")
+        available = (entrada.quantity_kg or Decimal("0")) - used
+        if qty > available:
+            raise serializers.ValidationError(
+                {"quantity_kg": f"Quantidade acima do saldo disponivel da entrada. Disponivel: {available} KG."}
+            )
+
+    def validate(self, attrs):
+        company = get_current_company(self.context["request"].user) if self.context.get("request") else None
+        _validate_fk_company(attrs.get("romaneio"), company, "romaneio_id")
+        _validate_fk_company(attrs.get("nota_entrada_ref"), company, "nota_entrada_ref_id")
+        _validate_fk_company(attrs.get("safra"), company, "safra_id")
+        _validate_fk_company(attrs.get("produtor"), company, "produtor_id")
+        _validate_fk_company(attrs.get("cliente"), company, "cliente_id")
+        _validate_fk_company(attrs.get("produto"), company, "produto_id")
+        _validate_fk_company(attrs.get("deposito"), company, "deposito_id")
+        _validate_fk_company(attrs.get("operacao"), company, "operacao_id")
+
+        tipo = attrs.get("tipo", getattr(self.instance, "tipo", None))
+        finalidade = attrs.get("finalidade", getattr(self.instance, "finalidade", None))
+
+        if tipo == models.NotaFiscalGraos.Tipo.ENTRADA and finalidade not in {
+            models.NotaFiscalGraos.Finalidade.REMESSA_DEPOSITO,
+            models.NotaFiscalGraos.Finalidade.A_FIXAR,
+        }:
+            raise serializers.ValidationError({"finalidade": "Entrada aceita apenas Remessa para deposito ou A Fixar."})
+
+        if tipo == models.NotaFiscalGraos.Tipo.SAIDA and finalidade not in {
+            models.NotaFiscalGraos.Finalidade.DEVOLUCAO,
+            models.NotaFiscalGraos.Finalidade.VENDA,
+        }:
+            raise serializers.ValidationError({"finalidade": "Saida aceita apenas Devolucao ou Venda."})
+
+        self._copy_context_from_romaneio(attrs)
+        self._copy_context_from_reference(attrs)
+        self._validate_saida_saldo(attrs)
+
+        qty = attrs.get("quantity_kg", getattr(self.instance, "quantity_kg", Decimal("0"))) or Decimal("0")
+        price = attrs.get("price", getattr(self.instance, "price", Decimal("0"))) or Decimal("0")
+        discount = attrs.get("discount", getattr(self.instance, "discount", Decimal("0"))) or Decimal("0")
+        total = (qty * price) - discount
+        attrs["total_value"] = total if total > 0 else Decimal("0")
+        return attrs
+
+    @classmethod
+    def rebuild_company_grain_state(cls, company):
+        # 1) recalcula status das NFs de entrada/saida.
+        entradas = models.NotaFiscalGraos.objects.filter(
+            company=company,
+            tipo=models.NotaFiscalGraos.Tipo.ENTRADA,
+        ).exclude(status=models.NotaFiscalGraos.Status.CANCELED)
+        for entrada in entradas:
+            saidas = models.NotaFiscalGraos.objects.filter(
+                company=company,
+                tipo=models.NotaFiscalGraos.Tipo.SAIDA,
+                nota_entrada_ref=entrada,
+            ).exclude(status=models.NotaFiscalGraos.Status.CANCELED)
+            consumed = saidas.aggregate(v=Coalesce(Sum("quantity_kg"), Decimal("0")))["v"] or Decimal("0")
+            total_entrada = entrada.quantity_kg or Decimal("0")
+            remaining = total_entrada - consumed
+            if remaining < 0:
+                remaining = Decimal("0")
+
+            if remaining <= 0 and total_entrada > 0:
+                new_status = models.NotaFiscalGraos.Status.FIXADO
+            elif consumed > 0:
+                new_status = models.NotaFiscalGraos.Status.FIXADO_PARCIAL
+            else:
+                new_status = (
+                    models.NotaFiscalGraos.Status.EM_DEPOSITO
+                    if entrada.finalidade == models.NotaFiscalGraos.Finalidade.REMESSA_DEPOSITO
+                    else models.NotaFiscalGraos.Status.A_FIXAR
+                )
+            if entrada.status != new_status:
+                entrada.status = new_status
+                entrada.save(update_fields=["status", "updated_at"])
+
+        saidas = models.NotaFiscalGraos.objects.filter(
+            company=company,
+            tipo=models.NotaFiscalGraos.Tipo.SAIDA,
+        ).exclude(status=models.NotaFiscalGraos.Status.CANCELED)
+        for saida in saidas:
+            new_status = models.NotaFiscalGraos.Status.PENDENTE
+            if saida.due_date and saida.due_date < date.today():
+                new_status = models.NotaFiscalGraos.Status.VENCIDO
+            if saida.status != new_status:
+                saida.status = new_status
+                saida.save(update_fields=["status", "updated_at"])
+
+        # 2) sincroniza status de romaneio: OK se possuir pelo menos uma NF de entrada ativa.
+        models.RomaneioGraos.objects.filter(company=company).update(status=models.RomaneioGraos.Status.PENDING)
+        rom_ids = (
+            models.NotaFiscalGraos.objects.filter(
+                company=company,
+                tipo=models.NotaFiscalGraos.Tipo.ENTRADA,
+                romaneio__isnull=False,
+            )
+            .exclude(status=models.NotaFiscalGraos.Status.CANCELED)
+            .values_list("romaneio_id", flat=True)
+            .distinct()
+        )
+        if rom_ids:
+            models.RomaneioGraos.objects.filter(company=company, id__in=rom_ids).update(status=models.RomaneioGraos.Status.OK)
+
+        # 3) reconstrói saldos por chave.
+        models.EstoqueGraosSaldo.objects.filter(company=company).delete()
+        saldos = {}
+
+        for entrada in entradas:
+            key = (
+                entrada.safra_id,
+                entrada.produtor_id,
+                entrada.cliente_id,
+                entrada.produto_id,
+                entrada.deposito_id,
+            )
+            if key not in saldos:
+                saldos[key] = {
+                    "saldo_em_deposito_kg": Decimal("0"),
+                    "saldo_a_fixar_kg": Decimal("0"),
+                    "total_devolucao_kg": Decimal("0"),
+                    "total_vendas_kg": Decimal("0"),
+                }
+            consumed = (
+                models.NotaFiscalGraos.objects.filter(
+                    company=company,
+                    tipo=models.NotaFiscalGraos.Tipo.SAIDA,
+                    nota_entrada_ref=entrada,
+                )
+                .exclude(status=models.NotaFiscalGraos.Status.CANCELED)
+                .aggregate(v=Coalesce(Sum("quantity_kg"), Decimal("0")))["v"]
+                or Decimal("0")
+            )
+            remaining = (entrada.quantity_kg or Decimal("0")) - consumed
+            if remaining < 0:
+                remaining = Decimal("0")
+
+            if entrada.finalidade == models.NotaFiscalGraos.Finalidade.REMESSA_DEPOSITO:
+                saldos[key]["saldo_em_deposito_kg"] += remaining
+            else:
+                saldos[key]["saldo_a_fixar_kg"] += remaining
+
+        for saida in saidas:
+            key = (
+                saida.safra_id,
+                saida.produtor_id,
+                saida.cliente_id,
+                saida.produto_id,
+                saida.deposito_id,
+            )
+            if key not in saldos:
+                saldos[key] = {
+                    "saldo_em_deposito_kg": Decimal("0"),
+                    "saldo_a_fixar_kg": Decimal("0"),
+                    "total_devolucao_kg": Decimal("0"),
+                    "total_vendas_kg": Decimal("0"),
+                }
+            if saida.finalidade == models.NotaFiscalGraos.Finalidade.DEVOLUCAO:
+                saldos[key]["total_devolucao_kg"] += saida.quantity_kg or Decimal("0")
+            elif saida.finalidade == models.NotaFiscalGraos.Finalidade.VENDA:
+                saldos[key]["total_vendas_kg"] += saida.quantity_kg or Decimal("0")
+
+        for key, values in saldos.items():
+            models.EstoqueGraosSaldo.objects.create(
+                company=company,
+                safra_id=key[0],
+                produtor_id=key[1],
+                cliente_id=key[2],
+                produto_id=key[3],
+                deposito_id=key[4],
+                saldo_em_deposito_kg=values["saldo_em_deposito_kg"],
+                saldo_a_fixar_kg=values["saldo_a_fixar_kg"],
+                total_devolucao_kg=values["total_devolucao_kg"],
+                total_vendas_kg=values["total_vendas_kg"],
+            )
+
+    def create(self, validated_data):
+        with transaction.atomic():
+            obj = models.NotaFiscalGraos.objects.create(**validated_data)
+            self.rebuild_company_grain_state(obj.company)
+            return obj
+
+    def update(self, instance, validated_data):
+        with transaction.atomic():
+            for k, v in validated_data.items():
+                setattr(instance, k, v)
+            instance.save()
+            self.rebuild_company_grain_state(instance.company)
+            return instance

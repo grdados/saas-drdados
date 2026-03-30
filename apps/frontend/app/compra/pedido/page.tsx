@@ -160,6 +160,10 @@ export default function PedidoCompraPage() {
   >([]);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
+  const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<PedidoCompra | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const billedByPedidoItem = useMemo(() => {
     const map = new Map<number, number>();
@@ -328,6 +332,7 @@ export default function PedidoCompraPage() {
 
   function openCreate() {
     setEditingId(null);
+    setSaveConfirmOpen(false);
     setFormDate("");
     setFormCode("");
     setFormGrupoId("");
@@ -351,6 +356,7 @@ export default function PedidoCompraPage() {
       return;
     }
     setEditingId(id);
+    setSaveConfirmOpen(false);
     setFormDate(p.date ?? "");
     setFormCode(p.code ?? "");
     setFormGrupoId(p.grupo?.id ?? "");
@@ -390,8 +396,6 @@ export default function PedidoCompraPage() {
         return;
       }
     }
-    const confirmText = editingId ? "Confirmar edição do pedido?" : "Confirmar novo pedido?";
-    if (!window.confirm(confirmText)) return;
     setSaving(true);
     setSaveMessage("");
     try {
@@ -438,23 +442,28 @@ export default function PedidoCompraPage() {
   async function onDelete(id: number) {
     const token = getAccessToken();
     if (!token) return;
-    const pedido = pedidos.find((p) => p.id === id);
+    const pedido = deleteTarget ?? pedidos.find((p) => p.id === id) ?? null;
     if (pedido && isPedidoLockedForChanges(pedido, billedByPedidoItem)) {
       window.alert("Não é permitido excluir pedido com status Faturado ou Fat. Parcial.");
       return;
     }
-    const ok = window.confirm("Excluir este pedido?");
-    if (!ok) return;
+    setDeleting(true);
+    setDeleteError("");
     try {
       await deletePedidoCompra(token, id);
       setPedidos((prev) => prev.filter((p) => p.id !== id));
+      setDeleteTarget(null);
       if (editingId === id) {
         setOpen(false);
         setEditingId(null);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      setError((msg || "").trim() || "Falha ao excluir pedido.");
+      const message = (msg || "").trim() || "Falha ao excluir pedido.";
+      setDeleteError(message);
+      setError(message);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -943,7 +952,10 @@ export default function PedidoCompraPage() {
                           </svg>
                         </button>
                         <button
-                          onClick={() => onDelete(p.id)}
+                          onClick={() => {
+                            setDeleteError("");
+                            setDeleteTarget(p);
+                          }}
                           disabled={locked}
                           className={`rounded-lg border p-1.5 ${
                             locked
@@ -980,6 +992,92 @@ export default function PedidoCompraPage() {
             </div>
           </section>
 
+          {deleteTarget ? (
+            <div className="fixed inset-0 z-50 grid place-items-center px-4">
+              <button
+                className="absolute inset-0 bg-zinc-950/70 backdrop-blur-sm"
+                onClick={() => !deleting && setDeleteTarget(null)}
+                aria-label="Fechar confirmação de exclusão"
+              />
+              <div className="relative w-full max-w-[560px] rounded-3xl border border-white/15 bg-zinc-900/90 p-5 shadow-2xl">
+                <p className="text-base font-black text-white">Excluir pedido</p>
+                <p className="mt-1 text-sm text-zinc-300">
+                  Você está excluindo o pedido <span className="font-semibold text-white">{deleteTarget.code || `#${deleteTarget.id}`}</span>.
+                </p>
+                <div className="mt-4 rounded-2xl border border-rose-400/20 bg-rose-500/10 p-3 text-[12px] text-rose-100">
+                  <p className="font-semibold">Impactos da exclusão:</p>
+                  <p className="mt-1">1. O pedido e todos os itens serão excluídos.</p>
+                  <p>2. Contas a pagar de origem Pedido sem pagamento serão removidas.</p>
+                  <p>3. Se existir pagamento vinculado, a exclusão será bloqueada.</p>
+                  <p>4. Faturamentos já realizados para este pedido impedem exclusão.</p>
+                </div>
+                <p className="mt-3 text-[12px] text-zinc-400">A ação é irreversível.</p>
+                {deleteError ? (
+                  <div className="mt-3 rounded-2xl border border-rose-400/25 bg-rose-500/10 p-3 text-[12px] text-rose-100">
+                    {deleteError}
+                  </div>
+                ) : null}
+                <div className="mt-4 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDeleteTarget(null)}
+                    disabled={deleting}
+                    className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-zinc-100 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(deleteTarget.id)}
+                    disabled={deleting}
+                    className="rounded-2xl border border-rose-400/30 bg-rose-500/20 px-4 py-2 text-sm font-black text-rose-100 hover:bg-rose-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {deleting ? "Excluindo..." : "Confirmar exclusão"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {saveConfirmOpen ? (
+            <div className="fixed inset-0 z-[60] grid place-items-center px-4">
+              <button
+                className="absolute inset-0 bg-zinc-950/70 backdrop-blur-sm"
+                onClick={() => !saving && setSaveConfirmOpen(false)}
+                aria-label="Fechar confirmação de salvamento"
+              />
+              <div className="relative w-full max-w-[520px] rounded-3xl border border-white/15 bg-zinc-900/90 p-5 shadow-2xl">
+                <p className="text-base font-black text-white">Confirmar salvamento</p>
+                <p className="mt-1 text-sm text-zinc-300">
+                  {editingId
+                    ? "Você está prestes a salvar alterações no pedido. Os totais serão recalculados."
+                    : "Você está prestes a criar um novo pedido com os itens informados."}
+                </p>
+                <div className="mt-4 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSaveConfirmOpen(false)}
+                    disabled={saving}
+                    className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-zinc-100 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSaveConfirmOpen(false);
+                      void onSave();
+                    }}
+                    disabled={saving}
+                    className="rounded-2xl border border-accent-400/30 bg-accent-500/20 px-4 py-2 text-sm font-black text-accent-100 hover:bg-accent-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {saving ? "Salvando..." : "Confirmar"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           {/* Modal */}
           {open ? (
             <div className="fixed inset-0 z-50 grid place-items-center px-4">
@@ -1003,7 +1101,7 @@ export default function PedidoCompraPage() {
                   className="max-h-[78vh] overflow-auto p-5"
                   onSubmit={(e) => {
                     e.preventDefault();
-                    void onSave();
+                    setSaveConfirmOpen(true);
                   }}
                   onKeyDown={(e) => {
                     if (e.key !== "Enter" || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;

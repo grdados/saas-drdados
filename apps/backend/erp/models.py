@@ -676,3 +676,146 @@ class Deposito(CompanyNamedModel):
         COMBUSTIVEL = "combustivel", "Combustivel"
 
     tipo = models.CharField(max_length=20, choices=Tipo.choices, default=Tipo.INSUMOS)
+
+
+class RomaneioGraos(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pendente"
+        OK = "ok", "OK"
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    date = models.DateField(null=True, blank=True)
+    code = models.CharField(max_length=60, blank=True, default="")
+    nfp = models.CharField(max_length=60, blank=True, default="")
+
+    safra = models.ForeignKey("erp.Safra", null=True, blank=True, on_delete=models.PROTECT)
+    produtor = models.ForeignKey("erp.Produtor", null=True, blank=True, on_delete=models.PROTECT)
+    cliente = models.ForeignKey("erp.Cliente", null=True, blank=True, on_delete=models.PROTECT)
+    produto = models.ForeignKey("erp.Produto", null=True, blank=True, on_delete=models.PROTECT)
+    deposito = models.ForeignKey("erp.Deposito", null=True, blank=True, on_delete=models.PROTECT)
+    operacao = models.ForeignKey("erp.Operacao", null=True, blank=True, on_delete=models.PROTECT)
+
+    quantity_kg = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    notes = models.TextField(blank=True, default="")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-date", "-id"]
+        indexes = [
+            models.Index(fields=["company", "date"]),
+            models.Index(fields=["company", "nfp"]),
+            models.Index(fields=["company", "status"]),
+        ]
+
+    def __str__(self) -> str:
+        return self.code or self.nfp or f"ROM {self.id}"
+
+    def save(self, *args, **kwargs):
+        if isinstance(self.code, str) and self.code:
+            self.code = self.code.strip().upper()
+        if isinstance(self.nfp, str) and self.nfp:
+            self.nfp = self.nfp.strip().upper()
+        return super().save(*args, **kwargs)
+
+
+class NotaFiscalGraos(models.Model):
+    class Tipo(models.TextChoices):
+        ENTRADA = "entrada", "Entrada"
+        SAIDA = "saida", "Saida"
+
+    class Finalidade(models.TextChoices):
+        REMESSA_DEPOSITO = "remessa_deposito", "Remessa para deposito"
+        A_FIXAR = "a_fixar", "A Fixar"
+        DEVOLUCAO = "devolucao", "Devolucao"
+        VENDA = "venda", "Venda"
+
+    class Status(models.TextChoices):
+        EM_DEPOSITO = "em_deposito", "Em deposito"
+        A_FIXAR = "a_fixar", "A fixar"
+        FIXADO_PARCIAL = "fixado_parcial", "Fixado parcial"
+        FIXADO = "fixado", "Fixado"
+        PENDENTE = "pendente", "Pendente"
+        VENCIDO = "vencido", "Vencido"
+        RECEBIDO = "recebido", "Recebido"
+        CANCELED = "canceled", "Cancelado"
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    tipo = models.CharField(max_length=20, choices=Tipo.choices)
+    finalidade = models.CharField(max_length=24, choices=Finalidade.choices)
+    status = models.CharField(max_length=24, choices=Status.choices, default=Status.PENDENTE)
+
+    date = models.DateField(null=True, blank=True)
+    due_date = models.DateField(null=True, blank=True)
+    number = models.CharField(max_length=60, blank=True, default="")
+
+    romaneio = models.ForeignKey("erp.RomaneioGraos", null=True, blank=True, on_delete=models.PROTECT, related_name="notas")
+    nota_entrada_ref = models.ForeignKey("self", null=True, blank=True, on_delete=models.PROTECT, related_name="notas_saida")
+
+    safra = models.ForeignKey("erp.Safra", null=True, blank=True, on_delete=models.PROTECT)
+    produtor = models.ForeignKey("erp.Produtor", null=True, blank=True, on_delete=models.PROTECT)
+    cliente = models.ForeignKey("erp.Cliente", null=True, blank=True, on_delete=models.PROTECT)
+    produto = models.ForeignKey("erp.Produto", null=True, blank=True, on_delete=models.PROTECT)
+    deposito = models.ForeignKey("erp.Deposito", null=True, blank=True, on_delete=models.PROTECT)
+    operacao = models.ForeignKey("erp.Operacao", null=True, blank=True, on_delete=models.PROTECT)
+
+    quantity_kg = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    price = models.DecimalField(max_digits=14, decimal_places=5, default=0)
+    discount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    total_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-date", "-id"]
+        indexes = [
+            models.Index(fields=["company", "date"]),
+            models.Index(fields=["company", "number"]),
+            models.Index(fields=["company", "tipo"]),
+            models.Index(fields=["company", "status"]),
+        ]
+
+    def __str__(self) -> str:
+        return self.number or f"NF GRAOS {self.id}"
+
+    def save(self, *args, **kwargs):
+        if isinstance(self.number, str) and self.number:
+            self.number = self.number.strip().upper()
+        return super().save(*args, **kwargs)
+
+
+class EstoqueGraosSaldo(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    safra = models.ForeignKey("erp.Safra", null=True, blank=True, on_delete=models.PROTECT)
+    produtor = models.ForeignKey("erp.Produtor", null=True, blank=True, on_delete=models.PROTECT)
+    cliente = models.ForeignKey("erp.Cliente", null=True, blank=True, on_delete=models.PROTECT)
+    produto = models.ForeignKey("erp.Produto", null=True, blank=True, on_delete=models.PROTECT)
+    deposito = models.ForeignKey("erp.Deposito", null=True, blank=True, on_delete=models.PROTECT)
+
+    saldo_em_deposito_kg = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    saldo_a_fixar_kg = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    total_devolucao_kg = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    total_vendas_kg = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company", "safra", "produtor", "cliente", "produto", "deposito"],
+                name="erp_estoque_graos_saldo_unique_chave",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["company", "safra"]),
+            models.Index(fields=["company", "produto"]),
+            models.Index(fields=["company", "deposito"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"SALDO GRAOS {self.id}"

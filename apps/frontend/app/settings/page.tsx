@@ -59,6 +59,10 @@ export default function SettingsPage() {
   const [activeArchiveId, setActiveArchiveId] = useState<number | null>(null);
   const [backupMessage, setBackupMessage] = useState("");
   const [uploadRestoreLoading, setUploadRestoreLoading] = useState(false);
+  const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
+  const [restoreConfirmText, setRestoreConfirmText] = useState("");
+  const [pendingRestoreArchive, setPendingRestoreArchive] = useState<BackupArchive | null>(null);
+  const [pendingRestoreFile, setPendingRestoreFile] = useState<File | null>(null);
   const restoreFileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -159,12 +163,7 @@ export default function SettingsPage() {
     }
   }
 
-  async function handleRestoreBackup(archive: BackupArchive) {
-    const confirmed = window.confirm(
-      `Restaurar o backup ${archive.filename}? Esta acao substitui os dados atuais da empresa por esse snapshot.`
-    );
-    if (!confirmed) return;
-
+  async function executeRestoreBackup(archive: BackupArchive) {
     const token = getAccessToken();
     if (!token) {
       window.location.href = "/login";
@@ -188,12 +187,7 @@ export default function SettingsPage() {
     }
   }
 
-  async function handleRestoreFromUpload(file: File) {
-    const confirmed = window.confirm(
-      `Restaurar o arquivo ${file.name}? Esta acao substitui os dados atuais da empresa por esse snapshot.`
-    );
-    if (!confirmed) return;
-
+  async function executeRestoreFromUpload(file: File) {
     const token = getAccessToken();
     if (!token) {
       window.location.href = "/login";
@@ -216,6 +210,38 @@ export default function SettingsPage() {
       setUploadRestoreLoading(false);
       if (restoreFileInputRef.current) restoreFileInputRef.current.value = "";
     }
+  }
+
+  function handleRestoreBackup(archive: BackupArchive) {
+    setPendingRestoreArchive(archive);
+    setPendingRestoreFile(null);
+    setRestoreConfirmText(`Você está prestes a restaurar o backup ${archive.filename}.`);
+    setRestoreConfirmOpen(true);
+  }
+
+  function handleRestoreFromUpload(file: File) {
+    setPendingRestoreArchive(null);
+    setPendingRestoreFile(file);
+    setRestoreConfirmText(`Você está prestes a restaurar o arquivo ${file.name}.`);
+    setRestoreConfirmOpen(true);
+  }
+
+  async function confirmRestoreAction() {
+    setRestoreConfirmOpen(false);
+    if (pendingRestoreArchive) {
+      await executeRestoreBackup(pendingRestoreArchive);
+    } else if (pendingRestoreFile) {
+      await executeRestoreFromUpload(pendingRestoreFile);
+    }
+    setPendingRestoreArchive(null);
+    setPendingRestoreFile(null);
+  }
+
+  function cancelRestoreAction() {
+    setRestoreConfirmOpen(false);
+    setPendingRestoreArchive(null);
+    setPendingRestoreFile(null);
+    if (restoreFileInputRef.current) restoreFileInputRef.current.value = "";
   }
 
   async function handleScheduleSave() {
@@ -535,6 +561,38 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+
+        {restoreConfirmOpen ? (
+          <div className="fixed inset-0 z-[70] grid place-items-center px-4">
+            <button className="absolute inset-0 bg-zinc-950/70 backdrop-blur-sm" onClick={cancelRestoreAction} />
+            <div className="relative w-full max-w-[560px] rounded-3xl border border-white/15 bg-zinc-900/95 p-5 shadow-2xl">
+              <p className="text-base font-black text-white">Confirmar restauração</p>
+              <p className="mt-2 text-sm text-zinc-300">{restoreConfirmText}</p>
+              <div className="mt-3 rounded-2xl border border-rose-400/20 bg-rose-500/10 p-3 text-[12px] text-rose-100">
+                <p className="font-semibold">Impactos da restauração:</p>
+                <p className="mt-1">1. Os dados atuais da empresa serão substituídos pelo snapshot selecionado.</p>
+                <p>2. O histórico local será atualizado para refletir o backup restaurado.</p>
+                <p>3. Esta ação não pode ser desfeita.</p>
+              </div>
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  onClick={cancelRestoreAction}
+                  disabled={activeArchiveId !== null || uploadRestoreLoading}
+                  className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200 hover:bg-white/10 disabled:opacity-60"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => void confirmRestoreAction()}
+                  disabled={activeArchiveId !== null || uploadRestoreLoading}
+                  className="rounded-2xl border border-rose-400/30 bg-rose-500/20 px-4 py-2 text-sm font-black text-rose-100 hover:bg-rose-500/30 disabled:opacity-60"
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </section>
     </AdminShell>
   );

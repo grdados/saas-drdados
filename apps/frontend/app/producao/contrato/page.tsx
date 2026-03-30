@@ -59,6 +59,9 @@ function d(s?: string | null) {
 function brMoney(v: number) {
   return `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
+function brNumberMoney(v: number) {
+  return v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 function formatCompactNumber(v: number) {
   return v.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
 }
@@ -136,6 +139,9 @@ export default function ContratoVendaPage() {
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
   const [saveConfirmText, setSaveConfirmText] = useState("");
   const saveConfirmResolverRef = useRef<((result: boolean) => void) | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ContratoVenda | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const [form, setForm] = useState({ date: "", code: "", grupo_id: "", produtor_id: "", cliente_id: "", safra_id: "", due_date: "", operacao_id: "", status: "pending", notes: "", rows: [{ produto_id: "", unit: "KG", quantity: "0", price: "0", discount: "0" }] });
 
   const filtered = useMemo(() => contracts.filter((c) => {
@@ -171,7 +177,7 @@ export default function ContratoVendaPage() {
     return toViewUnit(kgValue).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
   }
   function formatViewUnitRow(kgValue: number) {
-    return `${formatViewUnitValue(kgValue)} ${viewUnitLabel}`;
+    return formatViewUnitValue(kgValue);
   }
 
   const chartByContrato = useMemo(
@@ -213,7 +219,11 @@ export default function ContratoVendaPage() {
   function requestSaveConfirm(isEditing: boolean) {
     return new Promise<boolean>((resolve) => {
       saveConfirmResolverRef.current = resolve;
-      setSaveConfirmText(isEditing ? "Confirmar edicao do contrato?" : "Confirmar novo contrato?");
+      setSaveConfirmText(
+        isEditing
+          ? "Você está prestes a salvar alterações no contrato."
+          : "Você está prestes a criar um novo contrato."
+      );
       setSaveConfirmOpen(true);
     });
   }
@@ -276,8 +286,19 @@ export default function ContratoVendaPage() {
 
   async function remove(id: number) {
     const token = getAccessToken(); if (!token) return;
-    if (!window.confirm("Excluir este contrato?")) return;
-    try { await deleteContratoVenda(token, id); await refresh(); } catch (err) { setError(err instanceof Error ? err.message : "Falha ao excluir contrato."); }
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await deleteContratoVenda(token, id);
+      setDeleteTarget(null);
+      await refresh();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Falha ao excluir contrato.";
+      setDeleteError(message);
+      setError(message);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   function reportResumo() {
@@ -509,13 +530,47 @@ export default function ContratoVendaPage() {
           <section className="rounded-3xl border border-white/10 bg-white/5 p-3.5">
             <div className="flex items-center justify-between"><p className="text-[13px] font-black text-white">Lista</p><p className="text-[11px] font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} contrato(s)`}</p></div>
             <div className="mt-2.5 overflow-x-auto">
-                <div className="hidden min-w-[1178px] grid-cols-[76px_82px_96px_138px_154px_94px_96px_74px_96px_34px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.15em] text-zinc-400 xl:grid"><div>Status</div><div>Data</div><div>Contrato</div><div>Cliente</div><div>Produtor</div><div>Vencimento</div><div>Quantidade</div><div>Preço</div><div>Valor</div><div className="text-right">Ações</div></div>
-                <div className="mt-2.5 space-y-2 xl:min-w-[1178px]">
+                <div className="hidden min-w-[1036px] grid-cols-[88px_84px_102px_160px_200px_98px_118px_90px_100px_52px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] uppercase tracking-[0.15em] text-zinc-400 xl:grid"><div>Status</div><div>Data</div><div>Contrato</div><div>Cliente</div><div>Produtor</div><div>Vencimento</div><div>Quantidade ({viewUnitLabel})</div><div>Preço (R$)</div><div>Valor (R$)</div><div className="text-center">Ações</div></div>
+                <div className="mt-2.5 space-y-2 xl:min-w-[1036px]">
                   {filtered.map((c) => {
                     const qty = (c.items || []).reduce((acc, i) => acc + qtyToKg(i.quantity, i.unit), 0);
                     const avgPrice = qty > 0 ? n(c.total_value) / qty : 0;
                     const st = statusMeta(c.status);
-                  return <div key={c.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5"><div className="grid grid-cols-1 gap-2 xl:grid-cols-[76px_82px_96px_138px_154px_94px_96px_74px_96px_34px] xl:items-center xl:gap-2"><div><span className={`inline-flex rounded-full border px-2 py-1 text-[10px] font-black ${st.cls}`}>{st.label}</span></div><div className="text-[12px] text-zinc-100">{d(c.date)}</div><div className="text-[12px] font-black text-zinc-100">{c.code || `#${c.id}`}</div><div className="truncate text-[12px] text-zinc-100">{c.cliente?.name ?? "-"}</div><div className="truncate text-[12px] text-zinc-100">{c.produtor?.name ?? "-"}</div><div className="text-[12px] text-zinc-100">{d(c.due_date)}</div><div className="text-[12px] text-zinc-100">{formatViewUnitRow(qty)}</div><div className="text-[12px] text-zinc-100">{brMoney(avgPrice)}</div><div className="text-[12px] font-black text-zinc-100">{brMoney(n(c.total_value))}</div><div className="text-right"><div className="flex w-full flex-nowrap justify-end gap-0.5 whitespace-nowrap"><button onClick={() => openEdit(c)} className="rounded-md border border-sky-400/25 bg-sky-500/10 p-[3px] text-sky-200 hover:bg-sky-500/20" title="Editar" aria-label="Editar"><svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg></button><button onClick={() => void remove(c.id)} className="rounded-md border border-rose-400/25 bg-rose-500/10 p-[3px] text-rose-200 hover:bg-rose-500/20" title="Excluir" aria-label="Excluir"><svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg></button></div></div></div></div>;
+                    return (
+                      <div key={c.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5">
+                        <div className="grid grid-cols-1 gap-2 xl:grid-cols-[88px_84px_102px_160px_200px_98px_118px_90px_100px_52px] xl:items-center xl:gap-2">
+                          <div>
+                            <span className={`inline-flex rounded-full border px-2 py-1 text-[11px] font-medium ${st.cls}`}>{st.label}</span>
+                          </div>
+                          <div className="text-[11px] font-normal text-zinc-100">{d(c.date)}</div>
+                          <div className="text-[11px] font-normal text-zinc-100">{c.code || `#${c.id}`}</div>
+                          <div className="truncate text-[11px] font-normal text-zinc-100">{c.cliente?.name ?? "-"}</div>
+                          <div className="truncate text-[11px] font-normal text-zinc-100">{c.produtor?.name ?? "-"}</div>
+                          <div className="text-[11px] font-normal text-zinc-100">{d(c.due_date)}</div>
+                          <div className="text-[11px] font-normal text-zinc-100">{formatViewUnitRow(qty)}</div>
+                          <div className="text-[11px] font-normal text-zinc-100">{brNumberMoney(avgPrice)}</div>
+                          <div className="text-[11px] font-normal text-zinc-100">{brNumberMoney(n(c.total_value))}</div>
+                          <div className="text-right">
+                            <div className="inline-flex gap-1">
+                              <button onClick={() => openEdit(c)} className="rounded-lg border border-sky-400/25 bg-sky-500/10 p-1.5 text-sky-200 hover:bg-sky-500/20" title="Editar" aria-label="Editar">
+                                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M12 20h9" />
+                                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                                </svg>
+                              </button>
+                              <button onClick={() => { setDeleteError(""); setDeleteTarget(c); }} className="rounded-lg border border-rose-400/25 bg-rose-500/10 p-1.5 text-rose-200 hover:bg-rose-500/20" title="Excluir" aria-label="Excluir">
+                                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M3 6h18" />
+                                  <path d="M8 6V4h8v2" />
+                                  <path d="M19 6l-1 14H6L5 6" />
+                                  <path d="M10 11v6M14 11v6" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
                   })}
                 </div>
             </div>
@@ -585,6 +640,44 @@ export default function ContratoVendaPage() {
                       <button onClick={() => void save()} disabled={saving} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-5 py-2 text-sm font-black text-emerald-100">{saving ? "Salvando..." : "Confirmar e salvar"}</button>
                     )}
                   </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {deleteTarget ? (
+            <div className="fixed inset-0 z-[60] grid place-items-center px-4">
+              <button
+                className="absolute inset-0 bg-zinc-950/70"
+                onClick={() => !deleting && setDeleteTarget(null)}
+                aria-label="Cancelar exclusão"
+              />
+              <div className="relative w-full max-w-md rounded-3xl border border-white/15 bg-zinc-900/95 p-5 shadow-2xl">
+                <p className="text-base font-black text-white">Excluir contrato</p>
+                <p className="mt-2 text-sm text-zinc-300">
+                  Você está excluindo o contrato <span className="font-semibold text-white">{deleteTarget.code || `#${deleteTarget.id}`}</span>.
+                </p>
+                <div className="mt-3 rounded-2xl border border-rose-400/20 bg-rose-500/10 p-3 text-[12px] text-rose-100">
+                  <p className="font-semibold">Impactos da exclusão:</p>
+                  <p className="mt-1">1. O contrato e itens serão removidos.</p>
+                  <p>2. Contas a receber vinculadas sem recebimento serão removidas.</p>
+                  <p>3. Se houver recebimento lançado, a exclusão será bloqueada.</p>
+                </div>
+                {deleteError ? <p className="mt-3 rounded-xl border border-rose-400/25 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">{deleteError}</p> : null}
+                <div className="mt-5 flex justify-end gap-2">
+                  <button
+                    onClick={() => setDeleteTarget(null)}
+                    disabled={deleting}
+                    className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200 hover:bg-white/10 disabled:opacity-60"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => void remove(deleteTarget.id)}
+                    disabled={deleting}
+                    className="rounded-2xl border border-rose-400/30 bg-rose-500/20 px-4 py-2 text-sm font-black text-rose-100 hover:bg-rose-500/30 disabled:opacity-60"
+                  >
+                    {deleting ? "Excluindo..." : "Confirmar exclusão"}
+                  </button>
                 </div>
               </div>
             </div>

@@ -10,6 +10,7 @@ import {
   Deposito,
   Cultivar,
   ContratoVenda,
+  ProdutoItem,
   EmpreendimentoApi,
   Operacao,
   Produtor,
@@ -24,6 +25,7 @@ import {
   listDepositos,
   listEmpreendimentos,
   listOperacoes,
+  listProdutosEstoque,
   listProdutores,
   listPropriedades,
   listSafras,
@@ -32,11 +34,14 @@ import {
 } from "@/lib/api";
 import { formatDateBR } from "@/lib/locale";
 import {
+  ContraNotaEntrada,
   Empreendimento,
   Romaneio,
   calcRomaneioNetWeight,
+  loadContraNotasEntrada,
   loadEmpreendimentos,
   loadRomaneios,
+  saveContraNotasEntrada,
   saveRomaneios,
   uid
 } from "@/lib/producaoLocal";
@@ -61,6 +66,11 @@ function fmtKg(v: number) {
 }
 function fmtSc(vKg: number, bagKg = 60) {
   return `${(vKg / bagKg).toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} SC`;
+}
+
+function normalizeRomaneioStatus(row: Romaneio, contraNotas: ContraNotaEntrada[]): "pending" | "ok" {
+  if (contraNotas.some((cn) => cn.romaneio_id === row.id)) return "ok";
+  return "pending";
 }
 
 function CardIcon({
@@ -129,6 +139,7 @@ type FormState = {
   operacao_id: string;
   safra_id: string;
   produtor_id: string;
+  produto_id: string;
   contrato_id: string;
   empreendimento_id: string;
   propriedade_id: string;
@@ -154,6 +165,7 @@ const EMPTY_FORM: FormState = {
   operacao_id: "",
   safra_id: "",
   produtor_id: "",
+  produto_id: "",
   contrato_id: "",
   empreendimento_id: "",
   propriedade_id: "",
@@ -172,6 +184,20 @@ const EMPTY_FORM: FormState = {
   others: "0"
 };
 
+type ContraNotaFormState = {
+  date: string;
+  nota_fiscal: string;
+  chave: string;
+  operacao: "remessa_deposito" | "a_fixar";
+};
+
+const EMPTY_CONTRA_NOTA_FORM: ContraNotaFormState = {
+  date: "",
+  nota_fiscal: "",
+  chave: "",
+  operacao: "remessa_deposito"
+};
+
 export default function RomaneioPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -179,14 +205,22 @@ export default function RomaneioPage() {
 
   const [open, setOpen] = useState(false);
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Romaneio | null>(null);
+  const [detailTarget, setDetailTarget] = useState<Romaneio | null>(null);
+  const [contraNotaTarget, setContraNotaTarget] = useState<Romaneio | null>(null);
+  const [deleteError, setDeleteError] = useState("");
+  const [contraNotaError, setContraNotaError] = useState("");
   const [formStep, setFormStep] = useState(0);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [contraNotaForm, setContraNotaForm] = useState<ContraNotaFormState>(EMPTY_CONTRA_NOTA_FORM);
 
   const [rows, setRows] = useState<Romaneio[]>([]);
+  const [contraNotas, setContraNotas] = useState<ContraNotaEntrada[]>([]);
   const [empreendimentos, setEmpreendimentos] = useState<Empreendimento[]>([]);
 
   const [safras, setSafras] = useState<Safra[]>([]);
   const [produtores, setProdutores] = useState<Produtor[]>([]);
+  const [produtos, setProdutos] = useState<ProdutoItem[]>([]);
   const [contratos, setContratos] = useState<ContratoVenda[]>([]);
   const [operacoes, setOperacoes] = useState<Operacao[]>([]);
   const [propriedades, setPropriedades] = useState<Propriedade[]>([]);
@@ -211,6 +245,7 @@ export default function RomaneioPage() {
 
   useEffect(() => {
     setRows(loadRomaneios());
+    setContraNotas(loadContraNotasEntrada());
     setEmpreendimentos(loadEmpreendimentos());
     void loadRefs();
   }, []);
@@ -221,9 +256,10 @@ export default function RomaneioPage() {
     setLoading(true);
     setError("");
     try {
-      const [a, b, c, d, e, f, g, h, i, j, emps] = await Promise.all([
+      const [a, b, c, d, e, f, g, h, i, j, k, emps] = await Promise.all([
         listSafras(token),
         listProdutores(token),
+        listProdutosEstoque(token),
         listContratosVenda(token),
         listOperacoes(token),
         listPropriedades(token),
@@ -236,14 +272,15 @@ export default function RomaneioPage() {
       ]);
       setSafras(a);
       setProdutores(b);
-      setContratos(c);
-      setOperacoes(d);
-      setPropriedades(e);
-      setTalhoes(f);
-      setClientes(g);
-      setCultivares(h);
-      setDepositos(i);
-      setPlacasTransportador(j);
+      setProdutos(c);
+      setContratos(d);
+      setOperacoes(e);
+      setPropriedades(f);
+      setTalhoes(g);
+      setClientes(h);
+      setCultivares(i);
+      setDepositos(j);
+      setPlacasTransportador(k);
       setEmpreendimentos(emps.map(fromApiEmpreendimento));
     } catch (err) {
       if (isApiError(err) && err.status === 401) {
@@ -297,6 +334,12 @@ export default function RomaneioPage() {
     () => empreendimentos.filter((e) => (filterSafra === "" ? true : e.safra_id === Number(filterSafra))),
     [empreendimentos, filterSafra]
   );
+
+  const contraNotaByRomaneioId = useMemo(() => {
+    const map = new Map<string, ContraNotaEntrada>();
+    for (const cn of contraNotas) map.set(cn.romaneio_id, cn);
+    return map;
+  }, [contraNotas]);
 
   const card = useMemo(() => {
     const areaPlantada = filteredEmpreendimentos.reduce(
@@ -539,16 +582,30 @@ export default function RomaneioPage() {
     [contratos, form.produtor_id, form.safra_id]
   );
 
+  const produtosDisponiveis = useMemo(() => {
+    const ids = new Set<number>();
+    for (const e of empreendimentos) {
+      const matchSafra = !form.safra_id || e.safra_id === Number(form.safra_id);
+      const matchProp = !form.propriedade_id || e.propriedade_id === Number(form.propriedade_id);
+      if (!matchSafra || !matchProp) continue;
+      if (e.produto_id) ids.add(e.produto_id);
+    }
+    return produtos
+      .filter((p) => ids.has(p.id))
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  }, [empreendimentos, produtos, form.safra_id, form.propriedade_id]);
+
   const empreendimentosFiltrados = useMemo(
     () =>
       empreendimentos
         .filter((e) => {
           const matchSafra = !form.safra_id || e.safra_id === Number(form.safra_id);
           const matchProp = !form.propriedade_id || e.propriedade_id === Number(form.propriedade_id);
-          return matchSafra && matchProp;
+          const matchProduto = !form.produto_id || e.produto_id === Number(form.produto_id);
+          return matchSafra && matchProp && matchProduto;
         })
         .sort((a, b) => (a.code || "").localeCompare(b.code || "", "pt-BR")),
-    [empreendimentos, form.safra_id, form.propriedade_id]
+    [empreendimentos, form.safra_id, form.propriedade_id, form.produto_id]
   );
 
   const talhoesFiltrados = useMemo(
@@ -598,6 +655,9 @@ export default function RomaneioPage() {
     const mappedTransportadorId =
       (row as Romaneio & { transportador_id?: number | null }).transportador_id
       ?? (placasAtivas.find((p) => p.plate === (row.plate || "").toUpperCase())?.transportador?.id ?? null);
+    const empreendimentoAtual = row.empreendimento_id
+      ? empreendimentos.find((e) => e.id === row.empreendimento_id)
+      : null;
     setEditingId(row.id);
     setForm({
       date: row.date || "",
@@ -606,6 +666,7 @@ export default function RomaneioPage() {
       operacao_id: row.operacao_id ? String(row.operacao_id) : "",
       safra_id: row.safra_id ? String(row.safra_id) : "",
       produtor_id: row.produtor_id ? String(row.produtor_id) : "",
+      produto_id: row.produto_id ? String(row.produto_id) : (empreendimentoAtual?.produto_id ? String(empreendimentoAtual.produto_id) : ""),
       contrato_id: row.contrato_id ? String(row.contrato_id) : "",
       empreendimento_id: row.empreendimento_id ?? "",
       propriedade_id: row.propriedade_id ? String(row.propriedade_id) : "",
@@ -629,10 +690,71 @@ export default function RomaneioPage() {
   }
 
   function removeItem(id: string) {
-    if (!window.confirm("Excluir romaneio?")) return;
-    const next = rows.filter((x) => x.id !== id);
-    setRows(next);
-    saveRomaneios(next);
+    try {
+      const next = rows.filter((x) => x.id !== id);
+      setRows(next);
+      saveRomaneios(next);
+      const nextContraNotas = contraNotas.filter((x) => x.romaneio_id !== id);
+      setContraNotas(nextContraNotas);
+      saveContraNotasEntrada(nextContraNotas);
+      setDeleteTarget(null);
+      setDeleteError("");
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Falha ao excluir romaneio.");
+    }
+  }
+
+  function openContraNota(row: Romaneio) {
+    setContraNotaError("");
+    const existing = contraNotas.find((x) => x.romaneio_id === row.id);
+    setContraNotaForm(
+      existing
+        ? {
+            date: existing.date || "",
+            nota_fiscal: existing.nota_fiscal || "",
+            chave: existing.chave || "",
+            operacao: existing.operacao
+          }
+        : {
+            ...EMPTY_CONTRA_NOTA_FORM,
+            date: row.date || new Date().toISOString().slice(0, 10)
+          }
+    );
+    setContraNotaTarget(row);
+  }
+
+  function saveContraNota() {
+    if (!contraNotaTarget) return;
+    if (!contraNotaTarget.nfp?.trim()) {
+      setContraNotaError("Este romaneio precisa da NFP preenchida para registrar a contra-nota.");
+      return;
+    }
+    if (!contraNotaForm.date || !contraNotaForm.nota_fiscal.trim() || !contraNotaForm.chave.trim()) {
+      setContraNotaError("Preencha Data, Nota Fiscal e Chave da contra-nota.");
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const existing = contraNotas.find((x) => x.romaneio_id === contraNotaTarget.id);
+    const entity: ContraNotaEntrada = {
+      id: existing?.id ?? uid("cn"),
+      created_at: existing?.created_at ?? now,
+      updated_at: now,
+      romaneio_id: contraNotaTarget.id,
+      romaneio_code: contraNotaTarget.code,
+      nfp_ref: contraNotaTarget.nfp.trim().toUpperCase(),
+      operacao: contraNotaForm.operacao,
+      date: contraNotaForm.date,
+      nota_fiscal: contraNotaForm.nota_fiscal.trim().toUpperCase(),
+      chave: contraNotaForm.chave.trim()
+    };
+    const next = existing
+      ? contraNotas.map((x) => (x.id === existing.id ? entity : x))
+      : [entity, ...contraNotas];
+    setContraNotas(next);
+    saveContraNotasEntrada(next);
+    setContraNotaTarget(null);
+    setContraNotaError("");
   }
 
   function requestSave() {
@@ -707,6 +829,7 @@ export default function RomaneioPage() {
         operacao_id: form.operacao_id ? Number(form.operacao_id) : null,
         safra_id: form.safra_id ? Number(form.safra_id) : null,
         produtor_id: form.produtor_id ? Number(form.produtor_id) : null,
+        produto_id: form.produto_id ? Number(form.produto_id) : null,
         contrato_id: form.contrato_id ? Number(form.contrato_id) : null,
         empreendimento_id: form.empreendimento_id || null,
         propriedade_id: form.propriedade_id ? Number(form.propriedade_id) : null,
@@ -724,7 +847,8 @@ export default function RomaneioPage() {
         impurity: n(form.impurity),
         ardido: n(form.ardido),
         others: n(form.others),
-        net_weight: netWeight
+        net_weight: netWeight,
+        status: "pending"
       };
       const next = editingId ? rows.map((r) => (r.id === editingId ? entity : r)) : [entity, ...rows];
       setRows(next);
@@ -970,77 +1094,100 @@ export default function RomaneioPage() {
                 </p>
               </div>
               <p className="mt-1 text-xs text-zinc-400">Do início ao fim da safra selecionada.</p>
-              <div className="mt-3 overflow-x-auto">
-                <svg width={Math.max(640, temporalSeries.length * 8)} height="170" className="min-w-full">
-                  <rect x="0" y="0" width="100%" height="170" fill="transparent" />
-                  {temporalSeries.map((p, idx) => {
-                    const x = temporalSeries.length <= 1 ? 20 : 20 + (idx * (Math.max(640, temporalSeries.length * 8) - 40)) / (temporalSeries.length - 1);
-                    const y = 145 - (p.qty / temporalMeta.max) * 120;
+              <div className="mt-3 overflow-x-auto rounded-2xl border border-white/10 bg-zinc-950/30 p-3">
+                <div className="flex min-h-[220px] min-w-max items-end gap-2">
+                  {temporalSeries.map((p) => {
+                    const h = temporalMeta.max > 0 ? Math.max((p.qty / temporalMeta.max) * 150, p.qty > 0 ? 3 : 1) : 1;
                     return (
-                      <circle key={`${p.key}-${idx}`} cx={x} cy={y} r="2.8" fill="#38bdf8">
-                        <title>{`${d(p.key)}\nResumo do dia\nLíquido: ${toViewWeight(p.qty)}\nBruto: ${toViewWeight(p.gross)}\nDescontos: ${toViewWeight(p.disc)}\nCargas: ${p.loads}\nMédia/carga: ${toViewWeight(p.loads > 0 ? p.qty / p.loads : 0)}`}</title>
-                      </circle>
+                      <div key={p.key} className="flex w-7 flex-col items-center gap-1">
+                        <span className="text-[9px] text-zinc-300" title={toViewWeight(p.qty)}>
+                          {toViewValue(p.qty).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </span>
+                        <div
+                          className="w-4 rounded-t-md bg-sky-400"
+                          style={{ height: `${h}px` }}
+                          title={`${d(p.key)}\nResumo do dia\nLíquido: ${toViewWeight(p.qty)}\nBruto: ${toViewWeight(p.gross)}\nDescontos: ${toViewWeight(p.disc)}\nCargas: ${p.loads}\nMédia/carga: ${toViewWeight(p.loads > 0 ? p.qty / p.loads : 0)}`}
+                        />
+                        <span className="text-[9px] uppercase text-zinc-500">{new Date(`${p.key}T00:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>
+                      </div>
                     );
                   })}
-                  <polyline
-                    fill="none"
-                    stroke="#38bdf8"
-                    strokeWidth="2"
-                    points={temporalSeries.map((p, idx) => {
-                      const x = temporalSeries.length <= 1 ? 20 : 20 + (idx * (Math.max(640, temporalSeries.length * 8) - 40)) / (temporalSeries.length - 1);
-                      const y = 145 - (p.qty / temporalMeta.max) * 120;
-                      return `${x},${y}`;
-                    }).join(" ")}
-                  />
-                </svg>
+                  {!temporalSeries.length ? <p className="text-xs text-zinc-500">Sem dados para o período.</p> : null}
+                </div>
               </div>
             </div>
 
             <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
               <p className="text-sm font-black text-white">Colheita por talhão</p>
               <p className="mt-1 text-xs text-zinc-400">Estimado vs realizado ({viewUnit}).</p>
-              <div className="mt-3 space-y-2">
+              <div className="mt-3 overflow-x-auto rounded-2xl border border-white/10 bg-zinc-950/30 p-3">
+                <div className="flex min-h-[220px] min-w-max items-end gap-4">
                 {talhaoSeries.map((item) => {
-                  const max = Math.max(item.estimated, item.realized, 1);
-                  const pEst = (item.estimated / max) * 100;
-                  const pReal = (item.realized / max) * 100;
+                  const max = Math.max(...talhaoSeries.map((x) => Math.max(x.estimated, x.realized)), 1);
+                  const hEst = Math.max((item.estimated / max) * 140, item.estimated > 0 ? 4 : 1);
+                  const hReal = Math.max((item.realized / max) * 140, item.realized > 0 ? 4 : 1);
                   const ratio = item.estimated > 0 ? (item.realized / item.estimated) * 100 : 0;
                   return (
-                    <div key={item.id} className="rounded-2xl border border-white/10 bg-zinc-950/30 p-2">
-                      <p className="truncate text-xs font-black text-zinc-200">{item.label}</p>
-                      <div className="mt-1 h-2 rounded bg-zinc-800"><div className="h-2 rounded bg-amber-400" style={{ width: `${pEst}%` }} /></div>
-                      <div className="mt-1 h-2 rounded bg-zinc-800"><div className="h-2 rounded bg-emerald-400" style={{ width: `${pReal}%` }} /></div>
-                      <p className="mt-1 text-[11px] text-zinc-400" title={`Média estimada vs realizada: ${ratio.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}>
-                        Est: {toViewWeight(item.estimated)} · Real: {toViewWeight(item.realized)}
+                    <div key={item.id} className="flex w-[96px] flex-col items-center">
+                      <p className="mb-2 w-full truncate text-center text-[10px] font-black text-zinc-200">{item.label}</p>
+                      <div className="flex h-[160px] items-end gap-2">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-[9px] text-zinc-300">{toViewValue(item.estimated).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</span>
+                          <div className="w-4 rounded-t-md bg-amber-400" style={{ height: `${hEst}px` }} title={`Estimado: ${toViewWeight(item.estimated)}`} />
+                        </div>
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-[9px] text-zinc-300">{toViewValue(item.realized).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</span>
+                          <div className="w-4 rounded-t-md bg-emerald-400" style={{ height: `${hReal}px` }} title={`Real: ${toViewWeight(item.realized)}`} />
+                        </div>
+                      </div>
+                      <p className="mt-1 text-[9px] text-zinc-500">
+                        Est/Real
+                      </p>
+                      <p className="mt-1 text-[10px] text-zinc-400" title={`Média estimada vs realizada: ${ratio.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}>
+                        {ratio.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
                       </p>
                     </div>
                   );
                 })}
                 {!talhaoSeries.length ? <p className="text-xs text-zinc-500">Sem dados para o período.</p> : null}
+                </div>
               </div>
             </div>
 
             <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
               <p className="text-sm font-black text-white">Colheita por variedade</p>
               <p className="mt-1 text-xs text-zinc-400">Estimado vs realizado ({viewUnit}).</p>
-              <div className="mt-3 space-y-2">
+              <div className="mt-3 overflow-x-auto rounded-2xl border border-white/10 bg-zinc-950/30 p-3">
+                <div className="flex min-h-[220px] min-w-max items-end gap-4">
                 {cultivarSeries.map((item) => {
-                  const max = Math.max(item.estimated, item.realized, 1);
-                  const pEst = (item.estimated / max) * 100;
-                  const pReal = (item.realized / max) * 100;
+                  const max = Math.max(...cultivarSeries.map((x) => Math.max(x.estimated, x.realized)), 1);
+                  const hEst = Math.max((item.estimated / max) * 140, item.estimated > 0 ? 4 : 1);
+                  const hReal = Math.max((item.realized / max) * 140, item.realized > 0 ? 4 : 1);
                   const ratio = item.estimated > 0 ? (item.realized / item.estimated) * 100 : 0;
                   return (
-                    <div key={item.id} className="rounded-2xl border border-white/10 bg-zinc-950/30 p-2">
-                      <p className="truncate text-xs font-black text-zinc-200">{item.label}</p>
-                      <div className="mt-1 h-2 rounded bg-zinc-800"><div className="h-2 rounded bg-amber-400" style={{ width: `${pEst}%` }} /></div>
-                      <div className="mt-1 h-2 rounded bg-zinc-800"><div className="h-2 rounded bg-emerald-400" style={{ width: `${pReal}%` }} /></div>
-                      <p className="mt-1 text-[11px] text-zinc-400" title={`Média estimada vs realizada: ${ratio.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}>
-                        Est: {toViewWeight(item.estimated)} · Real: {toViewWeight(item.realized)}
+                    <div key={item.id} className="flex w-[108px] flex-col items-center">
+                      <p className="mb-2 w-full truncate text-center text-[10px] font-black text-zinc-200">{item.label}</p>
+                      <div className="flex h-[160px] items-end gap-2">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-[9px] text-zinc-300">{toViewValue(item.estimated).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</span>
+                          <div className="w-4 rounded-t-md bg-amber-400" style={{ height: `${hEst}px` }} title={`Estimado: ${toViewWeight(item.estimated)}`} />
+                        </div>
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-[9px] text-zinc-300">{toViewValue(item.realized).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</span>
+                          <div className="w-4 rounded-t-md bg-emerald-400" style={{ height: `${hReal}px` }} title={`Real: ${toViewWeight(item.realized)}`} />
+                        </div>
+                      </div>
+                      <p className="mt-1 text-[9px] text-zinc-500">
+                        Est/Real
+                      </p>
+                      <p className="mt-1 text-[10px] text-zinc-400" title={`Média estimada vs realizada: ${ratio.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}>
+                        {ratio.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%
                       </p>
                     </div>
                   );
                 })}
                 {!cultivarSeries.length ? <p className="text-xs text-zinc-500">Sem dados para o período.</p> : null}
+                </div>
               </div>
             </div>
           </section>
@@ -1090,31 +1237,183 @@ export default function RomaneioPage() {
 
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4">
             <div className="flex items-center justify-between"><p className="text-sm font-black text-white">Lista</p><p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filteredRows.length} item(ns)`}</p></div>
+            <p className="mt-2 text-[11px] text-amber-200/90">Regra fiscal: sem contra-nota de entrada, o romaneio permanece pendente e não pode seguir para venda.</p>
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden min-w-[2600px] grid-cols-[95px_105px_100px_170px_170px_90px_170px_120px_120px_120px_120px_150px_120px_130px_140px_220px] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-zinc-400 xl:grid">
-                <div>Data</div><div>Romaneio</div><div>NFP</div><div>Produtor</div><div>Cliente</div><div>Contrato</div><div>Empreendimento</div><div>Propriedade</div><div>Talhão</div><div>Bruto</div><div>Líquido</div><div>Descontos (%)</div><div>Transportadora</div><div>Placa</div><div>Depósito</div><div className="text-right">Ações</div>
+              <div className="hidden grid-cols-[72px_82px_84px_84px_108px_142px_130px_90px_122px_82px_98px_98px_106px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
+                <div>Status</div><div>Data</div><div>Romaneio</div><div>NFP</div><div>Safra</div><div>Produtor</div><div>Propriedade</div><div>Talhão</div><div>Cliente</div><div>Placa</div><div>Peso Bruto</div><div>Peso Líquido</div><div className="text-right">Ações</div>
               </div>
-              <div className="mt-3 space-y-2 xl:min-w-[2600px]">
+              <div className="mt-3 space-y-2">
                 {filteredRows.map((r) => {
+                  const safra = safras.find((s) => s.id === r.safra_id)?.name ?? "-";
                   const produtor = produtores.find((p) => p.id === r.produtor_id)?.name ?? "-";
                   const cliente = clientes.find((c) => c.id === r.cliente_id)?.name ?? "-";
-                  const contrato = contratos.find((c) => c.id === r.contrato_id)?.code ?? "-";
-                  const emp = empreendimentos.find((e) => e.id === r.empreendimento_id)?.code ?? "-";
                   const propriedade = propriedades.find((p) => p.id === r.propriedade_id)?.name ?? "-";
                   const talhao = talhoes.find((t) => t.id === r.talhao_id)?.name ?? "-";
-                  const transportador =
-                    transportadoresAtivos.find((t) => t.id === ((r as Romaneio & { transportador_id?: number | null }).transportador_id ?? null))?.name
-                    ?? (placasAtivas.find((p) => p.plate === (r.plate || "").toUpperCase())?.transportador?.name ?? "-");
-                  const humidityPct = n(r.gross_weight) > 0 ? (n(r.humidity) / n(r.gross_weight)) * 100 : 0;
-                  const base = Math.max(n(r.gross_weight) - n(r.humidity), 0);
-                  const impurityPct = base > 0 ? (n(r.impurity) / base) * 100 : 0;
-                  const ardidoPct = base > 0 ? (n(r.ardido) / base) * 100 : 0;
-                  const othersPct = base > 0 ? (n(r.others) / base) * 100 : 0;
-                  return <div key={r.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3"><div className="grid grid-cols-1 gap-2 xl:grid-cols-[95px_105px_100px_170px_170px_90px_170px_120px_120px_120px_120px_150px_120px_130px_140px_220px] xl:items-center xl:gap-3"><div className="text-sm text-zinc-100">{d(r.date)}</div><div className="text-sm font-black text-zinc-100">{r.code}</div><div className="text-sm text-zinc-100">{r.nfp || "-"}</div><div className="truncate text-sm text-zinc-100">{produtor}</div><div className="truncate text-sm text-zinc-100">{cliente}</div><div className="truncate text-sm text-zinc-100">{contrato}</div><div className="truncate text-sm text-zinc-100">{emp}</div><div className="truncate text-sm text-zinc-100">{propriedade}</div><div className="truncate text-sm text-zinc-100">{talhao}</div><div className="text-sm text-zinc-100">{toViewWeight(n(r.gross_weight))}</div><div className="text-sm font-black text-zinc-100">{toViewWeight(n(r.net_weight))}</div><div className="text-xs text-zinc-300">U:{humidityPct.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}% I:{impurityPct.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}% A:{ardidoPct.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}% O:{othersPct.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}%</div><div className="truncate text-sm text-zinc-100">{transportador}</div><div className="truncate text-sm text-zinc-100">{r.plate || "-"}</div><div className="truncate text-sm text-zinc-100">{r.deposito || "-"}</div><div className="text-right"><div className="inline-flex gap-1.5"><button onClick={() => openEdit(r)} className="rounded-xl border border-sky-400/25 bg-sky-500/10 p-2 text-sky-200 hover:bg-sky-500/20" title="Editar" aria-label="Editar"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg></button><button onClick={() => printOne(r)} className="rounded-xl border border-zinc-400/25 bg-zinc-500/10 p-2 text-zinc-200 hover:bg-zinc-500/20" title="Imprimir romaneio" aria-label="Imprimir"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7" /><path d="M6 18h12v4H6z" /><path d="M6 14H4a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2" /></svg></button><button onClick={() => removeItem(r.id)} className="rounded-xl border border-rose-400/25 bg-rose-500/10 p-2 text-rose-200 hover:bg-rose-500/20" title="Excluir" aria-label="Excluir"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg></button></div></div></div></div>;
+                  const status = normalizeRomaneioStatus(r, contraNotas);
+                  return (
+                    <div
+                      key={r.id}
+                      onClick={() => setDetailTarget(r)}
+                      className="w-full cursor-pointer rounded-2xl border border-white/10 bg-zinc-950/35 px-2.5 py-2.5 text-left transition-colors hover:bg-zinc-900/45"
+                    >
+                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[72px_82px_84px_84px_108px_142px_130px_90px_122px_82px_98px_98px_106px] xl:items-center xl:gap-2">
+                        <div><span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${status === "ok" ? "border-emerald-400/35 bg-emerald-500/10 text-emerald-200" : "border-amber-400/35 bg-amber-500/10 text-amber-200"}`}>{status === "ok" ? "OK" : "Pendente"}</span></div>
+                        <div className="text-xs text-zinc-100">{d(r.date)}</div>
+                        <div className="text-xs text-zinc-100">{r.code}</div>
+                        <div className="text-xs text-zinc-100">{r.nfp || "-"}</div>
+                        <div className="truncate text-xs text-zinc-100">{safra}</div>
+                        <div className="truncate text-xs text-zinc-100">{produtor}</div>
+                        <div className="truncate text-xs text-zinc-100">{propriedade}</div>
+                        <div className="truncate text-xs text-zinc-100">{talhao}</div>
+                        <div className="truncate text-xs text-zinc-100">{cliente}</div>
+                        <div className="truncate text-xs text-zinc-100">{r.plate || "-"}</div>
+                        <div className="text-xs text-zinc-100">{toViewWeight(n(r.gross_weight))}</div>
+                        <div className="text-xs text-zinc-100">{toViewWeight(n(r.net_weight))}</div>
+                        <div className="text-right">
+                          <div className="inline-flex gap-1.5">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openContraNota(r); }}
+                              className="rounded-xl border border-amber-400/25 bg-amber-500/10 p-2 text-amber-200 hover:bg-amber-500/20"
+                              title="Registrar contra-nota"
+                              aria-label="Registrar contra-nota"
+                            >
+                              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 3h8l4 4v14H7z" /><path d="M15 3v5h5" /><path d="M10 12h6M10 16h6" /></svg>
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openEdit(r); }}
+                              className="rounded-xl border border-sky-400/25 bg-sky-500/10 p-2 text-sky-200 hover:bg-sky-500/20"
+                              title="Editar"
+                              aria-label="Editar"
+                            >
+                              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); printOne(r); }}
+                              className="rounded-xl border border-zinc-400/25 bg-zinc-500/10 p-2 text-zinc-200 hover:bg-zinc-500/20"
+                              title="Imprimir romaneio"
+                              aria-label="Imprimir"
+                            >
+                              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7" /><path d="M6 18h12v4H6z" /><path d="M6 14H4a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2" /></svg>
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setDeleteError(""); setDeleteTarget(r); }}
+                              className="rounded-xl border border-rose-400/25 bg-rose-500/10 p-2 text-rose-200 hover:bg-rose-500/20"
+                              title="Excluir"
+                              aria-label="Excluir"
+                            >
+                              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
                 })}
               </div>
             </div>
           </section>
+
+          {detailTarget ? (
+            <div className="fixed inset-0 z-[60] grid place-items-center px-4">
+              <button className="absolute inset-0 bg-zinc-950/70 backdrop-blur-md" onClick={() => setDetailTarget(null)} aria-label="Fechar detalhes do romaneio" />
+              <div className="relative w-full max-w-[980px] rounded-3xl border border-white/15 bg-zinc-900/95 p-5 shadow-2xl">
+                <p className="text-sm font-black text-white">Detalhes do romaneio</p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Status: {normalizeRomaneioStatus(detailTarget, contraNotas) === "ok" ? "OK" : "Pendente"}</div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Data: {d(detailTarget.date)}</div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Romaneio: {detailTarget.code || "-"}</div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">NFP: {detailTarget.nfp || "-"}</div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Safra: {safras.find((s) => s.id === detailTarget.safra_id)?.name || "-"}</div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Produtor: {produtores.find((p) => p.id === detailTarget.produtor_id)?.name || "-"}</div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Propriedade: {propriedades.find((p) => p.id === detailTarget.propriedade_id)?.name || "-"}</div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Talhão: {talhoes.find((t) => t.id === detailTarget.talhao_id)?.name || "-"}</div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Cliente: {clientes.find((c) => c.id === detailTarget.cliente_id)?.name || "-"}</div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Contrato: {contratos.find((c) => c.id === detailTarget.contrato_id)?.code || "-"}</div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Empreendimento: {empreendimentos.find((e) => e.id === detailTarget.empreendimento_id)?.code || "-"}</div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Operação: {operacoes.find((o) => o.id === detailTarget.operacao_id)?.name || "-"}</div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Depósito: {detailTarget.deposito || "-"}</div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Transportadora: {(transportadoresAtivos.find((t) => t.id === ((detailTarget as Romaneio & { transportador_id?: number | null }).transportador_id ?? null))?.name) ?? (placasAtivas.find((p) => p.plate === (detailTarget.plate || "").toUpperCase())?.transportador?.name ?? "-")}</div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Placa: {detailTarget.plate || "-"}</div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Motorista: {detailTarget.driver || "-"}</div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">CPF Motorista: {detailTarget.driver_cpf || "-"}</div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Peso Bruto: {toViewWeight(n(detailTarget.gross_weight))}</div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Peso Líquido: {toViewWeight(n(detailTarget.net_weight))}</div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Umidade: {n(detailTarget.humidity).toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KG</div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Impureza: {n(detailTarget.impurity).toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KG</div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Ardido: {n(detailTarget.ardido).toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KG</div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Outros: {n(detailTarget.others).toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KG</div>
+                </div>
+                {(() => {
+                  const cn = contraNotaByRomaneioId.get(detailTarget.id);
+                  if (!cn) {
+                    return (
+                      <div className="mt-3 rounded-xl border border-amber-400/25 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-100">
+                        Sem contra-nota vinculada. Este romaneio permanece pendente e não pode seguir para venda.
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="mt-3 grid gap-2 rounded-xl border border-emerald-400/25 bg-emerald-500/10 p-3 sm:grid-cols-2 xl:grid-cols-4">
+                      <div className="text-[12px] text-emerald-100">Contra-nota: {cn.nota_fiscal}</div>
+                      <div className="text-[12px] text-emerald-100">Data: {d(cn.date)}</div>
+                      <div className="text-[12px] text-emerald-100">Operação: {cn.operacao === "a_fixar" ? "A fixar" : "Remessa para depósito"}</div>
+                      <div className="truncate text-[12px] text-emerald-100" title={cn.chave}>Chave: {cn.chave}</div>
+                    </div>
+                  );
+                })()}
+                <div className="mt-4 flex flex-wrap justify-end gap-2">
+                  <button onClick={() => openContraNota(detailTarget)} className="rounded-2xl border border-amber-400/25 bg-amber-500/15 px-4 py-2 text-sm font-black text-amber-100">Contra-nota</button>
+                  <button onClick={() => { printOne(detailTarget); }} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200">Imprimir</button>
+                  <button onClick={() => { setDetailTarget(null); openEdit(detailTarget); }} className="rounded-2xl border border-sky-400/25 bg-sky-500/15 px-4 py-2 text-sm font-black text-sky-100">Editar</button>
+                  <button onClick={() => { setDeleteError(""); setDeleteTarget(detailTarget); setDetailTarget(null); }} className="rounded-2xl border border-rose-400/25 bg-rose-500/15 px-4 py-2 text-sm font-black text-rose-100">Excluir</button>
+                  <button onClick={() => setDetailTarget(null)} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200">Fechar</button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {contraNotaTarget ? (
+            <div className="fixed inset-0 z-[70] grid place-items-center px-4">
+              <button className="absolute inset-0 bg-zinc-950/75 backdrop-blur-md" onClick={() => setContraNotaTarget(null)} aria-label="Fechar contra-nota" />
+              <div className="relative w-full max-w-[760px] rounded-3xl border border-white/15 bg-zinc-900/95 p-5 shadow-2xl">
+                <p className="text-sm font-black text-white">Contra-nota de entrada</p>
+                <p className="mt-1 text-xs text-zinc-400">Espelho fiscal do romaneio. Ao registrar, o status do romaneio muda para OK.</p>
+                <div className="mt-3 grid gap-2 rounded-2xl border border-white/10 bg-zinc-950/35 p-3 text-[12px] text-zinc-300 sm:grid-cols-2">
+                  <div>Romaneio: <span className="font-semibold text-zinc-100">{contraNotaTarget.code || "-"}</span></div>
+                  <div>NFP referência: <span className="font-semibold text-zinc-100">{contraNotaTarget.nfp || "-"}</span></div>
+                  <div>Safra: <span className="font-semibold text-zinc-100">{safras.find((s) => s.id === contraNotaTarget.safra_id)?.name || "-"}</span></div>
+                  <div>Produtor: <span className="font-semibold text-zinc-100">{produtores.find((p) => p.id === contraNotaTarget.produtor_id)?.name || "-"}</span></div>
+                  <div>Cliente: <span className="font-semibold text-zinc-100">{clientes.find((c) => c.id === contraNotaTarget.cliente_id)?.name || "-"}</span></div>
+                  <div>Depósito: <span className="font-semibold text-zinc-100">{contraNotaTarget.deposito || "-"}</span></div>
+                </div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-2">
+                    <label className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">Data da contra-nota</label>
+                    <input type="date" value={contraNotaForm.date} onChange={(e) => setContraNotaForm((prev) => ({ ...prev, date: e.target.value }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100 [color-scheme:dark]" />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">Operação de entrada</label>
+                    <select value={contraNotaForm.operacao} onChange={(e) => setContraNotaForm((prev) => ({ ...prev, operacao: e.target.value as ContraNotaFormState["operacao"] }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100">
+                      <option value="remessa_deposito" style={optionStyle}>Remessa para depósito</option>
+                      <option value="a_fixar" style={optionStyle}>A fixar</option>
+                    </select>
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">Nota fiscal</label>
+                    <input value={contraNotaForm.nota_fiscal} onChange={(e) => setContraNotaForm((prev) => ({ ...prev, nota_fiscal: e.target.value.toUpperCase() }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100" placeholder="Número da nota fiscal" />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">Chave da NF-e</label>
+                    <input value={contraNotaForm.chave} onChange={(e) => setContraNotaForm((prev) => ({ ...prev, chave: e.target.value }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100" placeholder="44 dígitos" />
+                  </div>
+                </div>
+                {contraNotaError ? <p className="mt-3 rounded-xl border border-rose-400/25 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">{contraNotaError}</p> : null}
+                <div className="mt-4 flex justify-end gap-2">
+                  <button onClick={() => setContraNotaTarget(null)} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200">Cancelar</button>
+                  <button onClick={saveContraNota} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-4 py-2 text-sm font-black text-emerald-100">Salvar contra-nota</button>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {open ? (
             <div className="fixed inset-0 z-50 grid place-items-center px-3 sm:px-4">
@@ -1143,12 +1442,12 @@ export default function RomaneioPage() {
                 {formStep === 0 ? (
                 <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-300">Dados do Romaneio</p>
-                  <div className="grid gap-3 lg:grid-cols-5">
+                  <div className="grid gap-3 lg:grid-cols-6">
                     <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Data</label><input type="date" value={form.date} onChange={(e) => setField("date", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark]" /></div>
                     <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Romaneio</label><input value={form.code} onChange={(e) => setField("code", e.target.value.toUpperCase())} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100" /></div>
                     <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">NFP</label><input value={form.nfp} onChange={(e) => setField("nfp", e.target.value.toUpperCase())} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100" /></div>
                     <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Operação</label><select value={form.operacao_id} onChange={(e) => setField("operacao_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{operacoesRomaneio.map((o) => <option key={o.id} value={o.id} style={optionStyle}>{o.name}</option>)}</select></div>
-                    <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Safra</label><select value={form.safra_id} onChange={(e) => setForm((prev) => ({ ...prev, safra_id: e.target.value, contrato_id: "", empreendimento_id: "" }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{safras.map((s) => <option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>)}</select></div>
+                    <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Safra</label><select value={form.safra_id} onChange={(e) => setForm((prev) => ({ ...prev, safra_id: e.target.value, produto_id: "", contrato_id: "", empreendimento_id: "", talhao_id: "" }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{safras.map((s) => <option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>)}</select></div>
                   </div>
                 </section>
                 ) : null}
@@ -1156,12 +1455,13 @@ export default function RomaneioPage() {
                 {formStep === 1 ? (
                 <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-3">
                   <p className="text-xs font-black uppercase tracking-[0.22em] text-zinc-300">Dados da Colheita</p>
-                  <div className="grid gap-3 lg:grid-cols-5">
-                    <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Produtor</label><select value={form.produtor_id} onChange={(e) => setForm((prev) => ({ ...prev, produtor_id: e.target.value, propriedade_id: "", contrato_id: "", empreendimento_id: "", talhao_id: "" }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{produtoresComPropriedade.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{produtorDisplayLabel(p)}</option>)}</select></div>
-                    <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Propriedade</label><select value={form.propriedade_id} onChange={(e) => setForm((prev) => ({ ...prev, propriedade_id: e.target.value, empreendimento_id: "", talhao_id: "" }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{propriedadesDoProdutor.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{p.name}</option>)}</select></div>
-                    <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Contrato</label><select value={form.contrato_id} onChange={(e) => setField("contrato_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{contratosDoProdutor.map((c) => <option key={c.id} value={c.id} style={optionStyle}>{c.code}</option>)}</select></div>
-                    <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Empreendimento</label><select value={form.empreendimento_id} onChange={(e) => setField("empreendimento_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{empreendimentosFiltrados.map((e) => <option key={e.id} value={e.id} style={optionStyle}>{e.code}</option>)}</select></div>
-                    <div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Talhão</label><select value={form.talhao_id} onChange={(e) => setField("talhao_id", e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{talhoesFiltrados.map((t) => <option key={t.id} value={t.id} style={optionStyle}>{t.name}</option>)}</select></div>
+                  <div className="grid gap-3 lg:grid-cols-6">
+                    <div className="grid min-w-0 gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Produtor</label><select value={form.produtor_id} onChange={(e) => setForm((prev) => ({ ...prev, produtor_id: e.target.value, propriedade_id: "", produto_id: "", contrato_id: "", empreendimento_id: "", talhao_id: "" }))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{produtoresComPropriedade.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{produtorDisplayLabel(p)}</option>)}</select></div>
+                    <div className="grid min-w-0 gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Propriedade</label><select value={form.propriedade_id} onChange={(e) => setForm((prev) => ({ ...prev, propriedade_id: e.target.value, produto_id: "", empreendimento_id: "", talhao_id: "" }))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{propriedadesDoProdutor.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{p.name}</option>)}</select></div>
+                    <div className="grid min-w-0 gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Produto</label><select value={form.produto_id} onChange={(e) => setForm((prev) => ({ ...prev, produto_id: e.target.value, empreendimento_id: "", talhao_id: "" }))} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{produtosDisponiveis.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{p.name}</option>)}</select></div>
+                    <div className="grid min-w-0 gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Contrato</label><select value={form.contrato_id} onChange={(e) => setField("contrato_id", e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{contratosDoProdutor.map((c) => <option key={c.id} value={c.id} style={optionStyle}>{c.code}</option>)}</select></div>
+                    <div className="grid min-w-0 gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Empreendimento</label><select value={form.empreendimento_id} onChange={(e) => { const id = e.target.value; const emp = empreendimentos.find((x) => x.id === id); setForm((prev) => ({ ...prev, empreendimento_id: id, produto_id: emp?.produto_id ? String(emp.produto_id) : prev.produto_id })); }} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{empreendimentosFiltrados.map((e) => <option key={e.id} value={e.id} style={optionStyle}>{e.code}</option>)}</select></div>
+                    <div className="grid min-w-0 gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Talhão</label><select value={form.talhao_id} onChange={(e) => setField("talhao_id", e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{talhoesFiltrados.map((t) => <option key={t.id} value={t.id} style={optionStyle}>{t.name}</option>)}</select></div>
                   </div>
                 </section>
                 ) : null}
@@ -1220,6 +1520,7 @@ export default function RomaneioPage() {
                       <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Romaneio: {form.code || "-"}</div>
                       <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">NFP: {form.nfp || "-"}</div>
                       <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Produtor: {produtores.find((p) => p.id === Number(form.produtor_id))?.name || "-"}</div>
+                      <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Produto: {produtos.find((p) => p.id === Number(form.produto_id))?.name || "-"}</div>
                       <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Cliente: {clientes.find((c) => c.id === Number(form.cliente_id))?.name || "-"}</div>
                       <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Empreendimento: {empreendimentos.find((e) => e.id === form.empreendimento_id)?.code || "-"}</div>
                       <div className="rounded-xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[12px] text-zinc-300">Peso Bruto: {grossWeight.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KG</div>
@@ -1240,12 +1541,38 @@ export default function RomaneioPage() {
                   </div>
                 </div>
 
-                {confirmSaveOpen ? (
+          {deleteTarget ? (
+            <div className="fixed inset-0 z-[60] grid place-items-center px-4">
+              <button className="absolute inset-0 bg-zinc-950/70" onClick={() => setDeleteTarget(null)} aria-label="Fechar confirmação de exclusão" />
+              <div className="relative w-full max-w-[560px] rounded-3xl border border-white/15 bg-zinc-900/95 p-5 shadow-2xl">
+                <p className="text-sm font-black text-white">Excluir romaneio</p>
+                <p className="mt-2 text-xs text-zinc-300">
+                  Você está excluindo o romaneio <span className="font-semibold text-white">{deleteTarget.code || `#${deleteTarget.id}`}</span>.
+                </p>
+                <div className="mt-3 rounded-2xl border border-rose-400/20 bg-rose-500/10 p-3 text-[12px] text-rose-100">
+                  <p className="font-semibold">Impactos da exclusão:</p>
+                  <p className="mt-1">1. O registro de pesagem será removido da lista.</p>
+                  <p>2. Indicadores e gráficos da tela serão recalculados.</p>
+                  <p>3. A ação é irreversível.</p>
+                </div>
+                {deleteError ? <p className="mt-3 rounded-xl border border-rose-400/25 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">{deleteError}</p> : null}
+                <div className="mt-4 flex justify-end gap-2">
+                  <button onClick={() => setDeleteTarget(null)} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200">Cancelar</button>
+                  <button onClick={() => removeItem(deleteTarget.id)} className="rounded-2xl border border-rose-400/25 bg-rose-500/15 px-4 py-2 text-sm font-black text-rose-100">Confirmar exclusão</button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {confirmSaveOpen ? (
                   <div className="fixed inset-0 z-[60] grid place-items-center px-4">
                     <button className="absolute inset-0 bg-zinc-950/70" onClick={() => setConfirmSaveOpen(false)} aria-label="Fechar confirmação" />
                     <div className="relative w-full max-w-md rounded-3xl border border-white/15 bg-zinc-900/95 p-5 shadow-2xl">
-                      <p className="text-sm font-black text-white">Confirmar registro do romaneio?</p>
-                      <p className="mt-2 text-xs text-zinc-400">Se confirmar, o lançamento será salvo na lista de romaneios.</p>
+                      <p className="text-sm font-black text-white">Confirmar salvamento</p>
+                      <p className="mt-2 text-xs text-zinc-400">
+                        {editingId
+                          ? "Você está prestes a salvar alterações no romaneio."
+                          : "Você está prestes a criar um novo romaneio."}
+                      </p>
                       <div className="mt-5 flex justify-end gap-2">
                         <button onClick={() => setConfirmSaveOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200">Cancelar</button>
                         <button onClick={save} disabled={saving} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-4 py-2 text-sm font-black text-emerald-100">{saving ? "Salvando..." : "Confirmar"}</button>

@@ -181,6 +181,9 @@ export default function EmpreendimentosPage() {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Empreendimento | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const [formStep, setFormStep] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -486,21 +489,27 @@ export default function EmpreendimentosPage() {
   }
 
   async function removeItem(id: string) {
-    if (!window.confirm("Excluir empreendimento?")) return;
     const token = getAccessToken();
     if (!token) {
       window.location.href = "/login";
       return;
     }
+    setDeleting(true);
+    setDeleteError("");
     try {
       await deleteEmpreendimento(token, id);
+      setDeleteTarget(null);
       await refreshData();
     } catch (err) {
       if (isApiError(err) && err.status === 401) {
         window.location.href = "/login";
         return;
       }
-      setError(err instanceof Error ? err.message : "Falha ao excluir empreendimento.");
+      const message = err instanceof Error ? err.message : "Falha ao excluir empreendimento.";
+      setDeleteError(message);
+      setError(message);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -626,7 +635,6 @@ export default function EmpreendimentosPage() {
       setError("Selecione o empreendimento e a data de encerramento.");
       return;
     }
-    if (!window.confirm("Confirmar encerramento da safra/empreendimento?")) return;
     const token = getAccessToken();
     if (!token) {
       window.location.href = "/login";
@@ -985,7 +993,7 @@ export default function EmpreendimentosPage() {
                                 <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
                               </svg>
                             </button>
-                            <button onClick={() => removeItem(it.id)} className="grid h-[30px] w-[30px] place-items-center rounded-xl border border-rose-400/25 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20" title="Excluir" aria-label="Excluir">
+                          <button onClick={() => { setDeleteError(""); setDeleteTarget(it); }} className="grid h-[30px] w-[30px] place-items-center rounded-xl border border-rose-400/25 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20" title="Excluir" aria-label="Excluir">
                               <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
                                 <path d="M3 6h18" />
                                 <path d="M8 6V4h8v2" />
@@ -1097,7 +1105,45 @@ export default function EmpreendimentosPage() {
             </div>
           ) : null}
 
-          {confirmSaveOpen ? <div className="fixed inset-0 z-[60] grid place-items-center px-4"><button className="absolute inset-0 bg-zinc-950/55 backdrop-blur-sm" onClick={() => setConfirmSaveOpen(false)} /><div className="relative w-full max-w-[560px] rounded-3xl border border-white/15 bg-zinc-900/95 p-5 space-y-3"><p className="text-lg font-black text-white">{editingId ? "Confirmar alteração" : "Confirmar novo empreendimento"}</p><p className="text-sm text-zinc-300">{editingId ? "Deseja salvar as alterações deste empreendimento?" : "Deseja salvar este novo empreendimento?"}</p><div className="flex justify-end gap-2"><button onClick={() => setConfirmSaveOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200">Não</button><button onClick={save} disabled={saving} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-5 py-2.5 text-sm font-black text-emerald-100 disabled:cursor-not-allowed disabled:opacity-60">{saving ? "Salvando..." : "Sim, salvar"}</button></div></div></div> : null}
+          {deleteTarget ? (
+            <div className="fixed inset-0 z-[60] grid place-items-center px-4">
+              <button className="absolute inset-0 bg-zinc-950/55 backdrop-blur-sm" onClick={() => !deleting && setDeleteTarget(null)} />
+              <div className="relative w-full max-w-[560px] rounded-3xl border border-white/15 bg-zinc-900/95 p-5 space-y-3">
+                <p className="text-lg font-black text-white">Excluir empreendimento</p>
+                <p className="text-sm text-zinc-300">
+                  Você está excluindo o empreendimento <span className="font-semibold text-white">{deleteTarget.code}</span>.
+                </p>
+                <div className="rounded-2xl border border-rose-400/20 bg-rose-500/10 p-3 text-[12px] text-rose-100">
+                  <p className="font-semibold">Impactos da exclusão:</p>
+                  <p className="mt-1">1. Remove o empreendimento e os talhões/variedades vinculados.</p>
+                  <p>2. Atualiza os totais e indicadores do painel automaticamente.</p>
+                  <p>3. Se houver vínculo bloqueante no backend, a exclusão será cancelada com aviso.</p>
+                </div>
+                {deleteError ? <p className="rounded-xl border border-rose-400/25 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">{deleteError}</p> : null}
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => setDeleteTarget(null)} disabled={deleting} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200 disabled:opacity-60">Cancelar</button>
+                  <button onClick={() => void removeItem(deleteTarget.id)} disabled={deleting} className="rounded-2xl border border-rose-400/25 bg-rose-500/15 px-5 py-2.5 text-sm font-black text-rose-100 disabled:opacity-60">{deleting ? "Excluindo..." : "Confirmar exclusão"}</button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {confirmSaveOpen ? (
+            <div className="fixed inset-0 z-[60] grid place-items-center px-4">
+              <button className="absolute inset-0 bg-zinc-950/55 backdrop-blur-sm" onClick={() => setConfirmSaveOpen(false)} />
+              <div className="relative w-full max-w-[560px] rounded-3xl border border-white/15 bg-zinc-900/95 p-5 space-y-3">
+                <p className="text-lg font-black text-white">Confirmar salvamento</p>
+                <p className="text-sm text-zinc-300">
+                  {editingId
+                    ? "Você está prestes a salvar alterações no empreendimento."
+                    : "Você está prestes a criar um novo empreendimento."}
+                </p>
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => setConfirmSaveOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200">Cancelar</button>
+                  <button onClick={save} disabled={saving} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-5 py-2.5 text-sm font-black text-emerald-100 disabled:cursor-not-allowed disabled:opacity-60">{saving ? "Salvando..." : "Confirmar"}</button>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {closeOpen ? <div className="fixed inset-0 z-[60] grid place-items-center px-4"><button className="absolute inset-0 bg-zinc-950/55 backdrop-blur-sm" onClick={() => setCloseOpen(false)} /><div className="relative w-full max-w-[560px] rounded-3xl border border-white/15 bg-zinc-900/95 p-5 space-y-3"><p className="text-lg font-black text-white">Encerrar Safra / Empreendimento</p><div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Empreendimento</label><select value={closeEmpId} onChange={(e) => setCloseEmpId(e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100"><option value="" style={optionStyle}>Selecione</option>{rows.map((e) => <option key={e.id} value={e.id} style={optionStyle}>{e.code}</option>)}</select></div><div className="grid gap-2"><label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Data de encerramento</label><input type="date" value={closeDate} onChange={(e) => setCloseDate(e.target.value)} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark]" /></div><div className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-3 text-xs font-semibold text-emerald-100">Ao confirmar, todos os talhões do empreendimento receberão a data de encerramento e o status passará para Encerrado.</div><div className="flex justify-end gap-2"><button onClick={() => setCloseOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-black text-zinc-200">Cancelar</button><button onClick={runCloseEvent} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-5 py-2.5 text-sm font-black text-emerald-100">Encerrar</button></div></div></div> : null}
         </div>

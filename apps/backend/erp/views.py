@@ -51,6 +51,34 @@ class CompanyScopedViewSet(viewsets.ModelViewSet):
         return super().handle_exception(exc)
 
 
+class CompanyScopedReadOnlyViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_company(self):
+        return get_current_company(self.request.user)
+
+    def get_queryset(self):
+        company = self.get_company()
+        if not company:
+            return self.queryset.none()
+        return self.queryset.filter(company=company)
+
+    def handle_exception(self, exc):
+        if isinstance(exc, (ProgrammingError, OperationalError)):
+            return Response(
+                {
+                    "detail": "Erro de banco ao acessar o ERP. Verifique se as migracoes foram aplicadas e se a base esta acessivel."
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        if isinstance(exc, IntegrityError):
+            return Response(
+                {"detail": "Erro de integridade ao salvar. Verifique os campos e tente novamente."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().handle_exception(exc)
+
+
 class CulturaViewSet(CompanyScopedViewSet):
     queryset = models.Cultura.objects.select_related("company")
     serializer_class = serializers.CulturaSerializer
@@ -297,3 +325,50 @@ class DepositoViewSet(CompanyScopedViewSet):
 class TransportadorPlacaViewSet(CompanyScopedViewSet):
     queryset = models.TransportadorPlaca.objects.select_related("company", "transportador")
     serializer_class = serializers.TransportadorPlacaSerializer
+
+
+class RomaneioGraosViewSet(CompanyScopedViewSet):
+    queryset = models.RomaneioGraos.objects.select_related(
+        "company", "safra", "produtor", "cliente", "produto", "deposito", "operacao"
+    )
+    serializer_class = serializers.RomaneioGraosSerializer
+
+    def perform_destroy(self, instance):
+        has_nota_entrada = models.NotaFiscalGraos.objects.filter(
+            company=instance.company,
+            romaneio=instance,
+            tipo=models.NotaFiscalGraos.Tipo.ENTRADA,
+        ).exclude(status=models.NotaFiscalGraos.Status.CANCELED).exists()
+        if has_nota_entrada:
+            raise ValidationError(
+                {"detail": "Nao e permitido excluir romaneio com NF de entrada vinculada. Cancele/exclua a NF primeiro."}
+            )
+        super().perform_destroy(instance)
+
+
+class NotaFiscalGraosViewSet(CompanyScopedViewSet):
+    queryset = models.NotaFiscalGraos.objects.select_related(
+        "company",
+        "romaneio",
+        "nota_entrada_ref",
+        "safra",
+        "produtor",
+        "cliente",
+        "produto",
+        "deposito",
+        "operacao",
+    )
+    serializer_class = serializers.NotaFiscalGraosSerializer
+
+    def perform_destroy(self, instance):
+        with transaction.atomic():
+            company = instance.company
+            super().perform_destroy(instance)
+            serializers.NotaFiscalGraosSerializer.rebuild_company_grain_state(company)
+
+
+class EstoqueGraosSaldoViewSet(CompanyScopedReadOnlyViewSet):
+    queryset = models.EstoqueGraosSaldo.objects.select_related(
+        "company", "safra", "produtor", "cliente", "produto", "deposito"
+    )
+    serializer_class = serializers.EstoqueGraosSaldoSerializer

@@ -225,6 +225,7 @@ export default function FaturamentoCompraPage() {
   const [rows, setRows] = useState<Array<{ pedido_item_id: number | null; produto_id: number | null; peca_id: number | null; quantity: string; price: string }>>([]);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
+  const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<FaturamentoCompra | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
@@ -241,9 +242,14 @@ export default function FaturamentoCompraPage() {
     const pedidoById = new Map(pedidos.map((p) => [p.id, p]));
     return fats.filter((f) => {
       const pid = f.pedido?.id ?? null;
-      if (!pid) return false;
+      // Faturamentos sem pedido não carregam safra no payload atual.
+      // Mantemos visível para não "sumir" da lista quando o usuário salva.
+      if (!pid) return true;
       const p = pedidoById.get(pid);
-      return p?.safra?.id === sid;
+      // Se o pedido não vier no carregamento ou estiver sem safra, também
+      // mantemos visível para evitar falso "sumiço" na tela.
+      if (!p || !p.safra?.id) return true;
+      return p.safra.id === sid;
     });
   }, [fats, pedidos, safraId]);
 
@@ -441,7 +447,8 @@ export default function FaturamentoCompraPage() {
         }
       }
       setCpStatusByFatId(statusMap);
-      if (sf.length && safraId === "") setSafraId(sf[0].id);
+      // Mantém "todas as safras" por padrão para não esconder
+      // faturamentos sem vínculo de pedido.
     } catch (err) {
       if (isApiError(err) && err.status === 401) {
         window.location.href = "/login";
@@ -475,8 +482,6 @@ export default function FaturamentoCompraPage() {
   async function onSave() {
     const token = getAccessToken();
     if (!token) return;
-    const confirmText = editingId ? "Confirmar edição do faturamento?" : "Confirmar novo faturamento?";
-    if (!window.confirm(confirmText)) return;
     setSaving(true);
     setSaveMessage("");
     try {
@@ -521,6 +526,7 @@ export default function FaturamentoCompraPage() {
 
   function openCreate() {
     setEditingId(null);
+    setSaveConfirmOpen(false);
     setOpen(true);
     setFormStep(0);
     setFormDate("");
@@ -538,8 +544,7 @@ export default function FaturamentoCompraPage() {
   }
 
   function openEdit(f: FaturamentoCompra) {
-    const ok = window.confirm("Editar este faturamento?");
-    if (!ok) return;
+    setSaveConfirmOpen(false);
     setEditingId(f.id);
     setOpen(true);
     setFormStep(0);
@@ -1203,6 +1208,45 @@ export default function FaturamentoCompraPage() {
             </div>
           ) : null}
 
+          {saveConfirmOpen ? (
+            <div className="fixed inset-0 z-[60] grid place-items-center px-4">
+              <button
+                className="absolute inset-0 bg-zinc-950/70 backdrop-blur-sm"
+                onClick={() => !saving && setSaveConfirmOpen(false)}
+                aria-label="Fechar confirmação de salvamento"
+              />
+              <div className="relative w-full max-w-[520px] rounded-3xl border border-white/15 bg-zinc-900/90 p-5 shadow-2xl">
+                <p className="text-base font-black text-white">Confirmar salvamento</p>
+                <p className="mt-1 text-sm text-zinc-300">
+                  {editingId
+                    ? "Você está prestes a salvar alterações no faturamento. Os saldos vinculados serão recalculados."
+                    : "Você está prestes a criar um novo faturamento e gerar os vínculos financeiros."}
+                </p>
+                <div className="mt-4 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSaveConfirmOpen(false)}
+                    disabled={saving}
+                    className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-zinc-100 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSaveConfirmOpen(false);
+                      void onSave();
+                    }}
+                    disabled={saving}
+                    className="rounded-2xl border border-accent-400/30 bg-accent-500/20 px-4 py-2 text-sm font-black text-accent-100 hover:bg-accent-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {saving ? "Salvando..." : "Confirmar"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           {open ? (
             <div className="fixed inset-0 z-50 grid place-items-center px-4">
               <button className="absolute inset-0 bg-zinc-950/60 backdrop-blur-sm" onClick={() => { setOpen(false); setFormStep(0); }} aria-label="Fechar" />
@@ -1220,7 +1264,7 @@ export default function FaturamentoCompraPage() {
                   className="max-h-[78vh] overflow-auto p-5"
                   onSubmit={(e) => {
                     e.preventDefault();
-                    void onSave();
+                    setSaveConfirmOpen(true);
                   }}
                   onKeyDown={(e) => {
                     if (e.key !== "Enter" || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;

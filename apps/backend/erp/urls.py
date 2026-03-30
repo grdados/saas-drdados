@@ -28,7 +28,10 @@ router.register(r"compras/faturamentos", views.FaturamentoCompraViewSet, basenam
 router.register(r"financeiro/contas-a-pagar", views.ContaPagarViewSet, basename="contas_a_pagar")
 router.register(r"producao/empreendimentos", views.EmpreendimentoViewSet, basename="empreendimentos")
 router.register(r"producao/contratos", views.ContratoVendaViewSet, basename="contratos_venda")
+router.register(r"producao/romaneios-graos", views.RomaneioGraosViewSet, basename="romaneios_graos")
+router.register(r"producao/notas-graos", views.NotaFiscalGraosViewSet, basename="notas_graos")
 router.register(r"financeiro/contas-a-receber", views.ContaReceberViewSet, basename="contas_a_receber")
+router.register(r"estoque/graos-saldos", views.EstoqueGraosSaldoViewSet, basename="estoque_graos_saldos")
 
 router.register(r"estoque/categorias", views.CategoriaViewSet, basename="categorias")
 router.register(r"estoque/insumos", views.InsumoViewSet, basename="insumos")
