@@ -443,6 +443,7 @@ export function AdminShell({
             { label: "Contratos", href: "/producao/contrato" },
             { label: "Empreendimentos", href: "/producao/empreendimentos" },
             { label: "Romaneio", href: "/producao/romaneio" },
+            { label: "Chuvas", href: "/producao/chuvas" },
             { label: "Talhão", href: "/producao/talhao" }
           ]
         },

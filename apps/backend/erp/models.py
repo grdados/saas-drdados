@@ -461,6 +461,42 @@ class EmpreendimentoItem(models.Model):
         return super().save(*args, **kwargs)
 
 
+class Chuva(models.Model):
+    class Tipo(models.TextChoices):
+        CHUVISCO = "chuvisco", "Chuvisco"
+        CHUVA = "chuva", "Chuva"
+        TEMPESTADE = "tempestade", "Tempestade"
+        GRANIZO = "granizo", "Granizo"
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    date = models.DateField(null=True, blank=True)
+    empreendimento = models.ForeignKey("erp.Empreendimento", related_name="chuvas", on_delete=models.CASCADE)
+    talhao = models.ForeignKey("erp.Talhao", null=True, blank=True, on_delete=models.PROTECT)
+    pluviometro_id = models.CharField(max_length=80, blank=True, default="")
+    tipo = models.CharField(max_length=20, choices=Tipo.choices, default=Tipo.CHUVA)
+    volume_mm = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-date", "-id"]
+        indexes = [
+            models.Index(fields=["company", "date"]),
+            models.Index(fields=["company", "empreendimento"]),
+            models.Index(fields=["company", "talhao"]),
+            models.Index(fields=["company", "pluviometro_id"]),
+            models.Index(fields=["company", "tipo"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.empreendimento_id and not self.company_id:
+            self.company_id = self.empreendimento.company_id
+        if isinstance(self.pluviometro_id, str):
+            self.pluviometro_id = self.pluviometro_id.strip().upper()
+        return super().save(*args, **kwargs)
+
+
 class ContratoVenda(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pendente"

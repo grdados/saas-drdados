@@ -6,6 +6,7 @@ import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
 import {
   CentroCusto,
+  ChuvaApi,
   Cultivar,
   EmpreendimentoApi,
   ProdutoItem,
@@ -15,6 +16,7 @@ import {
   createEmpreendimento,
   deleteEmpreendimento,
   isApiError,
+  listChuvas,
   listEmpreendimentos,
   listCentrosCusto,
   listCultivares,
@@ -48,6 +50,12 @@ function formatKg(v: number) {
 }
 function formatSc(v: number) {
   return `${v.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} SC`;
+}
+function classifyRainMm(totalMm: number) {
+  if (totalMm <= 40) return "Pouca chuva";
+  if (totalMm <= 80) return "Quase Bom";
+  if (totalMm <= 100) return "Bom";
+  return "Excelente";
 }
 function normalizeText(v: string) {
   return (v || "")
@@ -176,6 +184,7 @@ export default function EmpreendimentosPage() {
   const [produtos, setProdutos] = useState<ProdutoItem[]>([]);
   const [cultivares, setCultivares] = useState<Cultivar[]>([]);
   const [centros, setCentros] = useState<CentroCusto[]>([]);
+  const [chuvas, setChuvas] = useState<ChuvaApi[]>([]);
 
   const [rows, setRows] = useState<Empreendimento[]>([]);
   const [open, setOpen] = useState(false);
@@ -194,6 +203,7 @@ export default function EmpreendimentosPage() {
   const [closeDate, setCloseDate] = useState("");
 
   const [safraFilter, setSafraFilter] = useState<number | "">("");
+  const [rainEmpFilter, setRainEmpFilter] = useState<string>("");
   const [viewUnit, setViewUnit] = useState<"KG" | "SC">("KG");
   const [sackWeight, setSackWeight] = useState<60 | 40>(60);
 
@@ -210,14 +220,15 @@ export default function EmpreendimentosPage() {
     setLoading(true);
     setError("");
     try {
-      const [a, b, c, d, e, f, emps] = await Promise.all([
+      const [a, b, c, d, e, f, emps, rainRows] = await Promise.all([
         listSafras(token),
         listPropriedades(token),
         listTalhoes(token),
         listProdutosEstoque(token),
         listCultivares(token),
         listCentrosCusto(token),
-        listEmpreendimentos(token)
+        listEmpreendimentos(token),
+        listChuvas(token)
       ]);
       setSafras(a);
       setPropriedades(b);
@@ -225,6 +236,7 @@ export default function EmpreendimentosPage() {
       setProdutos(d);
       setCultivares(e);
       setCentros(f);
+      setChuvas(rainRows);
       setRows(
         emps.map((x) => {
           const mapped = fromApiEmpreendimento(x);
@@ -251,6 +263,15 @@ export default function EmpreendimentosPage() {
     });
   }, [rows, safraFilter]);
 
+  useEffect(() => {
+    if (!filtered.length) {
+      if (rainEmpFilter) setRainEmpFilter("");
+      return;
+    }
+    const exists = filtered.some((e) => String(e.id) === rainEmpFilter);
+    if (!exists) setRainEmpFilter(String(filtered[0].id));
+  }, [filtered, rainEmpFilter]);
+
   const analytics = useMemo(() => {
     let estimadoKg = 0;
     let estimadoSc = 0;
@@ -268,6 +289,89 @@ export default function EmpreendimentosPage() {
     const saldoKg = estimadoKg - realizadoKg;
     return { faturamento, qty: filtered.length, estimadoKg, estimadoSc, realizadoKg, saldoKg, mediaPrevistaHaKg };
   }, [filtered, romaneios]);
+
+  const chuvaPanel = useMemo(() => {
+    const includedIds = new Set(filtered.map((e) => String(e.id)));
+    const bounds = new Map<string, { start?: string; end?: string }>();
+    for (const emp of filtered) {
+      let start = "";
+      let end = "";
+      for (const item of emp.items || []) {
+        const p = item.plant_date || "";
+        if (p && (!start || p < start)) start = p;
+        const c = item.close_date || "";
+        if (c && (!end || c > end)) end = c;
+      }
+      const finalEnd = end || new Date().toISOString().slice(0, 10);
+      bounds.set(String(emp.id), { start: start || undefined, end: finalEnd });
+    }
+
+    const base = chuvas
+      .filter((x) => {
+        const eid = String(x.empreendimento_id ?? x.empreendimento?.id ?? "");
+        if (!includedIds.has(eid)) return false;
+        const dt = x.date || "";
+        const b = bounds.get(eid);
+        if (!b) return false;
+        if (b.start && dt && dt < b.start) return false;
+        if (b.end && dt && dt > b.end) return false;
+        return true;
+      })
+      .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+
+    let acc = 0;
+    const series = base.map((x) => {
+      acc += n(x.volume_mm);
+      return { date: x.date || "", value: acc };
+    });
+
+    return {
+      totalMm: acc,
+      status: classifyRainMm(acc),
+      points: series,
+      max: Math.max(1, ...series.map((p) => p.value))
+    };
+  }, [chuvas, filtered]);
+
+  const chuvaPanelEmp = useMemo(() => {
+    const selectedId = rainEmpFilter || String(filtered[0]?.id ?? "");
+    if (!selectedId) return { totalMm: 0, status: "Pouca chuva", points: [] as Array<{ date: string; value: number }>, max: 1 };
+    const emp = filtered.find((e) => String(e.id) === selectedId);
+    if (!emp) return { totalMm: 0, status: "Pouca chuva", points: [] as Array<{ date: string; value: number }>, max: 1 };
+
+    let start = "";
+    let end = "";
+    for (const item of emp.items || []) {
+      const p = item.plant_date || "";
+      if (p && (!start || p < start)) start = p;
+      const c = item.close_date || "";
+      if (c && (!end || c > end)) end = c;
+    }
+    const finalEnd = end || new Date().toISOString().slice(0, 10);
+
+    const base = chuvas
+      .filter((x) => {
+        const eid = String(x.empreendimento_id ?? x.empreendimento?.id ?? "");
+        if (eid !== selectedId) return false;
+        const dt = x.date || "";
+        if (start && dt && dt < start) return false;
+        if (finalEnd && dt && dt > finalEnd) return false;
+        return true;
+      })
+      .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+
+    let acc = 0;
+    const points = base.map((x) => {
+      acc += n(x.volume_mm);
+      return { date: x.date || "", value: acc };
+    });
+    return {
+      totalMm: acc,
+      status: classifyRainMm(acc),
+      points,
+      max: Math.max(1, ...points.map((p) => p.value))
+    };
+  }, [chuvas, filtered, rainEmpFilter]);
 
   const viewUnitLabel = viewUnit === "KG" ? "KG" : `SC${sackWeight}`;
   function toViewUnit(kgValue: number) {
@@ -291,7 +395,7 @@ export default function EmpreendimentosPage() {
         const delivered = romaneios
           .filter((r) => r.empreendimento_id === it.id)
           .reduce((acc, r) => acc + n(r.net_weight), 0);
-        return { label: it.code, qty, delivered };
+        return { label: it.code, qty, delivered, empreendimentoId: String(it.id) };
       }),
     [filtered, romaneios]
   );
@@ -888,6 +992,72 @@ export default function EmpreendimentosPage() {
             </div>
           </section>
 
+          <section className="rounded-3xl border border-sky-400/25 bg-sky-500/10 p-3.5">
+            <div className="mb-3 grid gap-2 sm:grid-cols-2">
+              <div className="rounded-2xl border border-sky-300/25 bg-black/20 p-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Chuva geral (filtro atual)</p>
+                <p className="mt-1 text-[18px] font-black text-white">
+                  {chuvaPanel.totalMm.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mm
+                </p>
+                <p className="text-xs font-semibold text-sky-100/90">{chuvaPanel.status}</p>
+              </div>
+              <div className="rounded-2xl border border-sky-300/25 bg-black/20 p-3">
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Empreendimento</p>
+                  <p className="text-xs font-semibold text-sky-100/90">
+                    {chuvaPanelEmp.totalMm.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mm · {chuvaPanelEmp.status}
+                  </p>
+                </div>
+                <select
+                  value={rainEmpFilter}
+                  onChange={(e) => setRainEmpFilter(e.target.value)}
+                  className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold text-zinc-100 outline-none focus:border-sky-300"
+                >
+                  {filtered.map((emp) => (
+                    <option key={emp.id} value={String(emp.id)} style={optionStyle}>
+                      {emp.code || emp.id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-sky-300/20 bg-black/20 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-[13px] font-black text-white">Linha acumulada por empreendimento selecionado</p>
+                <p className="text-xs font-semibold text-zinc-300">{chuvaPanelEmp.points.length} ponto(s)</p>
+              </div>
+              {chuvaPanelEmp.points.length ? (
+                <svg viewBox="0 0 100 36" className="h-32 w-full">
+                  <polyline
+                    fill="none"
+                    stroke="rgba(56,189,248,0.95)"
+                    strokeWidth="1.2"
+                    points={chuvaPanelEmp.points.map((p, i) => {
+                      const x = chuvaPanelEmp.points.length > 1 ? (i / (chuvaPanelEmp.points.length - 1)) * 100 : 50;
+                      const y = 34 - (p.value / chuvaPanelEmp.max) * 30;
+                      return `${x},${y}`;
+                    }).join(" ")}
+                  />
+                  {chuvaPanelEmp.points.map((p, i) => {
+                    const x = chuvaPanelEmp.points.length > 1 ? (i / (chuvaPanelEmp.points.length - 1)) * 100 : 50;
+                    const y = 34 - (p.value / chuvaPanelEmp.max) * 30;
+                    return (
+                      <g key={`${p.date}-${i}`}>
+                        <circle cx={x} cy={y} r="0.85" fill="rgba(125,211,252,1)" />
+                        <text x={x} y={Math.max(2, y - 2)} textAnchor="middle" fontSize="2.4" fill="rgba(186,230,253,0.95)">
+                          {Math.round(p.value)}
+                        </text>
+                      </g>
+                    );
+                  })}
+                </svg>
+              ) : (
+                <p className="text-sm text-zinc-400">Sem leituras de chuva no período de plantio/colheita.</p>
+              )}
+            </div>
+          </section>
+
           <section className="rounded-3xl border border-white/10 bg-white/5 p-3.5">
             <p className="text-[13px] font-black text-white">Quantidade estimada x realizada</p>
             <div className="mt-3 grid gap-3 xl:grid-cols-3">
@@ -921,8 +1091,26 @@ export default function EmpreendimentosPage() {
                         {group.items.map((item) => {
                           const qtyHeight = Math.max(8, (item.qty / max) * 140);
                           const doneHeight = Math.max(8, (item.delivered / max) * 140);
+                          const empId = (item as { empreendimentoId?: string }).empreendimentoId;
+                          const isSelectedEmp = group.title === "Por empreendimento" && Boolean(empId) && rainEmpFilter === empId;
                           return (
-                            <div key={item.label} className="min-w-0">
+                            <button
+                              key={item.label}
+                              type="button"
+                              onClick={() => {
+                                if (group.title === "Por empreendimento" && empId) {
+                                  setRainEmpFilter(empId);
+                                }
+                              }}
+                              onDoubleClick={() => {
+                                if (group.title === "Por empreendimento" && empId) {
+                                  window.location.href = `/producao/chuvas?empreendimento_id=${encodeURIComponent(empId)}&auto_open=1`;
+                                }
+                              }}
+                              className={`min-w-0 rounded-xl p-1 text-left transition ${group.title === "Por empreendimento" ? "cursor-pointer hover:bg-white/5" : "cursor-default"} ${isSelectedEmp ? "ring-1 ring-sky-300/45 bg-sky-500/10" : ""}`}
+                              disabled={group.title !== "Por empreendimento"}
+                              title={group.title === "Por empreendimento" ? "Clique para filtrar chuva deste empreendimento. Duplo clique para abrir o cadastro de chuva." : undefined}
+                            >
                               <div className="flex h-[164px] items-end justify-center gap-1">
                                 <div className="flex flex-col items-center">
                                   <span className="mb-1 text-[9px] font-black text-amber-300">
@@ -948,7 +1136,7 @@ export default function EmpreendimentosPage() {
                               <p className="mt-2 truncate text-center text-[10px] font-semibold text-zinc-300">
                                 {item.label}
                               </p>
-                            </div>
+                            </button>
                           );
                         })}
                       </div>

@@ -121,6 +121,7 @@ export default function ProdutorPage() {
   const [formCidade, setFormCidade] = useState("");
   const [formUf, setFormUf] = useState("");
   const [formActive, setFormActive] = useState(true);
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
 
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
@@ -170,6 +171,7 @@ export default function ProdutorPage() {
 
   function openCreate() {
     setEditingId(null);
+    setWizardStep(1);
     setFormName("");
     setFormGroupId("");
     setFormInscricao("");
@@ -190,6 +192,7 @@ export default function ProdutorPage() {
     const it = items.find((i) => i.id === id);
     if (!it) return;
     setEditingId(id);
+    setWizardStep(1);
     setFormName(it.name ?? "");
     setFormGroupId(it.grupo?.id ?? "");
     setFormInscricao(it.registration ?? "");
@@ -247,7 +250,7 @@ export default function ProdutorPage() {
   }
 
   return (
-    <AuthedAdminShell>
+    <AuthedAdminShell hideHeader>
       {() => (
         <div className="space-y-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -372,158 +375,220 @@ export default function ProdutorPage() {
 
           <Modal
             open={modalOpen}
-            title={editing ? "Editar produtor" : "Novo produtor"}
+            title={`${editing ? "Editar produtor" : "Novo produtor"} · Etapa ${wizardStep} de 3`}
             onClose={() => {
               setModalOpen(false);
               setSaveMessage("");
             }}
           >
             <div className="grid gap-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="grid gap-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Produtor</label>
-                  <input
-                    value={formName}
-                    onChange={(e) => setFormName(toUpperText(e.target.value))}
-                    placeholder="Nome do produtor..."
-                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Grupo</label>
-                  <select
-                    value={formGroupId}
-                    onChange={(e) => setFormGroupId(e.target.value === "" ? "" : Number(e.target.value))}
-                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50"
-                  >
-                    <option value="" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
-                      Selecione
-                    </option>
-                    {groups
-                      .slice()
-                      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }))
-                      .map((g) => (
-                        <option key={g.id} value={g.id} style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
-                          {g.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-
-                <div className="grid gap-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Inscricao</label>
-                  <input
-                    value={formInscricao}
-                    onChange={(e) => setFormInscricao(toUpperText(e.target.value))}
-                    placeholder="Inscricao..."
-                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">CPF</label>
-                  <input
-                    value={formCpf}
-                    onChange={(e) => setFormCpf(maskCPF(e.target.value))}
-                    placeholder="CPF..."
-                    inputMode="numeric"
-                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
-                  />
-                </div>
-
-                <div className="grid gap-2 md:col-span-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Fazenda</label>
-                  <input
-                    value={formFazenda}
-                    onChange={(e) => setFormFazenda(toUpperText(e.target.value))}
-                    placeholder="Nome da fazenda..."
-                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
-                  />
-                </div>
-
-                <div className="grid gap-2 md:col-span-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Endereco</label>
-                  <input
-                    value={formEndereco}
-                    onChange={(e) => setFormEndereco(toUpperText(e.target.value))}
-                    placeholder="Endereco..."
-                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
-                  />
-                </div>
-
-                <div className="grid gap-2 md:col-span-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Localizacao Google (URL)</label>
-                  <input
-                    value={formGoogle}
-                    onChange={(e) => setFormGoogle(e.target.value)}
-                    placeholder="https://maps.google.com/..."
-                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Area (ha)</label>
-                  <input
-                    value={formArea}
-                    onChange={(e) => setFormArea(e.target.value)}
-                    inputMode="decimal"
-                    placeholder="0"
-                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Matricula</label>
-                  <input
-                    value={formMatricula}
-                    onChange={(e) => setFormMatricula(toUpperText(e.target.value))}
-                    placeholder="Matricula..."
-                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Cidade</label>
-                  <input
-                    value={formCidade}
-                    onChange={(e) => setFormCidade(toUpperText(e.target.value))}
-                    placeholder="Cidade..."
-                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">UF</label>
-                  <input
-                    value={formUf}
-                    onChange={(e) => setFormUf(toUpperText(e.target.value))}
-                    placeholder="MS"
-                    className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
-                  />
-                </div>
-              </div>
-
-              <label className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-zinc-950/35 px-4 py-3">
-                <div>
-                  <p className="text-sm font-black text-white">Ativo</p>
-                  <p className="text-xs text-zinc-400">Se desativado, nao aparece em novas operacoes.</p>
-                </div>
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
-                  onClick={() => setFormActive((v) => !v)}
-                  className={`relative h-7 w-12 rounded-full border transition-colors ${
-                    formActive ? "border-emerald-400/40 bg-emerald-500/25" : "border-white/10 bg-zinc-950/40"
+                  onClick={() => setWizardStep(1)}
+                  className={`rounded-xl border px-3 py-2 text-[11px] font-black uppercase tracking-[0.18em] ${
+                    wizardStep === 1
+                      ? "border-accent-500/50 bg-accent-500/15 text-accent-100"
+                      : "border-white/10 bg-white/5 text-zinc-400"
                   }`}
-                  aria-label="Alternar ativo"
                 >
-                  <span
-                    className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full transition-all ${
-                      formActive ? "left-6 bg-emerald-200" : "left-1 bg-zinc-300"
-                    }`}
-                  />
+                  Dados
                 </button>
-              </label>
+                <button
+                  type="button"
+                  onClick={() => setWizardStep(2)}
+                  className={`rounded-xl border px-3 py-2 text-[11px] font-black uppercase tracking-[0.18em] ${
+                    wizardStep === 2
+                      ? "border-accent-500/50 bg-accent-500/15 text-accent-100"
+                      : "border-white/10 bg-white/5 text-zinc-400"
+                  }`}
+                >
+                  Localização
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWizardStep(3)}
+                  className={`rounded-xl border px-3 py-2 text-[11px] font-black uppercase tracking-[0.18em] ${
+                    wizardStep === 3
+                      ? "border-accent-500/50 bg-accent-500/15 text-accent-100"
+                      : "border-white/10 bg-white/5 text-zinc-400"
+                  }`}
+                >
+                  Resumo
+                </button>
+              </div>
+
+              {wizardStep === 1 ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-2">
+                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Produtor</label>
+                    <input
+                      value={formName}
+                      onChange={(e) => setFormName(toUpperText(e.target.value))}
+                      placeholder="Nome do produtor..."
+                      className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Grupo</label>
+                    <select
+                      value={formGroupId}
+                      onChange={(e) => setFormGroupId(e.target.value === "" ? "" : Number(e.target.value))}
+                      className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-3 text-sm font-semibold text-zinc-100 outline-none focus:border-accent-500/50"
+                    >
+                      <option value="" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
+                        Selecione
+                      </option>
+                      {groups
+                        .slice()
+                        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }))
+                        .map((g) => (
+                          <option key={g.id} value={g.id} style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
+                            {g.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Inscricao</label>
+                    <input
+                      value={formInscricao}
+                      onChange={(e) => setFormInscricao(toUpperText(e.target.value))}
+                      placeholder="Inscricao..."
+                      className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">CPF</label>
+                    <input
+                      value={formCpf}
+                      onChange={(e) => setFormCpf(maskCPF(e.target.value))}
+                      placeholder="CPF..."
+                      inputMode="numeric"
+                      className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
+                    />
+                  </div>
+
+                  <div className="grid gap-2 md:col-span-2">
+                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Fazenda</label>
+                    <input
+                      value={formFazenda}
+                      onChange={(e) => setFormFazenda(toUpperText(e.target.value))}
+                      placeholder="Nome da fazenda..."
+                      className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              {wizardStep === 2 ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-2 md:col-span-2">
+                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Endereco</label>
+                    <input
+                      value={formEndereco}
+                      onChange={(e) => setFormEndereco(toUpperText(e.target.value))}
+                      placeholder="Endereco..."
+                      className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
+                    />
+                  </div>
+
+                  <div className="grid gap-2 md:col-span-2">
+                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Localizacao Google (URL)</label>
+                    <input
+                      value={formGoogle}
+                      onChange={(e) => setFormGoogle(e.target.value)}
+                      placeholder="https://maps.google.com/..."
+                      className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Cidade</label>
+                    <input
+                      value={formCidade}
+                      onChange={(e) => setFormCidade(toUpperText(e.target.value))}
+                      placeholder="Cidade..."
+                      className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">UF</label>
+                    <input
+                      value={formUf}
+                      onChange={(e) => setFormUf(toUpperText(e.target.value))}
+                      placeholder="MS"
+                      className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              {wizardStep === 3 ? (
+                <div className="grid gap-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-2">
+                      <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Area (ha)</label>
+                      <input
+                        value={formArea}
+                        onChange={(e) => setFormArea(e.target.value)}
+                        inputMode="decimal"
+                        placeholder="0"
+                        className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
+                      />
+                    </div>
+
+                    <div className="grid gap-2">
+                      <label className="text-xs font-black uppercase tracking-[0.22em] text-zinc-400">Matricula</label>
+                      <input
+                        value={formMatricula}
+                        onChange={(e) => setFormMatricula(toUpperText(e.target.value))}
+                        placeholder="Matricula..."
+                        className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm font-semibold text-zinc-100 placeholder:text-zinc-500 outline-none focus:border-accent-500/50"
+                      />
+                    </div>
+                  </div>
+
+                  <label className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-zinc-950/35 px-4 py-3">
+                    <div>
+                      <p className="text-sm font-black text-white">Ativo</p>
+                      <p className="text-xs text-zinc-400">Se desativado, nao aparece em novas operacoes.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFormActive((v) => !v)}
+                      className={`relative h-7 w-12 rounded-full border transition-colors ${
+                        formActive ? "border-emerald-400/40 bg-emerald-500/25" : "border-white/10 bg-zinc-950/40"
+                      }`}
+                      aria-label="Alternar ativo"
+                    >
+                      <span
+                        className={`absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full transition-all ${
+                          formActive ? "left-6 bg-emerald-200" : "left-1 bg-zinc-300"
+                        }`}
+                      />
+                    </button>
+                  </label>
+
+                  <div className="rounded-2xl border border-white/10 bg-zinc-950/35 p-4 text-sm">
+                    <p className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">Resumo para confirmação</p>
+                    <div className="mt-3 grid gap-2 text-zinc-200 md:grid-cols-2">
+                      <div><span className="text-zinc-400">Produtor:</span> {formName || "-"}</div>
+                      <div><span className="text-zinc-400">Grupo:</span> {groups.find((g) => g.id === formGroupId)?.name ?? "-"}</div>
+                      <div><span className="text-zinc-400">CPF:</span> {formCpf || "-"}</div>
+                      <div><span className="text-zinc-400">Inscrição:</span> {formInscricao || "-"}</div>
+                      <div><span className="text-zinc-400">Fazenda:</span> {formFazenda || "-"}</div>
+                      <div><span className="text-zinc-400">Área:</span> {formatArea(formArea)}</div>
+                      <div><span className="text-zinc-400">Cidade/UF:</span> {[formCidade, formUf].filter(Boolean).join(" / ") || "-"}</div>
+                      <div><span className="text-zinc-400">Matrícula:</span> {formMatricula || "-"}</div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
 
               {saveMessage ? (
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm font-semibold text-zinc-200">
@@ -531,14 +596,7 @@ export default function ProdutorPage() {
                 </div>
               ) : null}
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-                <button
-                  disabled={saving || formName.trim().length < 2}
-                  onClick={onSave}
-                  className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-5 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {saving ? "Salvando..." : "Salvar"}
-                </button>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <button
                   disabled={saving}
                   onClick={() => {
@@ -549,6 +607,34 @@ export default function ProdutorPage() {
                 >
                   Cancelar
                 </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={saving || wizardStep === 1}
+                    onClick={() => setWizardStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3) : s))}
+                    className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-black text-zinc-100 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Voltar
+                  </button>
+                  {wizardStep < 3 ? (
+                    <button
+                      type="button"
+                      disabled={saving || (wizardStep === 1 && formName.trim().length < 2)}
+                      onClick={() => setWizardStep((s) => (s < 3 ? ((s + 1) as 1 | 2 | 3) : s))}
+                      className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-5 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Próximo
+                    </button>
+                  ) : (
+                    <button
+                      disabled={saving || formName.trim().length < 2}
+                      onClick={onSave}
+                      className="inline-flex items-center justify-center rounded-2xl bg-accent-500 px-5 py-3 text-sm font-black text-zinc-950 hover:bg-accent-400 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {saving ? "Salvando..." : "Salvar"}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </Modal>

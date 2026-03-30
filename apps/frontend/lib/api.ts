@@ -1187,6 +1187,65 @@ export function deleteEmpreendimento(token: string, id: string) {
   return request<void>(`/api/erp/producao/empreendimentos/${id}/`, { method: "DELETE" }, token);
 }
 
+export type ChuvaApi = {
+  id: number;
+  date: string | null;
+  empreendimento: { id: string; code: string } | null;
+  empreendimento_id?: string;
+  talhao: { id: number; name: string } | null;
+  talhao_id?: number | null;
+  pluviometro_id: string;
+  tipo: "chuvisco" | "chuva" | "tempestade" | "granizo" | string;
+  volume_mm: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export function listChuvas(token: string) {
+  return request<ChuvaApi[]>("/api/erp/producao/chuvas/", { method: "GET" }, token);
+}
+
+export function createChuva(
+  token: string,
+  payload: Partial<{
+    date: string | null;
+    empreendimento_id: string;
+    talhao_id: number | null;
+    pluviometro_id: string;
+    tipo: "chuvisco" | "chuva" | "tempestade" | "granizo";
+    volume_mm: string | number;
+  }>
+) {
+  return request<ChuvaApi>(
+    "/api/erp/producao/chuvas/",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  );
+}
+
+export function updateChuva(
+  token: string,
+  id: number,
+  payload: Partial<{
+    date: string | null;
+    empreendimento_id: string;
+    talhao_id: number | null;
+    pluviometro_id: string;
+    tipo: "chuvisco" | "chuva" | "tempestade" | "granizo";
+    volume_mm: string | number;
+  }>
+) {
+  return request<ChuvaApi>(
+    `/api/erp/producao/chuvas/${id}/`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  );
+}
+
+export function deleteChuva(token: string, id: number) {
+  return request<void>(`/api/erp/producao/chuvas/${id}/`, { method: "DELETE" }, token);
+}
+
 export type ContratoVendaItem = {
   id: number;
   produto: { id: number; name: string } | null;

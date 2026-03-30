@@ -697,6 +697,63 @@ class EmpreendimentoSerializer(serializers.ModelSerializer):
         return instance
 
 
+class ChuvaSerializer(serializers.ModelSerializer):
+    empreendimento = serializers.SerializerMethodField()
+    empreendimento_id = serializers.PrimaryKeyRelatedField(
+        source="empreendimento", queryset=models.Empreendimento.objects.all(), allow_null=False, required=True
+    )
+    talhao = serializers.SerializerMethodField()
+    talhao_id = serializers.PrimaryKeyRelatedField(
+        source="talhao", queryset=models.Talhao.objects.all(), allow_null=True, required=False
+    )
+
+    class Meta:
+        model = models.Chuva
+        fields = [
+            "id",
+            "date",
+            "empreendimento",
+            "empreendimento_id",
+            "talhao",
+            "talhao_id",
+            "pluviometro_id",
+            "tipo",
+            "volume_mm",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_empreendimento(self, obj):
+        if not getattr(obj, "empreendimento_id", None):
+            return None
+        return {"id": obj.empreendimento_id, "code": obj.empreendimento.code}
+
+    def get_talhao(self, obj):
+        if not getattr(obj, "talhao_id", None):
+            return None
+        return {"id": obj.talhao_id, "name": obj.talhao.name}
+
+    def validate(self, attrs):
+        company = get_current_company(self.context["request"].user) if self.context.get("request") else None
+        _validate_fk_company(attrs.get("empreendimento"), company, "empreendimento_id")
+        _validate_fk_company(attrs.get("talhao"), company, "talhao_id")
+        pluviometro_id = (attrs.get("pluviometro_id") or "").strip()
+        if not pluviometro_id:
+            raise serializers.ValidationError({"pluviometro_id": "Informe o ID do pluviometro."})
+        empreendimento = attrs.get("empreendimento")
+        talhao = attrs.get("talhao")
+        if empreendimento and talhao:
+            belongs = models.EmpreendimentoItem.objects.filter(
+                empreendimento=empreendimento,
+                talhao=talhao,
+            ).exists()
+            if not belongs:
+                raise serializers.ValidationError(
+                    {"talhao_id": "Talhao nao vinculado ao empreendimento selecionado."}
+                )
+        return attrs
+
+
 class ContratoVendaItemSerializer(serializers.ModelSerializer):
     produto = serializers.SerializerMethodField()
     produto_id = serializers.PrimaryKeyRelatedField(
@@ -911,7 +968,9 @@ class ContaReceberSerializer(serializers.ModelSerializer):
     conta_id = serializers.PrimaryKeyRelatedField(
         source="conta", queryset=models.Conta.objects.all(), allow_null=True, required=False
     )
-    receive_increment = serializers.DecimalField(max_digits=14, decimal_places=2, required=False, write_only=True, min_value=0)
+    receive_increment = serializers.DecimalField(
+        max_digits=14, decimal_places=2, required=False, write_only=True, min_value=Decimal("0")
+    )
 
     class Meta:
         model = models.ContaReceber
@@ -1072,7 +1131,9 @@ class ContaPagarSerializer(serializers.ModelSerializer):
     faturamento_id = serializers.PrimaryKeyRelatedField(
         source="faturamento", queryset=models.FaturamentoCompra.objects.all(), allow_null=True, required=False
     )
-    payment_increment = serializers.DecimalField(max_digits=14, decimal_places=2, required=False, write_only=True, min_value=0)
+    payment_increment = serializers.DecimalField(
+        max_digits=14, decimal_places=2, required=False, write_only=True, min_value=Decimal("0")
+    )
 
     class Meta:
         model = models.ContaPagar

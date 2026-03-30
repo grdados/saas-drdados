@@ -224,6 +224,16 @@ class EmpreendimentoViewSet(CompanyScopedViewSet):
     serializer_class = serializers.EmpreendimentoSerializer
 
 
+class ChuvaViewSet(CompanyScopedViewSet):
+    queryset = models.Chuva.objects.select_related(
+        "company",
+        "empreendimento",
+        "empreendimento__safra",
+        "talhao",
+    )
+    serializer_class = serializers.ChuvaSerializer
+
+
 class ContratoVendaViewSet(CompanyScopedViewSet):
     queryset = (
         models.ContratoVenda.objects.select_related(
