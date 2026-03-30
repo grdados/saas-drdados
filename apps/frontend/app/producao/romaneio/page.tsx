@@ -1239,7 +1239,7 @@ export default function RomaneioPage() {
             <div className="flex items-center justify-between"><p className="text-sm font-black text-white">Lista</p><p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filteredRows.length} item(ns)`}</p></div>
             <p className="mt-2 text-[11px] text-amber-200/90">Regra fiscal: sem contra-nota de entrada, o romaneio permanece pendente e não pode seguir para venda.</p>
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden grid-cols-[72px_82px_84px_84px_108px_142px_130px_90px_122px_82px_98px_98px_106px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-2.5 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
+              <div className="hidden grid-cols-[64px_74px_72px_72px_92px_128px_118px_72px_96px_70px_92px_92px_88px] gap-1 rounded-2xl border border-white/10 bg-zinc-950/30 px-2 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
                 <div>Status</div><div>Data</div><div>Romaneio</div><div>NFP</div><div>Safra</div><div>Produtor</div><div>Propriedade</div><div>Talhão</div><div>Cliente</div><div>Placa</div><div>Peso Bruto</div><div>Peso Líquido</div><div className="text-right">Ações</div>
               </div>
               <div className="mt-3 space-y-2">
@@ -1256,7 +1256,7 @@ export default function RomaneioPage() {
                       onClick={() => setDetailTarget(r)}
                       className="w-full cursor-pointer rounded-2xl border border-white/10 bg-zinc-950/35 px-2.5 py-2.5 text-left transition-colors hover:bg-zinc-900/45"
                     >
-                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[72px_82px_84px_84px_108px_142px_130px_90px_122px_82px_98px_98px_106px] xl:items-center xl:gap-2">
+                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[64px_74px_72px_72px_92px_128px_118px_72px_96px_70px_92px_92px_88px] xl:items-center xl:gap-1">
                         <div><span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${status === "ok" ? "border-emerald-400/35 bg-emerald-500/10 text-emerald-200" : "border-amber-400/35 bg-amber-500/10 text-amber-200"}`}>{status === "ok" ? "OK" : "Pendente"}</span></div>
                         <div className="text-xs text-zinc-100">{d(r.date)}</div>
                         <div className="text-xs text-zinc-100">{r.code}</div>

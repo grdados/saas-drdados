@@ -33,7 +33,7 @@ function initialsFrom(name: string, email: string) {
 function Icon({
   name
 }: {
-  name: "overview" | "orders" | "products" | "notif" | "analytics" | "messages" | "settings" | "account" | "help";
+  name: "overview" | "orders" | "products" | "production" | "supplies" | "notif" | "analytics" | "messages" | "settings" | "account" | "help";
 }) {
   const common = "h-4 w-4";
   switch (name) {
@@ -57,6 +57,26 @@ function Icon({
           <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
           <path d="M3.3 7.1 12 12l8.7-4.9" />
           <path d="M12 22V12" />
+        </svg>
+      );
+    case "production":
+      return (
+        <svg viewBox="0 0 24 24" className={common} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="11" width="9" height="6" rx="1.5" />
+          <path d="M12 12h3l2 2h4" />
+          <circle cx="7" cy="19" r="2" />
+          <circle cx="18" cy="19" r="2" />
+          <path d="M5 11V8h4l2 3" />
+          <path d="M20 9v3" />
+        </svg>
+      );
+    case "supplies":
+      return (
+        <svg viewBox="0 0 24 24" className={common} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 10h16" />
+          <path d="M6 10l1.4 8.5A2 2 0 0 0 9.37 20h5.26a2 2 0 0 0 1.97-1.5L18 10" />
+          <path d="M9 10V7a3 3 0 0 1 6 0v3" />
+          <circle cx="12" cy="14" r="1.2" />
         </svg>
       );
     case "notif":
@@ -203,7 +223,7 @@ function SidebarLink({
 }) {
   const base =
     "group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition-colors";
-  const activeCls = "bg-white/[0.08] text-white ring-1 ring-white/10";
+  const activeCls = "bg-[#FFB30D]/30 text-[#001542] ring-1 ring-[#FFB30D]/60";
   const idleCls = "text-white/78 hover:bg-white/[0.05] hover:text-white";
 
   if (item.disabled) {
@@ -218,7 +238,7 @@ function SidebarLink({
 
   return (
     <Link href={item.href} onClick={onNavigate} className={`${base} ${active ? activeCls : idleCls}`}>
-      <span className={active ? "text-white" : "text-[#8A8D93] group-hover:text-white"}>{icon}</span>
+      <span className={active ? "text-[#001542]" : "text-[#8A8D93] group-hover:text-white"}>{icon}</span>
       {depth > 0 ? <span className="h-4 w-px bg-white/10" /> : null}
       <span className="flex-1">{item.label}</span>
       {typeof item.badge === "number" ? (
@@ -291,7 +311,7 @@ function SidebarTreeNode({
 
   const base =
     "group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-semibold transition-colors";
-  const activeCls = "bg-white/[0.08] text-white ring-1 ring-white/10";
+  const activeCls = "bg-[#FFB30D]/30 text-[#001542] ring-1 ring-[#FFB30D]/60";
   const idleCls = "text-white/78 hover:bg-white/[0.05] hover:text-white";
 
   if (!hasChildren) {
@@ -303,7 +323,7 @@ function SidebarTreeNode({
         depth={depth}
         onNavigate={onNavigate}
         icon={
-          <span className={active ? "text-white" : "text-[#8A8D93] group-hover:text-white"}>
+          <span className={active ? "text-[#001542]" : "text-[#8A8D93] group-hover:text-white"}>
             {node.icon || <span className="h-4 w-4" />}
           </span>
         }
@@ -319,7 +339,7 @@ function SidebarTreeNode({
         className={`${base} ${active ? activeCls : idleCls}`}
         aria-expanded={open}
       >
-        <span className={active ? "text-white" : "text-[#8A8D93] group-hover:text-white"}>
+        <span className={active ? "text-[#001542]" : "text-[#8A8D93] group-hover:text-white"}>
           {node.icon || <span className="h-4 w-4" />}
         </span>
         <span className="flex-1">{node.label}</span>
@@ -438,18 +458,17 @@ export function AdminShell({
         { label: "Overview", href: "/dashboard", icon: <Icon name="overview" /> },
         {
           label: "Produção",
-          icon: <Icon name="products" />,
+          icon: <Icon name="production" />,
           children: [
             { label: "Contratos", href: "/producao/contrato" },
             { label: "Empreendimentos", href: "/producao/empreendimentos" },
             { label: "Romaneio", href: "/producao/romaneio" },
             { label: "Chuvas", href: "/producao/chuvas" },
-            { label: "Talhão", href: "/producao/talhao" }
           ]
         },
         {
           label: "Compra",
-          icon: <Icon name="orders" />,
+          icon: <Icon name="supplies" />,
           children: [
             { label: "Pedido", href: "/compra/pedido" },
             { label: "Faturamento", href: "/compra/faturamento" },

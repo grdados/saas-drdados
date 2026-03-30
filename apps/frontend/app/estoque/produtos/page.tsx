@@ -32,7 +32,7 @@ function n(v: unknown) {
 }
 
 function kg(v: number) {
-  return v.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  return v.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
 }
 
 function culturaMeta(name: string) {
@@ -112,6 +112,9 @@ type EstoqueRow = {
   quantidade: number;
   totalLoads: number;
   pendingLoads: number;
+  romaneioCodes: string[];
+  nfpRefs: string[];
+  notaFiscalRefs: string[];
 };
 
 type ProductSummary = {
@@ -154,7 +157,7 @@ function sortByQtyDesc<T extends { quantidade: number }>(arr: T[]): T[] {
 }
 
 export default function EstoqueProdutosPage() {
-  const [unitView, setUnitView] = useState<"KG" | "SC">("KG");
+  const [unitView, setUnitView] = useState<"KG" | "SC">("SC");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [safras, setSafras] = useState<Safra[]>([]);
@@ -310,11 +313,19 @@ export default function EstoqueProdutosPage() {
         deposito: r.deposito.toUpperCase(),
         quantidade: 0,
         totalLoads: 0,
-        pendingLoads: 0
+        pendingLoads: 0,
+        romaneioCodes: [],
+        nfpRefs: [],
+        notaFiscalRefs: []
       };
       current.quantidade += Math.max(n(r.net_weight), 0);
       current.totalLoads += 1;
       if (statusFromRomaneio(r, contra) === "pending") current.pendingLoads += 1;
+      if (r.code && !current.romaneioCodes.includes(r.code)) current.romaneioCodes.push(r.code);
+      if (r.nfp && !current.nfpRefs.includes(r.nfp)) current.nfpRefs.push(r.nfp);
+      if (contra?.nota_fiscal && !current.notaFiscalRefs.includes(contra.nota_fiscal)) {
+        current.notaFiscalRefs.push(contra.nota_fiscal);
+      }
       grouped.set(key, current);
     }
 
@@ -346,17 +357,6 @@ export default function EstoqueProdutosPage() {
     filterClienteId,
     q
   ]);
-
-  const totalKg = useMemo(() => rows.reduce((acc, r) => acc + r.quantidade, 0), [rows]);
-  const totalRomaneiosComContraNota = useMemo(
-    () =>
-      romaneios.filter((r) => {
-        const op = contraNotaByRomaneioId.get(r.id)?.operacao;
-        if (op === "remessa_deposito" || op === "a_fixar") return true;
-        return !op && r.status === "ok";
-      }).length,
-    [romaneios, contraNotaByRomaneioId]
-  );
 
   const matrixClients = useMemo(() => {
     const set = new Set<string>();
@@ -528,13 +528,24 @@ export default function EstoqueProdutosPage() {
     <AuthedAdminShell hideHeader>
       {() => (
         <div className="space-y-5">
-          <section className="grid gap-3 xl:grid-cols-[minmax(0,520px)_minmax(0,1fr)] xl:items-start">
+          <section className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-start">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Estoque</p>
               <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Estoque de produtos</h1>
               <p className="mt-1 text-sm text-zinc-300">Entradas fiscais por romaneio com contra-nota de remessa para depósito ou a fixar.</p>
             </div>
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-3.5">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">Unidade</p>
+              <select
+                value={unitView}
+                onChange={(e) => setUnitView(e.target.value === "KG" ? "KG" : "SC")}
+                className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[12px] font-semibold text-zinc-100 outline-none focus:border-accent-500/50"
+              >
+                <option value="SC" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>Sacas (SC)</option>
+                <option value="KG" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>Quilos (KG)</option>
+              </select>
+            </div>
+            <div className="hidden rounded-3xl border border-white/10 bg-white/5 p-3.5">
               <div className="flex flex-wrap items-center gap-2">
                 <input
                   value={q}
@@ -615,19 +626,48 @@ export default function EstoqueProdutosPage() {
             </div>
           </section>
 
-          <section className="grid gap-3 sm:grid-cols-3">
-            <article className="h-[96px] rounded-3xl border border-sky-400/30 bg-sky-500/10 px-3 py-2.5">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300/90">{`Volume em estoque (${unitView})`}</p>
-              <p className="mt-2 text-[22px] font-black text-white">{formatQtd(totalKg)}</p>
-            </article>
-            <article className="h-[96px] rounded-3xl border border-white/15 bg-white/5 px-3 py-2.5">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300/90">Itens agrupados</p>
-              <p className="mt-2 text-[22px] font-black text-white">{rows.length}</p>
-            </article>
-            <article className="h-[96px] rounded-3xl border border-white/15 bg-white/5 px-3 py-2.5">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300/90">Romaneios com contra-nota</p>
-              <p className="mt-2 text-[22px] font-black text-white">{totalRomaneiosComContraNota}</p>
-            </article>
+          <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-black text-white">Resumo geral por produto</p>
+              <p className="text-xs font-semibold text-zinc-400">{productSummary.length} produto(s)</p>
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              <article className="rounded-2xl border border-white/10 bg-zinc-950/30 p-3 xl:col-span-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Produtor</p>
+                <select
+                  value={filterProdutorId}
+                  onChange={(e) => setFilterProdutorId(e.target.value === "" ? "" : Number(e.target.value))}
+                  className="mt-2 w-full rounded-xl border border-white/10 bg-[#00507a] px-2.5 py-2 text-[12px] font-semibold text-white outline-none focus:border-accent-400"
+                >
+                  <option value="" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>Todos</option>
+                  {produtores.map((p) => (
+                    <option key={p.id} value={p.id} style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </article>
+
+              {productSummary.map((p) => (
+                <article key={p.produto} className="overflow-hidden rounded-2xl border border-white/15 bg-zinc-900/60">
+                  <div className="flex items-center justify-between gap-2 px-3 py-3">
+                    <ProductIcon name={p.produto} cultura={p.cultura} />
+                    <div className="min-w-0 text-right">
+                      <p className="truncate text-[14px] font-black leading-none text-zinc-100">{formatQtd(p.totalKg)}</p>
+                      <p className="mt-1 text-[11px] text-zinc-400">{unitView}</p>
+                    </div>
+                  </div>
+                  <div className="bg-[#00507a] px-3 py-1.5 text-center">
+                    <p className="truncate text-[12px] font-black uppercase tracking-[0.12em] text-white">{p.produto}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+            {!loading && productSummary.length === 0 ? (
+              <div className="mt-3 rounded-2xl border border-white/10 bg-zinc-950/30 p-4 text-sm text-zinc-300">
+                Nenhum produto com estoque para venda no filtro atual.
+              </div>
+            ) : null}
           </section>
 
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
@@ -761,148 +801,33 @@ export default function EstoqueProdutosPage() {
 
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-black text-white">Resumo geral por produto</p>
-              <p className="text-xs font-semibold text-zinc-400">{productSummary.length} produto(s)</p>
-            </div>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-              <article className="rounded-2xl border border-white/10 bg-zinc-950/30 p-3 xl:col-span-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Produtor</p>
-                <select
-                  value={filterProdutorId}
-                  onChange={(e) => setFilterProdutorId(e.target.value === "" ? "" : Number(e.target.value))}
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-[#00507a] px-2.5 py-2 text-[12px] font-semibold text-white outline-none focus:border-accent-400"
-                >
-                  <option value="" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>Todos</option>
-                  {produtores.map((p) => (
-                    <option key={p.id} value={p.id} style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </article>
-
-              {productSummary.map((p) => (
-                <article key={p.produto} className="overflow-hidden rounded-2xl border border-white/15 bg-zinc-900/60">
-                  <div className="flex items-center justify-between gap-2 px-3 py-3">
-                    <ProductIcon name={p.produto} cultura={p.cultura} />
-                    <div className="min-w-0 text-right">
-                      <p className="truncate text-[28px] font-black leading-none text-zinc-100">{formatQtd(p.totalKg)}</p>
-                      <p className="mt-1 text-[11px] text-zinc-400">{unitView}</p>
-                    </div>
-                  </div>
-                  <div className="bg-[#00507a] px-3 py-1.5 text-center">
-                    <p className="truncate text-[12px] font-black uppercase tracking-[0.12em] text-white">{p.produto}</p>
-                  </div>
-                </article>
-              ))}
-            </div>
-            {!loading && productSummary.length === 0 ? (
-              <div className="mt-3 rounded-2xl border border-white/10 bg-zinc-950/30 p-4 text-sm text-zinc-300">
-                Nenhum produto com estoque para venda no filtro atual.
-              </div>
-            ) : null}
-          </section>
-
-          <section className="grid gap-3 xl:grid-cols-3">
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-black text-white">Por safra</p>
-                <p className="text-xs font-semibold text-zinc-400">{safraSummary.length} safra(s)</p>
-              </div>
-              <div className="mt-3 space-y-2">
-                {safraSummary.map((s) => (
-                  <div key={s.safra} className="rounded-2xl border border-white/10 bg-zinc-950/35 p-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="truncate text-xs font-black uppercase tracking-[0.16em] text-zinc-300">{s.safra}</p>
-                      <p className="text-xs font-semibold text-zinc-200">{`${formatQtd(s.totalKg)} ${unitView}`}</p>
-                    </div>
-                    <div className="mt-2 space-y-1.5">
-                      {s.produtos.slice(0, 4).map((prod) => (
-                        <div key={`${s.safra}-${prod.produto}`} className="flex items-center justify-between gap-2 text-[11px] text-zinc-300">
-                          <span className="truncate">{prod.produto}</span>
-                          <span>{formatQtd(prod.quantidade)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                {!loading && safraSummary.length === 0 ? <p className="text-xs text-zinc-500">Sem dados.</p> : null}
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-black text-white">Por produtor</p>
-                <p className="text-xs font-semibold text-zinc-400">{producerSummary.length} produtor(es)</p>
-              </div>
-              <div className="mt-3 space-y-2">
-                {producerSummary.map((p) => (
-                  <div key={p.produtor} className="rounded-2xl border border-white/10 bg-zinc-950/35 p-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="truncate text-xs font-black uppercase tracking-[0.14em] text-zinc-300">{p.produtor}</p>
-                      <p className="text-xs font-semibold text-zinc-200">{`${formatQtd(p.totalKg)} ${unitView}`}</p>
-                    </div>
-                    <div className="mt-2 space-y-1.5">
-                      {p.linhas.slice(0, 4).map((ln, idx) => (
-                        <div key={`${p.produtor}-${idx}`} className="grid grid-cols-[1fr_auto] gap-2 text-[11px] text-zinc-300">
-                          <span className="truncate">{ln.safra} · {ln.produto} · {ln.cliente}</span>
-                          <span>{formatQtd(ln.quantidade)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                {!loading && producerSummary.length === 0 ? <p className="text-xs text-zinc-500">Sem dados.</p> : null}
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-black text-white">Por cliente</p>
-                <p className="text-xs font-semibold text-zinc-400">{clientSummary.length} cliente(s)</p>
-              </div>
-              <div className="mt-3 space-y-2">
-                {clientSummary.map((c) => (
-                  <div key={c.cliente} className="rounded-2xl border border-white/10 bg-zinc-950/35 p-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="truncate text-xs font-black uppercase tracking-[0.14em] text-zinc-300">{c.cliente}</p>
-                      <p className="text-xs font-semibold text-zinc-200">{`${formatQtd(c.totalKg)} ${unitView}`}</p>
-                    </div>
-                    <div className="mt-2 space-y-1.5">
-                      {c.linhas.slice(0, 4).map((ln, idx) => (
-                        <div key={`${c.cliente}-${idx}`} className="grid grid-cols-[1fr_auto] gap-2 text-[11px] text-zinc-300">
-                          <span className="truncate">{ln.safra} · {ln.produto} · {ln.produtor}</span>
-                          <span>{formatQtd(ln.quantidade)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                {!loading && clientSummary.length === 0 ? <p className="text-xs text-zinc-500">Sem dados.</p> : null}
-              </div>
-            </div>
-          </section>
-
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-            <div className="flex items-center justify-between">
               <p className="text-sm font-black text-white">Lista de estoque</p>
               <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${rows.length} item(ns)`}</p>
             </div>
-            <div className="mt-3 hidden grid-cols-[1fr_0.62fr_0.95fr_1.15fr_0.95fr_0.95fr_0.9fr_0.5fr] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
-              <div>Safra</div><div>Cultura</div><div>Produto</div><div>Produtor</div><div>Cliente</div><div>Deposito</div><div>{`Quantidade (${unitView})`}</div><div>Romaneios</div>
+            <div className="mt-3 hidden grid-cols-[1fr_0.6fr_1.2fr_0.85fr_0.85fr_0.8fr_0.85fr_0.7fr_0.8fr] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
+              <div>Safra</div>
+              <div>Cultura</div>
+              <div>Produtor</div>
+              <div>Cliente</div>
+              <div>Deposito</div>
+              <div>{`Quantidade (${unitView})`}</div>
+              <div>Romaneio</div>
+              <div>NFP</div>
+              <div>Nota fiscal</div>
             </div>
             <div className="mt-3 space-y-2">
               {rows.map((r, idx) => (
                 <div key={`${r.safra}-${r.cultura}-${r.produto}-${r.produtor}-${r.cliente}-${r.deposito}-${idx}`} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3">
-                  <div className="grid grid-cols-1 gap-2 xl:grid-cols-[1fr_0.62fr_0.95fr_1.15fr_0.95fr_0.95fr_0.9fr_0.5fr] xl:items-center xl:gap-3">
+                  <div className="grid grid-cols-1 gap-2 xl:grid-cols-[1fr_0.6fr_1.2fr_0.85fr_0.85fr_0.8fr_0.85fr_0.7fr_0.8fr] xl:items-center xl:gap-3">
                     <div className="truncate text-xs text-zinc-100">{r.safra}</div>
                     <CulturaBadge name={r.cultura} />
-                    <div className="truncate text-xs text-zinc-100">{r.produto}</div>
                     <div className="truncate text-xs text-zinc-100">{r.produtor}</div>
                     <div className="truncate text-xs text-zinc-100">{r.cliente}</div>
                     <div className="truncate text-xs text-zinc-100">{r.deposito}</div>
                     <div className="truncate text-xs font-semibold text-zinc-100">{formatQtd(r.quantidade)}</div>
-                    <div className="text-xs text-zinc-100">{r.totalLoads}</div>
+                    <div className="truncate text-xs text-zinc-100">{r.romaneioCodes.join(", ") || "-"}</div>
+                    <div className="truncate text-xs text-zinc-100">{r.nfpRefs.join(", ") || "-"}</div>
+                    <div className="truncate text-xs text-zinc-100">{r.notaFiscalRefs.join(", ") || "-"}</div>
                   </div>
                 </div>
               ))}
