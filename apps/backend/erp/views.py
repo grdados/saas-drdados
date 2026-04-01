@@ -344,7 +344,7 @@ class TransportadorPlacaViewSet(CompanyScopedViewSet):
 
 class RomaneioGraosViewSet(CompanyScopedViewSet):
     queryset = models.RomaneioGraos.objects.select_related(
-        "company", "safra", "produtor", "cliente", "produto", "deposito", "operacao"
+        "company", "safra", "produtor", "cliente", "produto", "contrato", "deposito", "operacao"
     )
     serializer_class = serializers.RomaneioGraosSerializer
 
@@ -378,8 +378,22 @@ class NotaFiscalGraosViewSet(CompanyScopedViewSet):
     def perform_destroy(self, instance):
         with transaction.atomic():
             company = instance.company
+            contrato = getattr(instance.romaneio, "contrato", None)
+            was_venda = (
+                instance.tipo == models.NotaFiscalGraos.Tipo.SAIDA
+                and instance.finalidade == models.NotaFiscalGraos.Finalidade.VENDA
+            )
+            venda_number = (instance.number or "").strip().upper()
             super().perform_destroy(instance)
             serializers.NotaFiscalGraosSerializer.rebuild_company_grain_state(company)
+            if was_venda and venda_number:
+                models.ContaReceber.objects.filter(
+                    company=company,
+                    origem=models.ContaReceber.Origem.NOTA_FISCAL,
+                    document_number=venda_number,
+                ).delete()
+            if contrato is not None:
+                serializers._sync_conta_receber_contrato(contrato)
 
 
 class EstoqueGraosSaldoViewSet(CompanyScopedReadOnlyViewSet):

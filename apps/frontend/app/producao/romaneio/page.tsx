@@ -10,27 +10,35 @@ import {
   Deposito,
   Cultivar,
   ContratoVenda,
+  NotaFiscalGraosApi,
   ProdutoItem,
   EmpreendimentoApi,
   Operacao,
   Produtor,
   Propriedade,
+  RomaneioGraosApi,
   Safra,
   Talhao,
   TransportadorPlaca,
+  createNotaGraos,
+  createRomaneioGraos,
   isApiError,
   listClientesGerencial,
   listContratosVenda,
   listCultivares,
   listDepositos,
   listEmpreendimentos,
+  listNotasGraos,
   listOperacoes,
   listProdutosEstoque,
   listProdutores,
   listPropriedades,
+  listRomaneiosGraos,
   listSafras,
   listTalhoes,
-  listTransportadorPlacas
+  listTransportadorPlacas,
+  updateNotaGraos,
+  updateRomaneioGraos
 } from "@/lib/api";
 import { formatDateBR } from "@/lib/locale";
 import {
@@ -188,8 +196,19 @@ type ContraNotaFormState = {
   date: string;
   nota_fiscal: string;
   chave: string;
-  operacao: "remessa_deposito" | "a_fixar";
+  operacao: "remessa_deposito" | "a_fixar" | "venda_direta_contrato";
 };
+
+type ContratoSaldoModal = {
+  qtyTotalKg: number;
+  qtySoldKg: number;
+  qtySaldoKg: number;
+  valueTotal: number;
+  valueSold: number;
+  valueSaldo: number;
+};
+
+type ContratoSaldoMap = Record<number, ContratoSaldoModal>;
 
 const EMPTY_CONTRA_NOTA_FORM: ContraNotaFormState = {
   date: "",
@@ -210,6 +229,10 @@ export default function RomaneioPage() {
   const [contraNotaTarget, setContraNotaTarget] = useState<Romaneio | null>(null);
   const [deleteError, setDeleteError] = useState("");
   const [contraNotaError, setContraNotaError] = useState("");
+  const [contraNotaInfo, setContraNotaInfo] = useState("");
+  const [contraNotaContratoSaldo, setContraNotaContratoSaldo] = useState<ContratoSaldoModal | null>(null);
+  const [contraNotaContratoLoading, setContraNotaContratoLoading] = useState(false);
+  const [contratoSaldoById, setContratoSaldoById] = useState<ContratoSaldoMap>({});
   const [formStep, setFormStep] = useState(0);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [contraNotaForm, setContraNotaForm] = useState<ContraNotaFormState>(EMPTY_CONTRA_NOTA_FORM);
@@ -256,7 +279,7 @@ export default function RomaneioPage() {
     setLoading(true);
     setError("");
     try {
-      const [a, b, c, d, e, f, g, h, i, j, k, emps] = await Promise.all([
+      const [a, b, c, d, e, f, g, h, i, j, k, emps, notasGraos, romaneiosGraos] = await Promise.all([
         listSafras(token),
         listProdutores(token),
         listProdutosEstoque(token),
@@ -268,7 +291,9 @@ export default function RomaneioPage() {
         listCultivares(token),
         listDepositos(token),
         listTransportadorPlacas(token),
-        listEmpreendimentos(token)
+        listEmpreendimentos(token),
+        listNotasGraos(token),
+        listRomaneiosGraos(token)
       ]);
       setSafras(a);
       setProdutores(b);
@@ -282,6 +307,15 @@ export default function RomaneioPage() {
       setDepositos(j);
       setPlacasTransportador(k);
       setEmpreendimentos(emps.map(fromApiEmpreendimento));
+      const localRows = loadRomaneios();
+      const mappedContraNotas = notasGraos
+        .filter((nf) => nf.tipo === "entrada" && nf.romaneio?.id)
+        .map((nf) => mapNotaApiToContraNota(nf, localRows));
+      if (mappedContraNotas.length) {
+        setContraNotas(mappedContraNotas);
+        saveContraNotasEntrada(mappedContraNotas);
+      }
+      setContratoSaldoById(buildContratoSaldoMap(d, romaneiosGraos, notasGraos));
     } catch (err) {
       if (isApiError(err) && err.status === 401) {
         window.location.href = "/login";
@@ -360,11 +394,15 @@ export default function RomaneioPage() {
 
   const temporalSeries = useMemo(() => {
     const daily = new Map<string, { qty: number; gross: number; disc: number; loads: number }>();
+    const safraStart = isoDate(selectedSafra?.start_date || "");
+    const safraEnd = isoDate(selectedSafra?.end_date || "");
     for (const r of filteredRows) {
       // Apenas cargas efetivamente entregues (peso líquido > 0).
       if (n(r.net_weight) <= 0) continue;
       const key = isoDate(r.date);
       if (!key) continue;
+      if (safraStart && key < safraStart) continue;
+      if (safraEnd && key > safraEnd) continue;
       const prev = daily.get(key) ?? { qty: 0, gross: 0, disc: 0, loads: 0 };
       prev.qty += n(r.net_weight);
       prev.gross += n(r.gross_weight);
@@ -372,24 +410,9 @@ export default function RomaneioPage() {
       prev.loads += 1;
       daily.set(key, prev);
     }
-    if (!daily.size && !(selectedSafra?.start_date && selectedSafra?.end_date)) return [];
-
-    const minRowDate = [...daily.keys()].sort()[0] ?? "";
-    const maxRowDate = [...daily.keys()].sort().at(-1) ?? "";
-    const start = isoDate(selectedSafra?.start_date || minRowDate);
-    const end = isoDate(selectedSafra?.end_date || maxRowDate);
-    if (!start || !end) return [];
-
-    const out: Array<{ key: string; qty: number; gross: number; disc: number; loads: number }> = [];
-    let cursor = new Date(`${start}T00:00:00`);
-    const limit = new Date(`${end}T00:00:00`);
-    while (cursor <= limit && out.length < 500) {
-      const key = cursor.toISOString().slice(0, 10);
-      const val = daily.get(key) ?? { qty: 0, gross: 0, disc: 0, loads: 0 };
-      out.push({ key, qty: val.qty, gross: val.gross, disc: val.disc, loads: val.loads });
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    return out;
+    return [...daily.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, val]) => ({ key, qty: val.qty, gross: val.gross, disc: val.disc, loads: val.loads }));
   }, [filteredRows, selectedSafra]);
 
   const temporalMeta = useMemo(() => {
@@ -706,24 +729,140 @@ export default function RomaneioPage() {
 
   function openContraNota(row: Romaneio) {
     setContraNotaError("");
+    setContraNotaInfo("");
+    setContraNotaContratoSaldo(null);
+    setContraNotaContratoLoading(false);
     const existing = contraNotas.find((x) => x.romaneio_id === row.id);
+    const isVendaDiretaContrato = Boolean(row.contrato_id);
     setContraNotaForm(
       existing
         ? {
             date: existing.date || "",
             nota_fiscal: existing.nota_fiscal || "",
             chave: existing.chave || "",
-            operacao: existing.operacao
+            operacao: isVendaDiretaContrato ? "venda_direta_contrato" : existing.operacao
           }
         : {
             ...EMPTY_CONTRA_NOTA_FORM,
+            operacao: isVendaDiretaContrato ? "venda_direta_contrato" : EMPTY_CONTRA_NOTA_FORM.operacao,
             date: row.date || new Date().toISOString().slice(0, 10)
           }
     );
     setContraNotaTarget(row);
+    if (isVendaDiretaContrato) {
+      void loadContratoSaldoModal(row);
+    }
   }
 
-  function saveContraNota() {
+  function toFinalidadeEntrada(
+    operacao: ContraNotaFormState["operacao"],
+    hasContrato: boolean
+  ): "remessa_deposito" | "a_fixar" {
+    if (hasContrato) return "remessa_deposito";
+    return operacao === "a_fixar" ? "a_fixar" : "remessa_deposito";
+  }
+
+  function toKgByUnit(qty: number, unit: string) {
+    return String(unit || "KG").toUpperCase().startsWith("KG") ? qty : qty * 60;
+  }
+
+  function avgContratoPriceKg(contrato: ContratoVenda | undefined) {
+    if (!contrato) return 0;
+    const items = contrato.items || [];
+    let qtyKg = 0;
+    let total = 0;
+    for (const item of items) {
+      const itemQtyKg = toKgByUnit(n(item.quantity), item.unit || "KG");
+      qtyKg += itemQtyKg;
+      total += n(item.total_item) > 0 ? n(item.total_item) : n(item.quantity) * n(item.price);
+    }
+    if (qtyKg <= 0) return 0;
+    return total / qtyKg;
+  }
+
+  function moneyBR(v: number) {
+    return v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function buildContratoSaldoMap(
+    contratosBase: ContratoVenda[],
+    romaneiosApi: RomaneioGraosApi[],
+    notasApi: NotaFiscalGraosApi[]
+  ): ContratoSaldoMap {
+    const out: ContratoSaldoMap = {};
+    for (const contrato of contratosBase) {
+      const contratoId = contrato.id;
+      const qtyTotalKg = (contrato.items || []).reduce((acc, it) => acc + toKgByUnit(n(it.quantity), it.unit || "KG"), 0);
+      const valueTotal = n(contrato.total_value);
+      const romaneioIdsContrato = new Set(
+        romaneiosApi
+          .filter((r) => (r.contrato_id ?? r.contrato?.id ?? null) === contratoId)
+          .map((r) => r.id)
+      );
+      const notasContrato = notasApi.filter(
+        (nf) =>
+          nf.tipo === "entrada" &&
+          (nf.status || "").toLowerCase() !== "canceled" &&
+          (nf.romaneio?.id ? romaneioIdsContrato.has(nf.romaneio.id) : false)
+      );
+      const qtySoldKg = notasContrato.reduce((acc, nf) => acc + n(nf.quantity_kg), 0);
+      const valueSold = notasContrato.reduce((acc, nf) => acc + n(nf.total_value), 0);
+      out[contratoId] = {
+        qtyTotalKg,
+        qtySoldKg,
+        qtySaldoKg: Math.max(qtyTotalKg - qtySoldKg, 0),
+        valueTotal,
+        valueSold,
+        valueSaldo: Math.max(valueTotal - valueSold, 0)
+      };
+    }
+    return out;
+  }
+
+  async function loadContratoSaldoModal(row: Romaneio) {
+    const token = getAccessToken();
+    if (!token || !row.contrato_id) return;
+    setContraNotaContratoLoading(true);
+    try {
+      const [romaneiosApi, notasApi] = await Promise.all([listRomaneiosGraos(token), listNotasGraos(token)]);
+      const saldoMap = buildContratoSaldoMap(contratos, romaneiosApi, notasApi);
+      setContratoSaldoById(saldoMap);
+      setContraNotaContratoSaldo(saldoMap[row.contrato_id] ?? null);
+    } catch {
+      setContraNotaContratoSaldo(null);
+    } finally {
+      setContraNotaContratoLoading(false);
+    }
+  }
+
+  function mapNotaApiToContraNota(nf: NotaFiscalGraosApi, localRows: Romaneio[] = rows): ContraNotaEntrada {
+    const localRow = localRows.find(
+      (r) =>
+        (r.code || "").trim().toUpperCase() === (nf.romaneio?.code || "").trim().toUpperCase() &&
+        (r.nfp || "").trim().toUpperCase() === (nf.romaneio?.nfp || "").trim().toUpperCase()
+    );
+    const hasContrato = Boolean(localRow?.contrato_id);
+    const operacao: ContraNotaEntrada["operacao"] =
+      hasContrato
+        ? "venda_direta_contrato"
+        : nf.finalidade === "a_fixar"
+          ? "a_fixar"
+          : "remessa_deposito";
+    return {
+      id: `nf-${nf.id}`,
+      created_at: nf.created_at,
+      updated_at: nf.updated_at,
+      romaneio_id: localRow?.id ?? (nf.romaneio?.code ?? String(nf.romaneio?.id ?? "")),
+      romaneio_code: localRow?.code ?? (nf.romaneio?.code ?? "-"),
+      nfp_ref: localRow?.nfp ?? (nf.romaneio?.nfp ?? ""),
+      operacao,
+      date: nf.date ?? "",
+      nota_fiscal: nf.number ?? "",
+      chave: ""
+    };
+  }
+
+  async function saveContraNota() {
     if (!contraNotaTarget) return;
     if (!contraNotaTarget.nfp?.trim()) {
       setContraNotaError("Este romaneio precisa da NFP preenchida para registrar a contra-nota.");
@@ -734,28 +873,165 @@ export default function RomaneioPage() {
       return;
     }
 
-    const now = new Date().toISOString();
-    const existing = contraNotas.find((x) => x.romaneio_id === contraNotaTarget.id);
-    const entity: ContraNotaEntrada = {
-      id: existing?.id ?? uid("cn"),
-      created_at: existing?.created_at ?? now,
-      updated_at: now,
-      romaneio_id: contraNotaTarget.id,
-      romaneio_code: contraNotaTarget.code,
-      nfp_ref: contraNotaTarget.nfp.trim().toUpperCase(),
-      operacao: contraNotaForm.operacao,
-      date: contraNotaForm.date,
-      nota_fiscal: contraNotaForm.nota_fiscal.trim().toUpperCase(),
-      chave: contraNotaForm.chave.trim()
-    };
-    const next = existing
-      ? contraNotas.map((x) => (x.id === existing.id ? entity : x))
-      : [entity, ...contraNotas];
-    setContraNotas(next);
-    saveContraNotasEntrada(next);
-    setContraNotaTarget(null);
+    const token = getAccessToken();
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
+
+    setSaving(true);
     setContraNotaError("");
+    setContraNotaInfo("");
+    try {
+      const isVendaDiretaContrato = Boolean(contraNotaTarget.contrato_id);
+      if (isVendaDiretaContrato && contraNotaContratoSaldo) {
+        const qtyRomaneioKg = Math.max(n(contraNotaTarget.net_weight), 0);
+        if (qtyRomaneioKg - contraNotaContratoSaldo.qtySaldoKg > 0.0001) {
+          setContraNotaError(
+            `Quantidade do romaneio acima do saldo do contrato. Saldo disponível: ${contraNotaContratoSaldo.qtySaldoKg.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KG.`
+          );
+          return;
+        }
+      }
+      const romaneiosApi = await listRomaneiosGraos(token);
+      const sameRomaneio = romaneiosApi.find(
+        (r) =>
+          (r.code || "").trim().toUpperCase() === (contraNotaTarget.code || "").trim().toUpperCase() &&
+          (r.nfp || "").trim().toUpperCase() === (contraNotaTarget.nfp || "").trim().toUpperCase()
+      );
+
+      const depositoMatch = depositosGraos.find(
+        (dpt) => dpt.name.trim().toUpperCase() === (contraNotaTarget.deposito || "").trim().toUpperCase()
+      );
+      const quantityKg = Math.max(n(contraNotaTarget.net_weight), 0);
+
+      const romaneioPayload: Partial<{
+        date: string | null;
+        code: string;
+        nfp: string;
+        safra_id: number | null;
+        produtor_id: number | null;
+        cliente_id: number | null;
+        produto_id: number | null;
+        contrato_id: number | null;
+        deposito_id: number | null;
+        operacao_id: number | null;
+        quantity_kg: number | string;
+        status: "pending" | "ok" | string;
+        notes: string;
+      }> = {
+        date: contraNotaTarget.date || null,
+        code: (contraNotaTarget.code || "").trim().toUpperCase(),
+        nfp: (contraNotaTarget.nfp || "").trim().toUpperCase(),
+        safra_id: contraNotaTarget.safra_id ?? null,
+        produtor_id: contraNotaTarget.produtor_id ?? null,
+        cliente_id: contraNotaTarget.cliente_id ?? null,
+        produto_id: contraNotaTarget.produto_id ?? null,
+        contrato_id: contraNotaTarget.contrato_id ?? null,
+        deposito_id: depositoMatch?.id ?? null,
+        operacao_id: contraNotaTarget.operacao_id ?? null,
+        quantity_kg: quantityKg,
+        status: "ok",
+        notes: contraNotaTarget.nfp?.trim()
+          ? `Contra-nota registrada. NFP ref: ${contraNotaTarget.nfp.trim().toUpperCase()}`
+          : "Contra-nota registrada."
+      };
+
+      const romaneioPersisted: RomaneioGraosApi = sameRomaneio
+        ? await updateRomaneioGraos(token, sameRomaneio.id, romaneioPayload)
+        : await createRomaneioGraos(token, romaneioPayload);
+
+      const notasApi = await listNotasGraos(token);
+      const notaEntradaExistente = notasApi.find(
+        (nf) => nf.tipo === "entrada" && (nf.romaneio?.id ?? null) === romaneioPersisted.id
+      );
+
+      const notaPayload: Partial<{
+        tipo: "entrada" | "saida" | string;
+        finalidade: "remessa_deposito" | "a_fixar" | "devolucao" | "venda" | string;
+        status: string;
+        date: string | null;
+        due_date: string | null;
+        number: string;
+        romaneio_id: number | null;
+        nota_entrada_ref_id: number | null;
+        safra_id: number | null;
+        produtor_id: number | null;
+        cliente_id: number | null;
+        produto_id: number | null;
+        deposito_id: number | null;
+        operacao_id: number | null;
+        quantity_kg: number | string;
+        price: number | string;
+        discount: number | string;
+      }> = {
+        tipo: "entrada",
+        finalidade: toFinalidadeEntrada(contraNotaForm.operacao, isVendaDiretaContrato),
+        date: contraNotaForm.date,
+        number: contraNotaForm.nota_fiscal.trim().toUpperCase(),
+        romaneio_id: romaneioPersisted.id,
+        safra_id: romaneioPersisted.safra_id ?? null,
+        produtor_id: romaneioPersisted.produtor_id ?? null,
+        cliente_id: romaneioPersisted.cliente_id ?? null,
+        produto_id: romaneioPersisted.produto_id ?? null,
+        deposito_id: romaneioPersisted.deposito_id ?? null,
+        operacao_id: romaneioPersisted.operacao_id ?? null,
+        quantity_kg: quantityKg,
+        price: isVendaDiretaContrato
+          ? avgContratoPriceKg(contratos.find((c) => c.id === contraNotaTarget.contrato_id))
+          : 0,
+        discount: 0
+      };
+
+      const notaSalva = notaEntradaExistente
+        ? await updateNotaGraos(token, notaEntradaExistente.id, notaPayload)
+        : await createNotaGraos(token, notaPayload);
+
+      const [romaneiosApiAfter, notasApiAfter] = await Promise.all([listRomaneiosGraos(token), listNotasGraos(token)]);
+      const saldoMapAfter = buildContratoSaldoMap(contratos, romaneiosApiAfter, notasApiAfter);
+      setContratoSaldoById(saldoMapAfter);
+
+      const now = new Date().toISOString();
+      const existing = contraNotas.find((x) => x.romaneio_id === contraNotaTarget.id);
+      const entity: ContraNotaEntrada = {
+        id: existing?.id ?? uid("cn"),
+        created_at: existing?.created_at ?? now,
+        updated_at: now,
+        romaneio_id: contraNotaTarget.id,
+        romaneio_code: contraNotaTarget.code,
+        nfp_ref: contraNotaTarget.nfp.trim().toUpperCase(),
+        operacao: isVendaDiretaContrato ? "venda_direta_contrato" : contraNotaForm.operacao,
+        date: notaSalva.date ?? contraNotaForm.date,
+        nota_fiscal: notaSalva.number || contraNotaForm.nota_fiscal.trim().toUpperCase(),
+        chave: contraNotaForm.chave.trim()
+      };
+      const next = existing
+        ? contraNotas.map((x) => (x.id === existing.id ? entity : x))
+        : [entity, ...contraNotas];
+      setContraNotas(next);
+      saveContraNotasEntrada(next);
+      setContraNotaInfo(
+        isVendaDiretaContrato
+          ? "Contra-nota salva como venda direta por contrato. Fatura gerada em Contas a Receber."
+          : "Contra-nota salva e sincronizada no backend com sucesso."
+      );
+      setContraNotaTarget(null);
+      setContraNotaError("");
+    } catch (err) {
+      if (isApiError(err) && err.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      setContraNotaError(err instanceof Error ? err.message : "Falha ao salvar contra-nota no backend.");
+    } finally {
+      setSaving(false);
+    }
   }
+
+  const contraNotaQtyExceedsContrato = useMemo(() => {
+    if (!contraNotaTarget?.contrato_id || !contraNotaContratoSaldo) return false;
+    return Math.max(n(contraNotaTarget.net_weight), 0) - contraNotaContratoSaldo.qtySaldoKg > 0.0001;
+  }, [contraNotaTarget, contraNotaContratoSaldo]);
 
   function requestSave() {
     if (!form.code.trim()) {
@@ -1239,8 +1515,8 @@ export default function RomaneioPage() {
             <div className="flex items-center justify-between"><p className="text-sm font-black text-white">Lista</p><p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filteredRows.length} item(ns)`}</p></div>
             <p className="mt-2 text-[11px] text-amber-200/90">Regra fiscal: sem contra-nota de entrada, o romaneio permanece pendente e não pode seguir para venda.</p>
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden grid-cols-[60px_70px_68px_68px_82px_124px_112px_62px_88px_66px_88px_88px_104px] gap-0.5 rounded-2xl border border-white/10 bg-zinc-950/30 px-2 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
-                <div>Status</div><div>Data</div><div>Romaneio</div><div>NFP</div><div>Safra</div><div>Produtor</div><div>Propriedade</div><div>Talhão</div><div>Cliente</div><div>Placa</div><div>Peso Bruto</div><div>Peso Líquido</div><div className="text-right">Ações</div>
+              <div className="hidden grid-cols-[60px_70px_68px_68px_82px_124px_112px_62px_88px_66px_86px_86px_86px_104px] gap-0.5 rounded-2xl border border-white/10 bg-zinc-950/30 px-2 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
+                <div>Status</div><div>Data</div><div>Romaneio</div><div>NFP</div><div>Safra</div><div>Produtor</div><div>Propriedade</div><div>Talhão</div><div>Cliente</div><div>Placa</div><div>Peso Bruto</div><div>Peso Líquido</div><div>Saldo ctr.</div><div className="text-right">Ações</div>
               </div>
               <div className="mt-3 space-y-2">
                 {filteredRows.map((r) => {
@@ -1250,13 +1526,20 @@ export default function RomaneioPage() {
                   const propriedade = propriedades.find((p) => p.id === r.propriedade_id)?.name ?? "-";
                   const talhao = talhoes.find((t) => t.id === r.talhao_id)?.name ?? "-";
                   const status = normalizeRomaneioStatus(r, contraNotas);
+                  const contratoSaldo = r.contrato_id ? contratoSaldoById[r.contrato_id] : null;
+                  const saldoContratoLabel = contratoSaldo
+                    ? `${toViewWeightCard(contratoSaldo.qtySaldoKg)} disponível`
+                    : "Sem contrato";
+                  const contraNotaTitle = contratoSaldo
+                    ? `Registrar contra-nota • Saldo contrato: ${saldoContratoLabel}`
+                    : "Registrar contra-nota";
                   return (
                     <div
                       key={r.id}
                       onClick={() => setDetailTarget(r)}
                       className="w-full cursor-pointer rounded-2xl border border-white/10 bg-zinc-950/35 px-2.5 py-2.5 text-left transition-colors hover:bg-zinc-900/45"
                     >
-                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[60px_70px_68px_68px_82px_124px_112px_62px_88px_66px_88px_88px_104px] xl:items-center xl:gap-0.5">
+                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[60px_70px_68px_68px_82px_124px_112px_62px_88px_66px_86px_86px_86px_104px] xl:items-center xl:gap-0.5">
                         <div><span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${status === "ok" ? "border-emerald-400/35 bg-emerald-500/10 text-emerald-200" : "border-amber-400/35 bg-amber-500/10 text-amber-200"}`}>{status === "ok" ? "OK" : "Pendente"}</span></div>
                         <div className="text-xs text-zinc-100">{d(r.date)}</div>
                         <div className="text-xs text-zinc-100">{r.code}</div>
@@ -1269,12 +1552,13 @@ export default function RomaneioPage() {
                         <div className="truncate text-xs text-zinc-100">{r.plate || "-"}</div>
                         <div className="text-xs text-zinc-100">{toViewWeightCard(n(r.gross_weight))}</div>
                         <div className="text-xs text-zinc-100">{toViewWeightCard(n(r.net_weight))}</div>
+                        <div className="text-xs text-zinc-100">{contratoSaldo ? toViewWeightCard(contratoSaldo.qtySaldoKg) : "-"}</div>
                         <div className="text-right">
                           <div className="inline-flex gap-1.5">
                             <button
                               onClick={(e) => { e.stopPropagation(); openContraNota(r); }}
                               className="rounded-xl border border-amber-400/25 bg-amber-500/10 p-2.5 text-amber-200 hover:bg-amber-500/20"
-                              title="Registrar contra-nota"
+                              title={contraNotaTitle}
                               aria-label="Registrar contra-nota"
                             >
                               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 3h8l4 4v14H7z" /><path d="M15 3v5h5" /><path d="M10 12h6M10 16h6" /></svg>
@@ -1356,7 +1640,9 @@ export default function RomaneioPage() {
                     <div className="mt-3 grid gap-2 rounded-xl border border-emerald-400/25 bg-emerald-500/10 p-3 sm:grid-cols-2 xl:grid-cols-4">
                       <div className="text-[12px] text-emerald-100">Contra-nota: {cn.nota_fiscal}</div>
                       <div className="text-[12px] text-emerald-100">Data: {d(cn.date)}</div>
-                      <div className="text-[12px] text-emerald-100">Operação: {cn.operacao === "a_fixar" ? "A fixar" : "Remessa para depósito"}</div>
+                      <div className="text-[12px] text-emerald-100">
+                        Operação: {cn.operacao === "a_fixar" ? "A fixar" : cn.operacao === "venda_direta_contrato" ? "Venda direta (Contrato)" : "Remessa para depósito"}
+                      </div>
                       <div className="truncate text-[12px] text-emerald-100" title={cn.chave}>Chave: {cn.chave}</div>
                     </div>
                   );
@@ -1383,8 +1669,46 @@ export default function RomaneioPage() {
                   <div>Safra: <span className="font-semibold text-zinc-100">{safras.find((s) => s.id === contraNotaTarget.safra_id)?.name || "-"}</span></div>
                   <div>Produtor: <span className="font-semibold text-zinc-100">{produtores.find((p) => p.id === contraNotaTarget.produtor_id)?.name || "-"}</span></div>
                   <div>Cliente: <span className="font-semibold text-zinc-100">{clientes.find((c) => c.id === contraNotaTarget.cliente_id)?.name || "-"}</span></div>
+                  <div>Contrato: <span className="font-semibold text-zinc-100">{contratos.find((c) => c.id === contraNotaTarget.contrato_id)?.code || "-"}</span></div>
                   <div>Depósito: <span className="font-semibold text-zinc-100">{contraNotaTarget.deposito || "-"}</span></div>
                 </div>
+                {contraNotaTarget.contrato_id ? (
+                  <div className="mt-3 rounded-2xl border border-emerald-400/25 bg-emerald-500/10 p-3 text-[12px] text-emerald-100">
+                    <p className="font-black">Venda Direta (Contrato)</p>
+                    {contraNotaContratoLoading ? (
+                      <p className="mt-1 text-emerald-200/90">Carregando saldo do contrato...</p>
+                    ) : contraNotaContratoSaldo ? (
+                      <div className="mt-1 grid gap-1 sm:grid-cols-2">
+                        <p>
+                          Saldo quantidade:{" "}
+                          <span className="font-semibold">
+                            {contraNotaContratoSaldo.qtySaldoKg.toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KG
+                          </span>
+                        </p>
+                        <p>
+                          Saldo valor:{" "}
+                          <span className="font-semibold">
+                            {moneyBR(contraNotaContratoSaldo.valueSaldo)}
+                          </span>
+                        </p>
+                        <p>
+                          Romaneio atual:{" "}
+                          <span className="font-semibold">
+                            {n(contraNotaTarget.net_weight).toLocaleString("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} KG
+                          </span>
+                        </p>
+                        <p>
+                          Situação:{" "}
+                          <span className={`font-semibold ${contraNotaQtyExceedsContrato ? "text-rose-200" : "text-emerald-100"}`}>
+                            {contraNotaQtyExceedsContrato ? "Excede saldo do contrato" : "Dentro do saldo"}
+                          </span>
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-amber-100">Não foi possível calcular o saldo do contrato agora.</p>
+                    )}
+                  </div>
+                ) : null}
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <div className="grid gap-2">
                     <label className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">Data da contra-nota</label>
@@ -1392,10 +1716,16 @@ export default function RomaneioPage() {
                   </div>
                   <div className="grid gap-2">
                     <label className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">Operação de entrada</label>
-                    <select value={contraNotaForm.operacao} onChange={(e) => setContraNotaForm((prev) => ({ ...prev, operacao: e.target.value as ContraNotaFormState["operacao"] }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100">
-                      <option value="remessa_deposito" style={optionStyle}>Remessa para depósito</option>
-                      <option value="a_fixar" style={optionStyle}>A fixar</option>
-                    </select>
+                    {contraNotaTarget.contrato_id ? (
+                      <div className="rounded-2xl border border-emerald-400/25 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-100">
+                        Venda direta (Contrato)
+                      </div>
+                    ) : (
+                      <select value={contraNotaForm.operacao} onChange={(e) => setContraNotaForm((prev) => ({ ...prev, operacao: e.target.value as ContraNotaFormState["operacao"] }))} className="rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100">
+                        <option value="remessa_deposito" style={optionStyle}>Remessa para depósito</option>
+                        <option value="a_fixar" style={optionStyle}>A fixar</option>
+                      </select>
+                    )}
                   </div>
                   <div className="grid gap-2">
                     <label className="text-[11px] font-black uppercase tracking-[0.18em] text-zinc-400">Nota fiscal</label>
@@ -1407,9 +1737,10 @@ export default function RomaneioPage() {
                   </div>
                 </div>
                 {contraNotaError ? <p className="mt-3 rounded-xl border border-rose-400/25 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">{contraNotaError}</p> : null}
+                {contraNotaInfo ? <p className="mt-3 rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">{contraNotaInfo}</p> : null}
                 <div className="mt-4 flex justify-end gap-2">
-                  <button onClick={() => setContraNotaTarget(null)} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200">Cancelar</button>
-                  <button onClick={saveContraNota} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-4 py-2 text-sm font-black text-emerald-100">Salvar contra-nota</button>
+                  <button disabled={saving} onClick={() => setContraNotaTarget(null)} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200 disabled:cursor-not-allowed disabled:opacity-50">Cancelar</button>
+                  <button disabled={saving || contraNotaQtyExceedsContrato} onClick={saveContraNota} className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-4 py-2 text-sm font-black text-emerald-100 disabled:cursor-not-allowed disabled:opacity-50">{saving ? "Salvando..." : "Salvar contra-nota"}</button>
                 </div>
               </div>
             </div>

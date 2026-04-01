@@ -1187,6 +1187,182 @@ export function deleteEmpreendimento(token: string, id: string) {
   return request<void>(`/api/erp/producao/empreendimentos/${id}/`, { method: "DELETE" }, token);
 }
 
+export type RomaneioGraosApi = {
+  id: number;
+  date: string | null;
+  code: string;
+  nfp: string;
+  safra: { id: number; name: string } | null;
+  safra_id?: number | null;
+  produtor: { id: number; name: string } | null;
+  produtor_id?: number | null;
+  cliente: { id: number; name: string } | null;
+  cliente_id?: number | null;
+  produto: { id: number; name: string } | null;
+  produto_id?: number | null;
+  contrato: { id: number; code: string } | null;
+  contrato_id?: number | null;
+  deposito: { id: number; name: string; tipo?: string } | null;
+  deposito_id?: number | null;
+  operacao: { id: number; name: string; kind: string } | null;
+  operacao_id?: number | null;
+  quantity_kg: string;
+  status: "pending" | "ok" | string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export function listRomaneiosGraos(token: string) {
+  return request<RomaneioGraosApi[]>("/api/erp/producao/romaneios-graos/", { method: "GET" }, token);
+}
+
+export function createRomaneioGraos(
+  token: string,
+  payload: Partial<{
+    date: string | null;
+    code: string;
+    nfp: string;
+    safra_id: number | null;
+    produtor_id: number | null;
+    cliente_id: number | null;
+    produto_id: number | null;
+    contrato_id: number | null;
+    deposito_id: number | null;
+    operacao_id: number | null;
+    quantity_kg: number | string;
+    status: "pending" | "ok" | string;
+    notes: string;
+  }>
+) {
+  return request<RomaneioGraosApi>(
+    "/api/erp/producao/romaneios-graos/",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  );
+}
+
+export function updateRomaneioGraos(
+  token: string,
+  id: number,
+  payload: Partial<{
+    date: string | null;
+    code: string;
+    nfp: string;
+    safra_id: number | null;
+    produtor_id: number | null;
+    cliente_id: number | null;
+    produto_id: number | null;
+    contrato_id: number | null;
+    deposito_id: number | null;
+    operacao_id: number | null;
+    quantity_kg: number | string;
+    status: "pending" | "ok" | string;
+    notes: string;
+  }>
+) {
+  return request<RomaneioGraosApi>(
+    `/api/erp/producao/romaneios-graos/${id}/`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  );
+}
+
+export type NotaFiscalGraosApi = {
+  id: number;
+  tipo: "entrada" | "saida" | string;
+  finalidade: "remessa_deposito" | "a_fixar" | "devolucao" | "venda" | string;
+  status: string;
+  date: string | null;
+  due_date: string | null;
+  number: string;
+  romaneio: { id: number; code: string; nfp?: string } | null;
+  romaneio_id?: number | null;
+  nota_entrada_ref: { id: number; number: string } | null;
+  nota_entrada_ref_id?: number | null;
+  safra: { id: number; name: string } | null;
+  safra_id?: number | null;
+  produtor: { id: number; name: string } | null;
+  produtor_id?: number | null;
+  cliente: { id: number; name: string } | null;
+  cliente_id?: number | null;
+  produto: { id: number; name: string } | null;
+  produto_id?: number | null;
+  deposito: { id: number; name: string; tipo?: string } | null;
+  deposito_id?: number | null;
+  operacao: { id: number; name: string; kind: string } | null;
+  operacao_id?: number | null;
+  quantity_kg: string;
+  price: string;
+  discount: string;
+  total_value: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export function listNotasGraos(token: string) {
+  return request<NotaFiscalGraosApi[]>("/api/erp/producao/notas-graos/", { method: "GET" }, token);
+}
+
+export function createNotaGraos(
+  token: string,
+  payload: Partial<{
+    tipo: "entrada" | "saida" | string;
+    finalidade: "remessa_deposito" | "a_fixar" | "devolucao" | "venda" | string;
+    status: string;
+    date: string | null;
+    due_date: string | null;
+    number: string;
+    romaneio_id: number | null;
+    nota_entrada_ref_id: number | null;
+    safra_id: number | null;
+    produtor_id: number | null;
+    cliente_id: number | null;
+    produto_id: number | null;
+    deposito_id: number | null;
+    operacao_id: number | null;
+    quantity_kg: number | string;
+    price: number | string;
+    discount: number | string;
+  }>
+) {
+  return request<NotaFiscalGraosApi>(
+    "/api/erp/producao/notas-graos/",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  );
+}
+
+export function updateNotaGraos(
+  token: string,
+  id: number,
+  payload: Partial<{
+    tipo: "entrada" | "saida" | string;
+    finalidade: "remessa_deposito" | "a_fixar" | "devolucao" | "venda" | string;
+    status: string;
+    date: string | null;
+    due_date: string | null;
+    number: string;
+    romaneio_id: number | null;
+    nota_entrada_ref_id: number | null;
+    safra_id: number | null;
+    produtor_id: number | null;
+    cliente_id: number | null;
+    produto_id: number | null;
+    deposito_id: number | null;
+    operacao_id: number | null;
+    quantity_kg: number | string;
+    price: number | string;
+    discount: number | string;
+  }>
+) {
+  return request<NotaFiscalGraosApi>(
+    `/api/erp/producao/notas-graos/${id}/`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  );
+}
+
 export type ChuvaApi = {
   id: number;
   date: string | null;

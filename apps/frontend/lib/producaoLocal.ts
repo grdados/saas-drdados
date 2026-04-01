@@ -73,7 +73,7 @@ export type ContraNotaEntrada = {
   romaneio_id: string;
   romaneio_code: string;
   nfp_ref: string;
-  operacao: "remessa_deposito" | "a_fixar";
+  operacao: "remessa_deposito" | "a_fixar" | "venda_direta_contrato";
   date: string;
   nota_fiscal: string;
   chave: string;

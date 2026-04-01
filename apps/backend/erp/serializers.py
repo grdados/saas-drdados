@@ -44,6 +44,136 @@ def _compute_status_for_conta(due_date, total_value: Decimal, paid_value: Decima
     return models.ContaPagar.Status.OPEN
 
 
+def _to_kg(quantity: Decimal, unit: str) -> Decimal:
+    u = (unit or "").strip().upper()
+    if u.startswith("SC"):
+        return (quantity or Decimal("0")) * Decimal("60")
+    return quantity or Decimal("0")
+
+
+def _avg_price_kg_from_contrato(contrato: models.ContratoVenda) -> Decimal:
+    items = list(models.ContratoVendaItem.objects.filter(contrato=contrato))
+    qty_kg_total = Decimal("0")
+    total_value = Decimal("0")
+    for item in items:
+        qty_kg = _to_kg(item.quantity or Decimal("0"), item.unit or "KG")
+        line_total = item.total_item if item.total_item is not None else (item.quantity or Decimal("0")) * (item.price or Decimal("0"))
+        qty_kg_total += qty_kg
+        total_value += line_total or Decimal("0")
+    if qty_kg_total <= Decimal("0"):
+        return Decimal("0")
+    return total_value / qty_kg_total
+
+
+def _sync_conta_receber_nota_venda(nota: models.NotaFiscalGraos):
+    if not nota:
+        return
+    if nota.tipo != models.NotaFiscalGraos.Tipo.SAIDA:
+        return
+    if nota.finalidade != models.NotaFiscalGraos.Finalidade.VENDA:
+        return
+    if nota.status == models.NotaFiscalGraos.Status.CANCELED:
+        models.ContaReceber.objects.filter(
+            company=nota.company,
+            origem=models.ContaReceber.Origem.NOTA_FISCAL,
+            document_number=(nota.number or "").strip().upper(),
+        ).delete()
+        return
+
+    conta = (
+        models.ContaReceber.objects.filter(
+            company=nota.company,
+            origem=models.ContaReceber.Origem.NOTA_FISCAL,
+            document_number=(nota.number or "").strip().upper(),
+        )
+        .order_by("id")
+        .first()
+    )
+    if conta is None:
+        conta = models.ContaReceber(
+            company=nota.company,
+            origem=models.ContaReceber.Origem.NOTA_FISCAL,
+            payment_method=models.FaturamentoCompra.PaymentMethod.PIX,
+            received_value=Decimal("0"),
+            discount_value=Decimal("0"),
+            addition_value=Decimal("0"),
+        )
+
+    total = nota.total_value or Decimal("0")
+    received = conta.received_value or Decimal("0")
+    if received > total:
+        total = received
+
+    conta.date = nota.date
+    conta.due_date = nota.due_date
+    conta.document_number = (nota.number or "").strip().upper()
+    conta.produtor = nota.produtor
+    conta.cliente = nota.cliente
+    conta.operacao = nota.operacao
+    conta.total_value = total
+    conta.balance_value = max(Decimal("0"), total - received)
+    conta.status = _compute_status_for_conta(conta.due_date, total, received)
+    if received <= 0:
+        conta.receive_date = None
+    conta.save()
+
+
+def _sync_conta_receber_contrato(contrato: models.ContratoVenda):
+    if not contrato:
+        return
+
+    conta = (
+        models.ContaReceber.objects.filter(
+            contrato=contrato,
+            origem=models.ContaReceber.Origem.CONTRATO,
+        )
+        .order_by("id")
+        .first()
+    )
+    if conta is None:
+        conta = models.ContaReceber(
+            company=contrato.company,
+            contrato=contrato,
+            origem=models.ContaReceber.Origem.CONTRATO,
+            payment_method=models.FaturamentoCompra.PaymentMethod.PIX,
+            received_value=Decimal("0"),
+            discount_value=Decimal("0"),
+            addition_value=Decimal("0"),
+        )
+
+    sold_qs = models.NotaFiscalGraos.objects.filter(
+            company=contrato.company,
+            tipo=models.NotaFiscalGraos.Tipo.ENTRADA,
+            romaneio__contrato=contrato,
+        ).exclude(status=models.NotaFiscalGraos.Status.CANCELED)
+    avg_price_kg = _avg_price_kg_from_contrato(contrato)
+    sold_total = Decimal("0")
+    for nf in sold_qs:
+        line_total = nf.total_value or Decimal("0")
+        if line_total <= Decimal("0") and avg_price_kg > Decimal("0"):
+            line_total = (nf.quantity_kg or Decimal("0")) * avg_price_kg
+        sold_total += line_total
+
+    received = conta.received_value or Decimal("0")
+    total_base = sold_total if sold_total > Decimal("0") else (contrato.total_value or Decimal("0"))
+    if received > total_base:
+        total_base = received
+
+    conta.date = contrato.date
+    conta.due_date = contrato.due_date
+    conta.document_number = contrato.code or f"CTV-{contrato.id}"
+    conta.grupo = contrato.grupo
+    conta.produtor = contrato.produtor
+    conta.cliente = contrato.cliente
+    conta.operacao = contrato.operacao
+    conta.total_value = total_base
+    conta.balance_value = max(Decimal("0"), total_base - received)
+    conta.status = _compute_status_for_conta(conta.due_date, total_base, received)
+    if received <= 0:
+        conta.receive_date = None
+    conta.save()
+
+
 class SafraSerializer(serializers.ModelSerializer):
     cultura_id = serializers.PrimaryKeyRelatedField(
         source="cultura",
@@ -904,41 +1034,7 @@ class ContratoVendaSerializer(serializers.ModelSerializer):
         contrato.save(update_fields=["total_value", "updated_at"])
 
     def _sync_conta_receber_contrato(self, contrato: models.ContratoVenda):
-        conta = (
-            models.ContaReceber.objects.filter(
-                contrato=contrato,
-                origem=models.ContaReceber.Origem.CONTRATO,
-            )
-            .order_by("id")
-            .first()
-        )
-        if conta is None:
-            conta = models.ContaReceber(
-                company=contrato.company,
-                contrato=contrato,
-                origem=models.ContaReceber.Origem.CONTRATO,
-                payment_method=models.FaturamentoCompra.PaymentMethod.PIX,
-                received_value=Decimal("0"),
-                discount_value=Decimal("0"),
-                addition_value=Decimal("0"),
-            )
-        received = conta.received_value or Decimal("0")
-        total = contrato.total_value or Decimal("0")
-        if received > total:
-            total = received
-        conta.date = contrato.date
-        conta.due_date = contrato.due_date
-        conta.document_number = contrato.code or f"CTV-{contrato.id}"
-        conta.grupo = contrato.grupo
-        conta.produtor = contrato.produtor
-        conta.cliente = contrato.cliente
-        conta.operacao = contrato.operacao
-        conta.total_value = total
-        conta.balance_value = max(Decimal("0"), total - received)
-        conta.status = _compute_status_for_conta(conta.due_date, total, received)
-        if received <= 0:
-            conta.receive_date = None
-        conta.save()
+        _sync_conta_receber_contrato(contrato)
 
     def create(self, validated_data):
         items_data = validated_data.pop("items", [])
@@ -2049,6 +2145,8 @@ class RomaneioGraosSerializer(serializers.ModelSerializer):
     cliente_id = serializers.PrimaryKeyRelatedField(source="cliente", queryset=models.Cliente.objects.all(), allow_null=True, required=False)
     produto = serializers.SerializerMethodField()
     produto_id = serializers.PrimaryKeyRelatedField(source="produto", queryset=models.Produto.objects.all(), allow_null=True, required=False)
+    contrato = serializers.SerializerMethodField()
+    contrato_id = serializers.PrimaryKeyRelatedField(source="contrato", queryset=models.ContratoVenda.objects.all(), allow_null=True, required=False)
     deposito = serializers.SerializerMethodField()
     deposito_id = serializers.PrimaryKeyRelatedField(source="deposito", queryset=models.Deposito.objects.all(), allow_null=True, required=False)
     operacao = serializers.SerializerMethodField()
@@ -2069,6 +2167,8 @@ class RomaneioGraosSerializer(serializers.ModelSerializer):
             "cliente_id",
             "produto",
             "produto_id",
+            "contrato",
+            "contrato_id",
             "deposito",
             "deposito_id",
             "operacao",
@@ -2105,6 +2205,11 @@ class RomaneioGraosSerializer(serializers.ModelSerializer):
             return None
         return {"id": obj.deposito_id, "name": obj.deposito.name, "tipo": obj.deposito.tipo}
 
+    def get_contrato(self, obj):
+        if not getattr(obj, "contrato_id", None):
+            return None
+        return {"id": obj.contrato_id, "code": obj.contrato.code}
+
     def get_operacao(self, obj):
         if not getattr(obj, "operacao_id", None):
             return None
@@ -2116,6 +2221,7 @@ class RomaneioGraosSerializer(serializers.ModelSerializer):
         _validate_fk_company(attrs.get("produtor"), company, "produtor_id")
         _validate_fk_company(attrs.get("cliente"), company, "cliente_id")
         _validate_fk_company(attrs.get("produto"), company, "produto_id")
+        _validate_fk_company(attrs.get("contrato"), company, "contrato_id")
         _validate_fk_company(attrs.get("deposito"), company, "deposito_id")
         _validate_fk_company(attrs.get("operacao"), company, "operacao_id")
         return attrs
@@ -2309,6 +2415,34 @@ class NotaFiscalGraosSerializer(serializers.ModelSerializer):
                 {"quantity_kg": f"Quantidade acima do saldo disponivel da entrada. Disponivel: {available} KG."}
             )
 
+        finalidade = attrs.get("finalidade", getattr(self.instance, "finalidade", None))
+        if (
+            finalidade == models.NotaFiscalGraos.Finalidade.VENDA
+            and entrada.finalidade == models.NotaFiscalGraos.Finalidade.REMESSA_DEPOSITO
+        ):
+            devolvido = (
+                used_qs.filter(finalidade=models.NotaFiscalGraos.Finalidade.DEVOLUCAO)
+                .aggregate(v=Coalesce(Sum("quantity_kg"), Decimal("0")))["v"]
+                or Decimal("0")
+            )
+            vendido = (
+                used_qs.filter(finalidade=models.NotaFiscalGraos.Finalidade.VENDA)
+                .aggregate(v=Coalesce(Sum("quantity_kg"), Decimal("0")))["v"]
+                or Decimal("0")
+            )
+            available_for_sale = devolvido - vendido
+            if available_for_sale < 0:
+                available_for_sale = Decimal("0")
+            if qty > available_for_sale:
+                raise serializers.ValidationError(
+                    {
+                        "quantity_kg": (
+                            "Para Remessa p/ Depósito, venda permitida apenas até o volume já devolvido. "
+                            f"Disponível para venda: {available_for_sale} KG."
+                        )
+                    }
+                )
+
     def validate(self, attrs):
         company = get_current_company(self.context["request"].user) if self.context.get("request") else None
         _validate_fk_company(attrs.get("romaneio"), company, "romaneio_id")
@@ -2354,6 +2488,13 @@ class NotaFiscalGraosSerializer(serializers.ModelSerializer):
             tipo=models.NotaFiscalGraos.Tipo.ENTRADA,
         ).exclude(status=models.NotaFiscalGraos.Status.CANCELED)
         for entrada in entradas:
+            is_direct_contract_sale = bool(getattr(entrada.romaneio, "contrato_id", None))
+            if is_direct_contract_sale:
+                if entrada.status != models.NotaFiscalGraos.Status.FIXADO:
+                    entrada.status = models.NotaFiscalGraos.Status.FIXADO
+                    entrada.save(update_fields=["status", "updated_at"])
+                continue
+
             saidas = models.NotaFiscalGraos.objects.filter(
                 company=company,
                 tipo=models.NotaFiscalGraos.Tipo.SAIDA,
@@ -2411,6 +2552,9 @@ class NotaFiscalGraosSerializer(serializers.ModelSerializer):
         saldos = {}
 
         for entrada in entradas:
+            if getattr(entrada.romaneio, "contrato_id", None):
+                # Venda direta por contrato: nao compoe saldo de estoque.
+                continue
             key = (
                 entrada.safra_id,
                 entrada.produtor_id,
@@ -2482,12 +2626,25 @@ class NotaFiscalGraosSerializer(serializers.ModelSerializer):
         with transaction.atomic():
             obj = models.NotaFiscalGraos.objects.create(**validated_data)
             self.rebuild_company_grain_state(obj.company)
+            _sync_conta_receber_nota_venda(obj)
+            contrato = getattr(obj.romaneio, "contrato", None)
+            if contrato is not None:
+                _sync_conta_receber_contrato(contrato)
             return obj
 
     def update(self, instance, validated_data):
         with transaction.atomic():
+            previous_contrato = getattr(instance.romaneio, "contrato", None)
             for k, v in validated_data.items():
                 setattr(instance, k, v)
             instance.save()
             self.rebuild_company_grain_state(instance.company)
+            _sync_conta_receber_nota_venda(instance)
+            current_contrato = getattr(instance.romaneio, "contrato", None)
+            if previous_contrato is not None:
+                _sync_conta_receber_contrato(previous_contrato)
+            if current_contrato is not None and (
+                previous_contrato is None or current_contrato.id != previous_contrato.id
+            ):
+                _sync_conta_receber_contrato(current_contrato)
             return instance

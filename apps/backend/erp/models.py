@@ -728,6 +728,7 @@ class RomaneioGraos(models.Model):
     produtor = models.ForeignKey("erp.Produtor", null=True, blank=True, on_delete=models.PROTECT)
     cliente = models.ForeignKey("erp.Cliente", null=True, blank=True, on_delete=models.PROTECT)
     produto = models.ForeignKey("erp.Produto", null=True, blank=True, on_delete=models.PROTECT)
+    contrato = models.ForeignKey("erp.ContratoVenda", null=True, blank=True, on_delete=models.PROTECT)
     deposito = models.ForeignKey("erp.Deposito", null=True, blank=True, on_delete=models.PROTECT)
     operacao = models.ForeignKey("erp.Operacao", null=True, blank=True, on_delete=models.PROTECT)
 

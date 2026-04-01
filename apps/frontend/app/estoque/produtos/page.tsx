@@ -7,14 +7,18 @@ import { getAccessToken } from "@/lib/auth";
 import {
   ClienteGerencial,
   Cultura,
+  NotaFiscalGraosApi,
   ProdutoItem,
   Produtor,
   Safra,
+  createNotaGraos,
   isApiError,
   listClientesGerencial,
   listCulturas,
+  listNotasGraos,
   listProdutosEstoque,
   listProdutores,
+  listRomaneiosGraos,
   listSafras
 } from "@/lib/api";
 import {
@@ -152,6 +156,15 @@ type MatrixRow = {
   totalKg: number;
 };
 
+type EntradaOperacional = {
+  entrada: NotaFiscalGraosApi;
+  saldoDisponivelKg: number;
+  saldoVendaKg: number;
+  devolvidoKg: number;
+  vendidoKg: number;
+  bloqueiaVendaDireta: boolean;
+};
+
 function sortByQtyDesc<T extends { quantidade: number }>(arr: T[]): T[] {
   return [...arr].sort((a, b) => b.quantidade - a.quantidade);
 }
@@ -160,6 +173,8 @@ export default function EstoqueProdutosPage() {
   const [unitView, setUnitView] = useState<"KG" | "SC">("SC");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [opError, setOpError] = useState("");
+  const [savingSaida, setSavingSaida] = useState(false);
   const [safras, setSafras] = useState<Safra[]>([]);
   const [culturas, setCulturas] = useState<Cultura[]>([]);
   const [produtos, setProdutos] = useState<ProdutoItem[]>([]);
@@ -174,6 +189,19 @@ export default function EstoqueProdutosPage() {
   const [romaneios, setRomaneios] = useState<Romaneio[]>([]);
   const [empreendimentos, setEmpreendimentos] = useState<Empreendimento[]>([]);
   const [contraNotas, setContraNotas] = useState<ContraNotaEntrada[]>([]);
+  const [romaneiosApi, setRomaneiosApi] = useState<Awaited<ReturnType<typeof listRomaneiosGraos>>>([]);
+  const [notasGraos, setNotasGraos] = useState<NotaFiscalGraosApi[]>([]);
+  const [modalSaidaOpen, setModalSaidaOpen] = useState(false);
+  const [modalSaidaType, setModalSaidaType] = useState<"devolucao" | "venda">("devolucao");
+  const [modalEntradaRef, setModalEntradaRef] = useState<EntradaOperacional | null>(null);
+  const [saidaForm, setSaidaForm] = useState({
+    date: "",
+    due_date: "",
+    number: "",
+    quantity_kg: "",
+    price: "",
+    discount: "0"
+  });
 
   const formatQtd = (valorKg: number) => {
     const valor = unitView === "SC" ? valorKg / 60 : valorKg;
@@ -187,18 +215,22 @@ export default function EstoqueProdutosPage() {
       setError("");
       try {
         if (token) {
-          const [sf, ct, pd, pr, cl] = await Promise.all([
+          const [sf, ct, pd, pr, cl, romApi, nfApi] = await Promise.all([
             listSafras(token),
             listCulturas(token),
             listProdutosEstoque(token),
             listProdutores(token),
-            listClientesGerencial(token)
+            listClientesGerencial(token),
+            listRomaneiosGraos(token),
+            listNotasGraos(token)
           ]);
           setSafras(sf);
           setCulturas(ct);
           setProdutos(pd);
           setProdutores(pr);
           setClientes(cl);
+          setRomaneiosApi(romApi);
+          setNotasGraos(nfApi);
           setFilterSafraId("");
         }
         setRomaneios(loadRomaneios());
@@ -524,6 +556,160 @@ export default function EstoqueProdutosPage() {
       .sort((a, b) => b.totalKg - a.totalKg);
   }, [rows]);
 
+  const romaneioApiById = useMemo(() => {
+    const map = new Map<number, (typeof romaneiosApi)[number]>();
+    for (const r of romaneiosApi) map.set(r.id, r);
+    return map;
+  }, [romaneiosApi]);
+
+  const entradasOperacionais = useMemo<EntradaOperacional[]>(() => {
+    const saidasByEntrada = new Map<number, NotaFiscalGraosApi[]>();
+    for (const nf of notasGraos) {
+      if (nf.tipo !== "saida") continue;
+      if ((nf.status || "").toLowerCase() === "canceled") continue;
+      const refId = nf.nota_entrada_ref?.id ?? nf.nota_entrada_ref_id ?? null;
+      if (!refId) continue;
+      const bucket = saidasByEntrada.get(refId) ?? [];
+      bucket.push(nf);
+      saidasByEntrada.set(refId, bucket);
+    }
+
+    const textNeedle = q.trim().toLowerCase();
+    const out: EntradaOperacional[] = [];
+    for (const nf of notasGraos) {
+      if (nf.tipo !== "entrada") continue;
+      if ((nf.status || "").toLowerCase() === "canceled") continue;
+      if (!["remessa_deposito", "a_fixar"].includes((nf.finalidade || "").toLowerCase())) continue;
+
+      const romId = nf.romaneio?.id ?? nf.romaneio_id ?? null;
+      const rom = romId ? romaneioApiById.get(romId) : undefined;
+      if (rom?.contrato?.id || rom?.contrato_id) continue;
+
+      const safraId = nf.safra?.id ?? nf.safra_id ?? null;
+      const produtorId = nf.produtor?.id ?? nf.produtor_id ?? null;
+      const clienteId = nf.cliente?.id ?? nf.cliente_id ?? null;
+      const produtoId = nf.produto?.id ?? nf.produto_id ?? null;
+      const culturaId = safraId ? (safraCulturaById.get(safraId) ?? null) : null;
+
+      if (filterSafraId !== "" && safraId !== Number(filterSafraId)) continue;
+      if (filterCulturaId !== "" && culturaId !== Number(filterCulturaId)) continue;
+      if (filterProdutoId !== "" && produtoId !== Number(filterProdutoId)) continue;
+      if (filterProdutorId !== "" && produtorId !== Number(filterProdutorId)) continue;
+      if (filterClienteId !== "" && clienteId !== Number(filterClienteId)) continue;
+
+      const searchBlob = `${nf.number} ${nf.romaneio?.code || ""} ${nf.safra?.name || ""} ${nf.produtor?.name || ""} ${nf.cliente?.name || ""} ${nf.produto?.name || ""}`.toLowerCase();
+      if (textNeedle && !searchBlob.includes(textNeedle)) continue;
+
+      const saidas = saidasByEntrada.get(nf.id) ?? [];
+      const consumedKg = saidas.reduce((acc, s) => acc + Math.max(n(s.quantity_kg), 0), 0);
+      const devolvidoKg = saidas
+        .filter((s) => (s.finalidade || "").toLowerCase() === "devolucao")
+        .reduce((acc, s) => acc + Math.max(n(s.quantity_kg), 0), 0);
+      const vendidoKg = saidas
+        .filter((s) => (s.finalidade || "").toLowerCase() === "venda")
+        .reduce((acc, s) => acc + Math.max(n(s.quantity_kg), 0), 0);
+      const saldoDisponivelKg = Math.max(n(nf.quantity_kg) - consumedKg, 0);
+      const isAFixar = (nf.finalidade || "").toLowerCase() === "a_fixar";
+      const saldoVendaKg = isAFixar ? saldoDisponivelKg : Math.max(devolvidoKg - vendidoKg, 0);
+      out.push({
+        entrada: nf,
+        saldoDisponivelKg,
+        saldoVendaKg,
+        devolvidoKg,
+        vendidoKg,
+        bloqueiaVendaDireta: !isAFixar && saldoVendaKg <= 0
+      });
+    }
+    return out.sort((a, b) => (b.entrada.date || "").localeCompare(a.entrada.date || ""));
+  }, [
+    notasGraos,
+    romaneioApiById,
+    safraCulturaById,
+    filterSafraId,
+    filterCulturaId,
+    filterProdutoId,
+    filterProdutorId,
+    filterClienteId,
+    q
+  ]);
+
+  function openSaidaModal(tipo: "devolucao" | "venda", entry: EntradaOperacional) {
+    const now = new Date().toISOString().slice(0, 10);
+    setOpError("");
+    setModalSaidaType(tipo);
+    setModalEntradaRef(entry);
+    setSaidaForm({
+      date: now,
+      due_date: now,
+      number: "",
+      quantity_kg: "",
+      price: n(entry.entrada.price) > 0 ? String(n(entry.entrada.price)) : "0",
+      discount: "0"
+    });
+    setModalSaidaOpen(true);
+  }
+
+  async function salvarSaida() {
+    if (!modalEntradaRef) return;
+    const token = getAccessToken();
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
+    const quantidadeKg = Math.max(n(saidaForm.quantity_kg), 0);
+    const maxPermitida = modalSaidaType === "venda" ? modalEntradaRef.saldoVendaKg : modalEntradaRef.saldoDisponivelKg;
+    if (!saidaForm.date || !saidaForm.number.trim()) {
+      setOpError("Preencha Data e Nota Fiscal.");
+      return;
+    }
+    if (quantidadeKg <= 0) {
+      setOpError("Informe uma quantidade maior que zero.");
+      return;
+    }
+    if (quantidadeKg - maxPermitida > 0.0001) {
+      setOpError(
+        `Quantidade acima do saldo disponível (${kg(maxPermitida)} KG).`
+      );
+      return;
+    }
+    try {
+      setSavingSaida(true);
+      setOpError("");
+      await createNotaGraos(token, {
+        tipo: "saida",
+        finalidade: modalSaidaType,
+        status: "pendente",
+        date: saidaForm.date,
+        due_date: modalSaidaType === "venda" ? saidaForm.due_date || null : null,
+        number: saidaForm.number.trim().toUpperCase(),
+        nota_entrada_ref_id: modalEntradaRef.entrada.id,
+        romaneio_id: modalEntradaRef.entrada.romaneio?.id ?? modalEntradaRef.entrada.romaneio_id ?? null,
+        safra_id: modalEntradaRef.entrada.safra?.id ?? modalEntradaRef.entrada.safra_id ?? null,
+        produtor_id: modalEntradaRef.entrada.produtor?.id ?? modalEntradaRef.entrada.produtor_id ?? null,
+        cliente_id: modalEntradaRef.entrada.cliente?.id ?? modalEntradaRef.entrada.cliente_id ?? null,
+        produto_id: modalEntradaRef.entrada.produto?.id ?? modalEntradaRef.entrada.produto_id ?? null,
+        deposito_id: modalEntradaRef.entrada.deposito?.id ?? modalEntradaRef.entrada.deposito_id ?? null,
+        operacao_id: modalEntradaRef.entrada.operacao?.id ?? modalEntradaRef.entrada.operacao_id ?? null,
+        quantity_kg: quantidadeKg,
+        price: Math.max(n(saidaForm.price), 0),
+        discount: Math.max(n(saidaForm.discount), 0)
+      });
+      const [nfApi, romApi] = await Promise.all([listNotasGraos(token), listRomaneiosGraos(token)]);
+      setNotasGraos(nfApi);
+      setRomaneiosApi(romApi);
+      setModalSaidaOpen(false);
+      setModalEntradaRef(null);
+    } catch (err) {
+      if (isApiError(err) && err.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      setOpError(err instanceof Error ? err.message : "Falha ao salvar nota de saída.");
+    } finally {
+      setSavingSaida(false);
+    }
+  }
+
   return (
     <AuthedAdminShell hideHeader>
       {() => (
@@ -801,6 +987,72 @@ export default function EstoqueProdutosPage() {
 
           <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
             <div className="flex items-center justify-between">
+              <p className="text-sm font-black text-white">Operações de saída (devolução e venda)</p>
+              <p className="text-xs font-semibold text-zinc-400">{entradasOperacionais.length} entrada(s)</p>
+            </div>
+            <p className="mt-1 text-xs text-zinc-400">
+              Remessa p/ depósito: precisa devolução para liberar venda. A fixar: venda direta liberada.
+            </p>
+            <div className="mt-3 overflow-x-auto">
+              <div className="hidden grid-cols-[78px_82px_90px_110px_1fr_120px_120px_120px_220px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
+                <div>Data</div>
+                <div>Entrada</div>
+                <div>Romaneio</div>
+                <div>Finalidade</div>
+                <div>Produto</div>
+                <div>Saldo (KG)</div>
+                <div>Livre venda</div>
+                <div>Cliente</div>
+                <div className="text-right">Ações</div>
+              </div>
+              <div className="mt-2 space-y-2">
+                {entradasOperacionais.map((op) => {
+                  const e = op.entrada;
+                  const isAFixar = (e.finalidade || "").toLowerCase() === "a_fixar";
+                  return (
+                    <div key={e.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5">
+                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[78px_82px_90px_110px_1fr_120px_120px_120px_220px] xl:items-center xl:gap-2">
+                        <div className="text-xs text-zinc-100">{e.date ? new Date(`${e.date}T00:00:00`).toLocaleDateString("pt-BR") : "-"}</div>
+                        <div className="truncate text-xs text-zinc-100">{e.number || "-"}</div>
+                        <div className="truncate text-xs text-zinc-100">{e.romaneio?.code || "-"}</div>
+                        <div className="text-xs text-zinc-100">{isAFixar ? "A fixar" : "Depósito"}</div>
+                        <div className="truncate text-xs text-zinc-100">{e.produto?.name || "-"}</div>
+                        <div className="text-xs font-semibold text-zinc-100">{kg(op.saldoDisponivelKg)}</div>
+                        <div className="text-xs font-semibold text-emerald-200">{kg(op.saldoVendaKg)}</div>
+                        <div className="truncate text-xs text-zinc-100">{e.cliente?.name || "-"}</div>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => openSaidaModal("devolucao", op)}
+                            disabled={op.saldoDisponivelKg <= 0}
+                            className="rounded-xl border border-amber-400/25 bg-amber-500/10 px-2.5 py-1.5 text-xs font-semibold text-amber-200 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                            title="Gerar nota de devolução"
+                          >
+                            Devolver
+                          </button>
+                          <button
+                            onClick={() => openSaidaModal("venda", op)}
+                            disabled={op.saldoVendaKg <= 0 || op.bloqueiaVendaDireta}
+                            className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                            title={op.bloqueiaVendaDireta ? "Faça a devolução primeiro para liberar venda." : "Gerar nota de venda"}
+                          >
+                            Vender
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {!loading && entradasOperacionais.length === 0 ? (
+                  <div className="rounded-2xl border border-white/10 bg-zinc-950/30 p-4 text-sm text-zinc-300">
+                    Sem entradas fiscais elegíveis no filtro atual.
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
+            <div className="flex items-center justify-between">
               <p className="text-sm font-black text-white">Lista de estoque</p>
               <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${rows.length} item(ns)`}</p>
             </div>
@@ -838,6 +1090,88 @@ export default function EstoqueProdutosPage() {
               ) : null}
             </div>
           </section>
+
+          {modalSaidaOpen && modalEntradaRef ? (
+            <div className="fixed inset-0 z-[80] grid place-items-center px-4">
+              <button className="absolute inset-0 bg-zinc-950/75" onClick={() => setModalSaidaOpen(false)} aria-label="Fechar modal de saída" />
+              <div className="relative w-full max-w-3xl rounded-3xl border border-white/15 bg-zinc-900/95 p-5 shadow-2xl">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-lg font-black text-white">
+                      {modalSaidaType === "devolucao" ? "Nova devolução de depósito" : "Nova venda de grãos"}
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-400">
+                      Entrada {modalEntradaRef.entrada.number} • Romaneio {modalEntradaRef.entrada.romaneio?.code || "-"} • Produto {modalEntradaRef.entrada.produto?.name || "-"}
+                    </p>
+                  </div>
+                  <button onClick={() => setModalSaidaOpen(false)} className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-zinc-200">
+                    Fechar
+                  </button>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/35 px-3 py-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Saldo da entrada</p>
+                    <p className="mt-1 text-sm font-semibold text-zinc-100">{kg(modalEntradaRef.saldoDisponivelKg)} KG</p>
+                  </div>
+                  <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-200">Saldo livre para venda</p>
+                    <p className="mt-1 text-sm font-semibold text-emerald-100">{kg(modalEntradaRef.saldoVendaKg)} KG</p>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-zinc-950/35 px-3 py-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Movimentado</p>
+                    <p className="mt-1 text-sm text-zinc-100">Dev.: {kg(modalEntradaRef.devolvidoKg)} • Vend.: {kg(modalEntradaRef.vendidoKg)}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <div className="grid gap-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Data</label>
+                    <input type="date" value={saidaForm.date} onChange={(e) => setSaidaForm((p) => ({ ...p, date: e.target.value }))} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100 [color-scheme:dark]" />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Nota Fiscal</label>
+                    <input value={saidaForm.number} onChange={(e) => setSaidaForm((p) => ({ ...p, number: e.target.value.toUpperCase() }))} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100" />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Quantidade (KG)</label>
+                    <input value={saidaForm.quantity_kg} onChange={(e) => setSaidaForm((p) => ({ ...p, quantity_kg: e.target.value }))} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-right text-sm text-zinc-100" />
+                  </div>
+                  {modalSaidaType === "venda" ? (
+                    <>
+                      <div className="grid gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Vencimento</label>
+                        <input type="date" value={saidaForm.due_date} onChange={(e) => setSaidaForm((p) => ({ ...p, due_date: e.target.value }))} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100 [color-scheme:dark]" />
+                      </div>
+                      <div className="grid gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Preço</label>
+                        <input value={saidaForm.price} onChange={(e) => setSaidaForm((p) => ({ ...p, price: e.target.value }))} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-right text-sm text-zinc-100" />
+                      </div>
+                      <div className="grid gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Desconto</label>
+                        <input value={saidaForm.discount} onChange={(e) => setSaidaForm((p) => ({ ...p, discount: e.target.value }))} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-right text-sm text-zinc-100" />
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+
+                {opError ? <p className="mt-3 rounded-xl border border-rose-400/25 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">{opError}</p> : null}
+
+                <div className="mt-4 flex justify-end gap-2">
+                  <button onClick={() => setModalSaidaOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200">
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={salvarSaida}
+                    disabled={savingSaida}
+                    className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-4 py-2 text-sm font-black text-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {savingSaida ? "Salvando..." : "Confirmar saída"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
     </AuthedAdminShell>
