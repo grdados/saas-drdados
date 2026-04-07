@@ -1225,56 +1225,56 @@ export default function RomaneioPage() {
               <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Romaneio</h1>
               <p className="mt-1 text-sm text-zinc-300">Produção de Grãos por propiedades, talhões e variedades.</p>
             </div>
-            <div className="grid gap-2.5 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)]">
-              <div className="rounded-3xl border border-white/15 bg-zinc-900/55 p-1.5">
+            <div className="grid gap-2.5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+              <div className="rounded-2xl border border-white/15 bg-zinc-900/55 p-1.5">
                 <div className="flex h-full flex-col justify-between gap-1.5">
                   <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Filtros</p>
                   <div className="flex flex-wrap items-center gap-1">
                     <div className="relative">
                       <span className="pointer-events-none absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-emerald-400/80 shadow-[0_0_0_4px_rgba(16,185,129,0.16)]" />
-                      <select value={filterSafra} onChange={(e) => setFilterSafra(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[156px] rounded-2xl border border-accent-500/40 bg-accent-500/15 pl-8 pr-7 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-accent-400">
+                      <select value={filterSafra} onChange={(e) => setFilterSafra(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-[156px] rounded-xl border border-accent-500/40 bg-accent-500/15 pl-8 pr-7 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-accent-400">
                         <option value="" style={optionStyle}>Safra</option>
                         {safras.map((s) => (<option key={s.id} value={s.id} style={optionStyle}>{s.name}</option>))}
                       </select>
                     </div>
-                    <select value={viewUnit} onChange={(e) => setViewUnit(e.target.value as "KG" | "SC")} className="min-w-[84px] rounded-2xl border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-white/30">
+                    <select value={viewUnit} onChange={(e) => setViewUnit(e.target.value as "KG" | "SC")} className="min-w-[84px] rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-white/30">
                       <option value="KG" style={optionStyle}>KG</option>
                       <option value="SC" style={optionStyle}>SC</option>
                     </select>
-                    <select value={scBagKg} onChange={(e) => setScBagKg(Number(e.target.value) as 40 | 60)} disabled={viewUnit !== "SC"} className="min-w-[96px] rounded-2xl border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50">
+                    <select value={scBagKg} onChange={(e) => setScBagKg(Number(e.target.value) as 40 | 60)} disabled={viewUnit !== "SC"} className="min-w-[96px] rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-zinc-100 outline-none focus:border-white/30 disabled:cursor-not-allowed disabled:opacity-50">
                       <option value={60} style={optionStyle}>Sacas 60</option>
                       <option value={40} style={optionStyle}>Sacas 40</option>
                     </select>
                   </div>
                 </div>
               </div>
-              <div className="rounded-3xl border border-white/15 bg-zinc-900/55 p-2.5">
+              <div className="rounded-2xl border border-white/15 bg-zinc-900/55 p-2.5">
                 <div className="flex h-full flex-col justify-between gap-1.5">
                   <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Relatórios</p>
                   <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
-                    <button onClick={reportResumoDiario} className="min-h-[36px] rounded-2xl border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12px] font-black text-zinc-100 hover:bg-white/10">Resumo diário</button>
-                    <button onClick={reportResumoGeral} className="min-h-[36px] rounded-2xl border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12px] font-black text-zinc-100 hover:bg-white/10">Resumo geral</button>
-                    <button onClick={reportAnalitico} className="min-h-[36px] rounded-2xl border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12px] font-black text-zinc-100 hover:bg-white/10">Analítico</button>
-                    <button onClick={openCreate} className="min-h-[36px] rounded-2xl bg-accent-500 px-3.5 py-1.5 text-[12px] font-black text-zinc-950 hover:bg-accent-400">Novo</button>
+                    <button onClick={reportResumoDiario} className="min-h-[36px] rounded-xl border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12px] font-black text-zinc-100 hover:bg-white/10">Resumo diário</button>
+                    <button onClick={reportResumoGeral} className="min-h-[36px] rounded-xl border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12px] font-black text-zinc-100 hover:bg-white/10">Resumo geral</button>
+                    <button onClick={reportAnalitico} className="min-h-[36px] rounded-xl border border-white/15 bg-white/5 px-3.5 py-1.5 text-[12px] font-black text-zinc-100 hover:bg-white/10">Analítico</button>
+                    <button onClick={openCreate} className="min-h-[36px] rounded-xl bg-accent-500 px-3.5 py-1.5 text-[12px] font-black text-zinc-950 hover:bg-accent-400">Novo</button>
                   </div>
                 </div>
               </div>
             </div>
           </section>
 
-          <section className="rounded-3xl border border-white/15 bg-zinc-900/55 p-3.5">
+          <section className="rounded-2xl border border-white/15 bg-zinc-900/55 p-3.5">
             <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-5">
-              <select value={filterProdutor} onChange={(e) => setFilterProdutor(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-0 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Produtor</option>{produtoresComPropriedade.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{produtorDisplayLabel(p)}</option>)}</select>
-              <select value={filterPropriedade} onChange={(e) => setFilterPropriedade(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-0 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Propriedade</option>{propriedades.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{p.name}</option>)}</select>
-              <select value={filterTalhao} onChange={(e) => setFilterTalhao(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-0 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Talhão</option>{talhoes.map((t) => <option key={t.id} value={t.id} style={optionStyle}>{t.name}</option>)}</select>
-              <select value={filterEmpreendimento} onChange={(e) => setFilterEmpreendimento(e.target.value)} className="min-w-0 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Empreendimento</option>{empreendimentos.map((e) => <option key={e.id} value={e.id} style={optionStyle}>{e.code}</option>)}</select>
-              <select value={filterCliente} onChange={(e) => setFilterCliente(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-0 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Cliente</option>{clientes.map((c) => <option key={c.id} value={c.id} style={optionStyle}>{c.name}</option>)}</select>
+              <select value={filterProdutor} onChange={(e) => setFilterProdutor(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-0 w-full rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Produtor</option>{produtoresComPropriedade.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{produtorDisplayLabel(p)}</option>)}</select>
+              <select value={filterPropriedade} onChange={(e) => setFilterPropriedade(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-0 w-full rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Propriedade</option>{propriedades.map((p) => <option key={p.id} value={p.id} style={optionStyle}>{p.name}</option>)}</select>
+              <select value={filterTalhao} onChange={(e) => setFilterTalhao(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-0 w-full rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Talhão</option>{talhoes.map((t) => <option key={t.id} value={t.id} style={optionStyle}>{t.name}</option>)}</select>
+              <select value={filterEmpreendimento} onChange={(e) => setFilterEmpreendimento(e.target.value)} className="min-w-0 w-full rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Empreendimento</option>{empreendimentos.map((e) => <option key={e.id} value={e.id} style={optionStyle}>{e.code}</option>)}</select>
+              <select value={filterCliente} onChange={(e) => setFilterCliente(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-0 w-full rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Cliente</option>{clientes.map((c) => <option key={c.id} value={c.id} style={optionStyle}>{c.name}</option>)}</select>
             </div>
             <div className="mt-2.5 grid gap-2.5 md:grid-cols-2 xl:grid-cols-5">
-              <select value={filterTransportador} onChange={(e) => setFilterTransportador(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-0 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Transportadora</option>{transportadoresAtivos.map((t) => <option key={t.id} value={t.id} style={optionStyle}>{t.name}</option>)}</select>
-              <select value={filterPlaca} onChange={(e) => setFilterPlaca(e.target.value)} className="min-w-0 w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Placa</option>{placasAtivas.map((p) => <option key={p.id} value={p.plate} style={optionStyle}>{p.plate}</option>)}</select>
-              <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100 [color-scheme:dark]" />
-              <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100 [color-scheme:dark]" />
+              <select value={filterTransportador} onChange={(e) => setFilterTransportador(e.target.value === "" ? "" : Number(e.target.value))} className="min-w-0 w-full rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Transportadora</option>{transportadoresAtivos.map((t) => <option key={t.id} value={t.id} style={optionStyle}>{t.name}</option>)}</select>
+              <select value={filterPlaca} onChange={(e) => setFilterPlaca(e.target.value)} className="min-w-0 w-full rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100"><option value="" style={optionStyle}>Placa</option>{placasAtivas.map((p) => <option key={p.id} value={p.plate} style={optionStyle}>{p.plate}</option>)}</select>
+              <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="w-full rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100 [color-scheme:dark]" />
+              <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="w-full rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[13px] text-zinc-100 [color-scheme:dark]" />
             </div>
             {error ? <div className="mt-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-3 text-sm font-semibold text-amber-200">{error}</div> : null}
           </section>
@@ -1517,7 +1517,7 @@ export default function RomaneioPage() {
             <div className="flex items-center justify-between"><p className="text-sm font-black text-white">Lista</p><p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filteredRows.length} item(ns)`}</p></div>
             <p className="mt-2 text-[11px] text-amber-200/90">Regra fiscal: sem contra-nota de entrada, o romaneio permanece pendente e não pode seguir para venda.</p>
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden grid-cols-[60px_70px_68px_68px_82px_124px_112px_62px_88px_66px_86px_86px_86px_104px] gap-0.5 rounded-2xl border border-white/10 bg-zinc-950/30 px-2 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
+              <div className="hidden grid-cols-[60px_74px_84px_78px_86px_122px_112px_62px_88px_66px_82px_82px_82px_132px] gap-0.5 rounded-2xl border border-white/10 bg-zinc-950/30 px-2 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
                 <div>Status</div><div>Data</div><div>Romaneio</div><div>NFP</div><div>Safra</div><div>Produtor</div><div>Propriedade</div><div>Talhão</div><div>Cliente</div><div>Placa</div><div>Peso Bruto</div><div>Peso Líquido</div><div>Saldo ctr.</div><div className="text-right">Ações</div>
               </div>
               <div className="mt-3 space-y-2">
@@ -1541,7 +1541,7 @@ export default function RomaneioPage() {
                       onClick={() => setDetailTarget(r)}
                       className="w-full cursor-pointer rounded-2xl border border-white/10 bg-zinc-950/35 px-2.5 py-2.5 text-left transition-colors hover:bg-zinc-900/45"
                     >
-                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[60px_70px_68px_68px_82px_124px_112px_62px_88px_66px_86px_86px_86px_104px] xl:items-center xl:gap-0.5">
+                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[60px_74px_84px_78px_86px_122px_112px_62px_88px_66px_82px_82px_82px_132px] xl:items-center xl:gap-0.5">
                         <div><span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold ${status === "ok" ? "border-emerald-400/35 bg-emerald-500/10 text-emerald-200" : "border-amber-400/35 bg-amber-500/10 text-amber-200"}`}>{status === "ok" ? "OK" : "Pendente"}</span></div>
                         <div className="text-xs text-zinc-100">{d(r.date)}</div>
                         <div className="text-xs text-zinc-100">{r.code}</div>
