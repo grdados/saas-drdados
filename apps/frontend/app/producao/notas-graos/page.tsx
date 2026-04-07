@@ -51,6 +51,13 @@ type LoteRowState = {
   quantity_kg: string;
 };
 
+type VendaLoteRowState = {
+  selected: boolean;
+  quantity_kg: string;
+  price: string;
+  discount: string;
+};
+
 type EstornoGroup = {
   id: string;
   date: string | null;
@@ -80,6 +87,46 @@ const FINALIDADE_OPTIONS = [
   { value: "venda", label: "Venda" }
 ];
 
+const FINALIDADE_LABEL: Record<string, string> = {
+  remessa_deposito: "Remessa depósito",
+  a_fixar: "A fixar",
+  devolucao: "Devolução",
+  venda: "Venda"
+};
+
+function finalidadeTagClass(finalidade: string) {
+  const key = String(finalidade || "").toLowerCase();
+  if (key === "remessa_deposito") return "border-cyan-400/30 bg-cyan-500/12 text-cyan-200";
+  if (key === "a_fixar") return "border-violet-400/30 bg-violet-500/12 text-violet-200";
+  if (key === "devolucao") return "border-amber-400/30 bg-amber-500/12 text-amber-200";
+  if (key === "venda") return "border-emerald-400/30 bg-emerald-500/12 text-emerald-200";
+  return "border-white/20 bg-white/5 text-zinc-200";
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  pendente: "Pendente",
+  vencido: "Vencido",
+  recebido: "Recebido",
+  em_deposito: "Em depósito",
+  a_fixar: "A fixar",
+  fixado_parcial: "Fixado parcial",
+  fixado: "Fixado",
+  canceled: "Cancelado"
+};
+
+function statusTagClass(status: string) {
+  const key = String(status || "").toLowerCase();
+  if (key === "pendente") return "border-amber-400/30 bg-amber-500/12 text-amber-200";
+  if (key === "vencido") return "border-rose-400/30 bg-rose-500/12 text-rose-200";
+  if (key === "recebido") return "border-emerald-400/30 bg-emerald-500/12 text-emerald-200";
+  if (key === "em_deposito") return "border-cyan-400/30 bg-cyan-500/12 text-cyan-200";
+  if (key === "a_fixar") return "border-violet-400/30 bg-violet-500/12 text-violet-200";
+  if (key === "fixado_parcial") return "border-sky-400/30 bg-sky-500/12 text-sky-200";
+  if (key === "fixado") return "border-emerald-400/30 bg-emerald-500/12 text-emerald-200";
+  if (key === "canceled") return "border-zinc-500/30 bg-zinc-500/15 text-zinc-300";
+  return "border-white/20 bg-white/5 text-zinc-200";
+}
+
 export default function NotasGraosPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -106,6 +153,16 @@ export default function NotasGraosPage() {
   const [loteProdutor, setLoteProdutor] = useState<number | "">("");
   const [loteCliente, setLoteCliente] = useState<number | "">("");
   const [loteRows, setLoteRows] = useState<Record<number, LoteRowState>>({});
+  const [vendaLoteOpen, setVendaLoteOpen] = useState(false);
+  const [vendaLoteSaving, setVendaLoteSaving] = useState(false);
+  const [vendaLoteDate, setVendaLoteDate] = useState("");
+  const [vendaLoteDueDate, setVendaLoteDueDate] = useState("");
+  const [vendaLoteNumber, setVendaLoteNumber] = useState("");
+  const [vendaLoteChave, setVendaLoteChave] = useState("");
+  const [vendaLoteSafra, setVendaLoteSafra] = useState<number | "">("");
+  const [vendaLoteProdutor, setVendaLoteProdutor] = useState<number | "">("");
+  const [vendaLoteCliente, setVendaLoteCliente] = useState<number | "">("");
+  const [vendaLoteRows, setVendaLoteRows] = useState<Record<number, VendaLoteRowState>>({});
   const [estornoOpen, setEstornoOpen] = useState(false);
   const [estornoSaving, setEstornoSaving] = useState(false);
   const [estornoDate, setEstornoDate] = useState("");
@@ -206,6 +263,18 @@ export default function NotasGraosPage() {
       .filter((x) => x.saldo > 0);
   }, [notas, saidasByEntrada]);
 
+  const saldoDevolvidoByEntrada = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const nf of notas) {
+      if (nf.tipo !== "saida" || String(nf.finalidade || "").toLowerCase() !== "devolucao") continue;
+      if (String(nf.status || "").toLowerCase() === "canceled") continue;
+      const refId = nf.nota_entrada_ref?.id ?? nf.nota_entrada_ref_id ?? null;
+      if (!refId) continue;
+      map.set(refId, (map.get(refId) ?? 0) + n(nf.quantity_kg));
+    }
+    return map;
+  }, [notas]);
+
   const entradasDevolucaoFiltradas = useMemo(() => {
     return entradasDevolucao.filter(({ nf }) => {
       const safraId = nf.safra?.id ?? nf.safra_id ?? null;
@@ -217,6 +286,30 @@ export default function NotasGraosPage() {
       return true;
     });
   }, [entradasDevolucao, loteSafra, loteProdutor, loteCliente]);
+
+  const entradasVendaLote = useMemo(() => {
+    return notas
+      .filter((nf) => nf.tipo === "entrada" && String(nf.finalidade || "").toLowerCase() === "a_fixar")
+      .map((nf) => {
+        const consumos = saidasByEntrada.get(nf.id) ?? [];
+        const used = consumos.reduce((acc, x) => acc + n(x.quantity_kg), 0);
+        const saldo = Math.max(n(nf.quantity_kg) - used, 0);
+        return { nf, saldo };
+      })
+      .filter((x) => x.saldo > 0);
+  }, [notas, saidasByEntrada]);
+
+  const entradasVendaLoteFiltradas = useMemo(() => {
+    return entradasVendaLote.filter(({ nf }) => {
+      const safraId = nf.safra?.id ?? nf.safra_id ?? null;
+      const produtorId = nf.produtor?.id ?? nf.produtor_id ?? null;
+      const clienteId = nf.cliente?.id ?? nf.cliente_id ?? null;
+      if (vendaLoteSafra !== "" && safraId !== Number(vendaLoteSafra)) return false;
+      if (vendaLoteProdutor !== "" && produtorId !== Number(vendaLoteProdutor)) return false;
+      if (vendaLoteCliente !== "" && clienteId !== Number(vendaLoteCliente)) return false;
+      return true;
+    });
+  }, [entradasVendaLote, vendaLoteSafra, vendaLoteProdutor, vendaLoteCliente]);
 
   const loteSelected = useMemo(() => {
     return entradasDevolucaoFiltradas
@@ -235,6 +328,26 @@ export default function NotasGraosPage() {
     const value = loteSelected.reduce((acc, x) => acc + x.qty * n(x.nf.price), 0);
     return { quantity, value };
   }, [loteSelected]);
+
+  const vendaLoteSelected = useMemo(() => {
+    return entradasVendaLoteFiltradas
+      .map((x) => {
+        const state = vendaLoteRows[x.nf.id];
+        if (!state?.selected) return null;
+        const qty = Math.max(n(state.quantity_kg), 0);
+        if (qty <= 0) return null;
+        const price = Math.max(n(state.price), 0);
+        const discount = Math.max(n(state.discount), 0);
+        return { ...x, qty: Math.min(qty, x.saldo), price, discount };
+      })
+      .filter(Boolean) as Array<{ nf: NotaFiscalGraosApi; saldo: number; qty: number; price: number; discount: number }>;
+  }, [entradasVendaLoteFiltradas, vendaLoteRows]);
+
+  const vendaLoteTotals = useMemo(() => {
+    const quantity = vendaLoteSelected.reduce((acc, x) => acc + x.qty, 0);
+    const value = vendaLoteSelected.reduce((acc, x) => acc + Math.max(x.qty * x.price - x.discount, 0), 0);
+    return { quantity, value };
+  }, [vendaLoteSelected]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -317,6 +430,21 @@ export default function NotasGraosPage() {
     setLoteOpen(true);
   }
 
+  function openVendaLoteModal() {
+    const today = new Date().toISOString().slice(0, 10);
+    setVendaLoteDate(today);
+    setVendaLoteDueDate(today);
+    setVendaLoteNumber("");
+    setVendaLoteChave("");
+    setVendaLoteSafra("");
+    setVendaLoteProdutor("");
+    setVendaLoteCliente("");
+    setVendaLoteRows({});
+    setError("");
+    setSuccess("");
+    setVendaLoteOpen(true);
+  }
+
   function openEstornoLoteModal() {
     setEstornoDate("");
     setEstornoNumber("");
@@ -333,6 +461,19 @@ export default function NotasGraosPage() {
       [id]: {
         selected: prev[id]?.selected ?? false,
         quantity_kg: prev[id]?.quantity_kg ?? "",
+        ...patch
+      }
+    }));
+  }
+
+  function changeVendaLoteRow(id: number, patch: Partial<VendaLoteRowState>) {
+    setVendaLoteRows((prev) => ({
+      ...prev,
+      [id]: {
+        selected: prev[id]?.selected ?? false,
+        quantity_kg: prev[id]?.quantity_kg ?? "",
+        price: prev[id]?.price ?? "0",
+        discount: prev[id]?.discount ?? "0",
         ...patch
       }
     }));
@@ -454,6 +595,65 @@ export default function NotasGraosPage() {
       setError(err instanceof Error ? err.message : "Falha ao gerar devolucao em lote.");
     } finally {
       setLoteSaving(false);
+    }
+  }
+
+  async function saveLoteVenda() {
+    const token = getAccessToken();
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
+    if (!vendaLoteDate || !vendaLoteDueDate || !vendaLoteNumber.trim()) {
+      setError("Preencha Data, Vencimento e Nota Fiscal para venda em lote.");
+      return;
+    }
+    if (!vendaLoteSelected.length) {
+      setError("Selecione ao menos uma entrada A Fixar e informe quantidade para venda.");
+      return;
+    }
+
+    try {
+      setVendaLoteSaving(true);
+      setError("");
+      setSuccess("");
+      for (const row of vendaLoteSelected) {
+        await createNotaGraos(token, {
+          tipo: "saida",
+          finalidade: "venda",
+          status: "pendente",
+          date: vendaLoteDate,
+          due_date: vendaLoteDueDate,
+          number: vendaLoteNumber.trim().toUpperCase(),
+          chave: vendaLoteChave.trim().toUpperCase(),
+          nota_entrada_ref_id: row.nf.id,
+          romaneio_id: row.nf.romaneio?.id ?? row.nf.romaneio_id ?? null,
+          safra_id: row.nf.safra?.id ?? row.nf.safra_id ?? null,
+          produtor_id: row.nf.produtor?.id ?? row.nf.produtor_id ?? null,
+          cliente_id: row.nf.cliente?.id ?? row.nf.cliente_id ?? null,
+          produto_id: row.nf.produto?.id ?? row.nf.produto_id ?? null,
+          deposito_id: row.nf.deposito?.id ?? row.nf.deposito_id ?? null,
+          operacao_id: row.nf.operacao?.id ?? row.nf.operacao_id ?? null,
+          quantity_kg: row.qty,
+          price: row.price,
+          discount: row.discount
+        });
+      }
+      await reload();
+      setVendaLoteOpen(false);
+      setSuccess(
+        `Venda em lote registrada (${vendaLoteSelected.length} nota(s), ${vendaLoteTotals.quantity.toLocaleString("pt-BR", {
+          maximumFractionDigits: 0
+        })} KG). Contas a receber e fluxo de caixa atualizados.${vendaLoteChave.trim() ? ` Chave informada: ${vendaLoteChave.trim()}.` : ""}`
+      );
+    } catch (err) {
+      if (isApiError(err) && err.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      setError(err instanceof Error ? err.message : "Falha ao gerar venda em lote.");
+    } finally {
+      setVendaLoteSaving(false);
     }
   }
 
@@ -590,6 +790,12 @@ export default function NotasGraosPage() {
                 </button>
                 <button className="min-h-[34px] rounded-2xl border border-white/15 bg-white/5 px-3 py-1.5 text-[12px] font-medium text-zinc-100">
                   Analitico
+                </button>
+                <button
+                  onClick={openVendaLoteModal}
+                  className="min-h-[34px] rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-3 py-1.5 text-[12px] font-semibold text-emerald-100"
+                >
+                  Venda em lote
                 </button>
                 <button
                   onClick={openLoteModal}
@@ -759,14 +965,12 @@ export default function NotasGraosPage() {
               <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
             </div>
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden grid-cols-[74px_74px_110px_102px_160px_92px_140px_92px_1fr_1fr_130px_100px_120px_220px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
+              <div className="hidden grid-cols-[74px_72px_130px_200px_100px_92px_180px_140px_130px_90px_120px_150px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
                 <div>Data</div>
                 <div>Tipo</div>
                 <div>Finalidade</div>
-                <div>Status</div>
                 <div>Lote</div>
                 <div>Nota</div>
-                <div>Chave</div>
                 <div>Romaneio</div>
                 <div>Produtor</div>
                 <div>Cliente</div>
@@ -778,22 +982,36 @@ export default function NotasGraosPage() {
               <div className="mt-2 space-y-2">
                 {filtered.map((nf) => {
                   const isEntrada = nf.tipo === "entrada";
+                  const finalidadeKey = String(nf.finalidade || "").toLowerCase();
                   const consumos = saidasByEntrada.get(nf.id) ?? [];
                   const used = consumos.reduce((acc, x) => acc + n(x.quantity_kg), 0);
                   const saldo = Math.max(n(nf.quantity_kg) - used, 0);
+                  const saldoDevolvido = saldoDevolvidoByEntrada.get(nf.id) ?? 0;
+                  const canDevolver = isEntrada && finalidadeKey === "remessa_deposito" && saldo > 0;
+                  const canVender =
+                    isEntrada &&
+                    saldo > 0 &&
+                    (finalidadeKey === "a_fixar" || (finalidadeKey === "remessa_deposito" && saldoDevolvido > 0));
                   return (
                     <div key={nf.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5">
-                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[74px_74px_110px_102px_160px_92px_140px_92px_1fr_1fr_130px_100px_120px_220px] xl:items-center xl:gap-2">
+                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[74px_72px_130px_200px_100px_92px_180px_140px_130px_90px_120px_150px] xl:items-center xl:gap-2">
                         <div className="text-xs text-zinc-100">{fmtDate(nf.date)}</div>
                         <div className="text-xs text-zinc-100">{isEntrada ? "Entrada" : "Saida"}</div>
-                        <div className="text-xs text-zinc-100">{nf.finalidade}</div>
-                        <div className="text-xs text-zinc-100">{nf.status}</div>
-                        <div className="truncate text-xs text-zinc-100">
-                          {nf.number || "-"}
-                          {nf.chave ? ` • ${nf.chave}` : ""}
+                        <div>
+                          <span className={`inline-flex rounded-lg border px-2 py-1 text-[10px] font-semibold ${finalidadeTagClass(finalidadeKey)}`}>
+                            {FINALIDADE_LABEL[finalidadeKey] || nf.finalidade || "-"}
+                          </span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="truncate text-xs text-zinc-100">
+                            {nf.number || "-"}
+                            {nf.chave ? ` • ${nf.chave}` : ""}
+                          </p>
+                          <span className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold ${statusTagClass(nf.status)}`}>
+                            {STATUS_LABEL[String(nf.status || "").toLowerCase()] || nf.status || "-"}
+                          </span>
                         </div>
                         <div className="truncate text-xs text-zinc-100">{nf.number || "-"}</div>
-                        <div className="truncate text-xs text-zinc-100">{nf.chave || "-"}</div>
                         <div className="truncate text-xs text-zinc-100">{nf.romaneio?.code || "-"}</div>
                         <div className="truncate text-xs text-zinc-100">{nf.produtor?.name || "-"}</div>
                         <div className="truncate text-xs text-zinc-100">{nf.cliente?.name || "-"}</div>
@@ -802,23 +1020,26 @@ export default function NotasGraosPage() {
                           {n(nf.quantity_kg).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
                         </div>
                         <div className="text-xs text-zinc-100">{money(n(nf.total_value))}</div>
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-1.5">
                           {isEntrada ? (
                             <>
-                              <button
-                                onClick={() => openSaida("devolucao", nf)}
-                                disabled={saldo <= 0}
-                                className="rounded-xl border border-amber-400/25 bg-amber-500/10 px-2.5 py-1.5 text-xs font-semibold text-amber-200 disabled:opacity-40"
-                              >
-                                Devolver
-                              </button>
-                              <button
-                                onClick={() => openSaida("venda", nf)}
-                                disabled={saldo <= 0}
-                                className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-200 disabled:opacity-40"
-                              >
-                                Vender
-                              </button>
+                              {canDevolver ? (
+                                <button
+                                  onClick={() => openSaida("devolucao", nf)}
+                                  className="rounded-xl border border-amber-400/25 bg-amber-500/10 px-2.5 py-1.5 text-xs font-semibold text-amber-200"
+                                >
+                                  Devolver
+                                </button>
+                              ) : null}
+                              {canVender ? (
+                                <button
+                                  onClick={() => openSaida("venda", nf)}
+                                  className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-200"
+                                >
+                                  Vender
+                                </button>
+                              ) : null}
+                              {!canDevolver && !canVender ? <span className="text-xs text-zinc-500">-</span> : null}
                             </>
                           ) : (
                             <>
@@ -963,6 +1184,136 @@ export default function NotasGraosPage() {
                       className="rounded-2xl border border-amber-400/25 bg-amber-500/15 px-4 py-2 text-sm font-black text-amber-100 disabled:opacity-50"
                     >
                       {loteSaving ? "Gerando..." : "Gerar devolucao em lote"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {vendaLoteOpen ? (
+            <div className="fixed inset-0 z-[82] grid place-items-center px-4">
+              <button className="absolute inset-0 bg-zinc-950/75" onClick={() => setVendaLoteOpen(false)} />
+              <div className="relative w-full max-w-6xl rounded-3xl border border-white/15 bg-zinc-900/95 p-5 shadow-2xl">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-lg font-black text-white">Venda em lote (A Fixar)</p>
+                    <p className="mt-1 text-xs text-zinc-400">
+                      Selecione varias notas A Fixar, informe quantidades e gere uma unica NF de venda para o lote.
+                    </p>
+                  </div>
+                  <button onClick={() => setVendaLoteOpen(false)} className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-zinc-200">
+                    Fechar
+                  </button>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-5">
+                  <div className="grid gap-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Data</label>
+                    <input type="date" value={vendaLoteDate} onChange={(e) => setVendaLoteDate(e.target.value)} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100 [color-scheme:dark]" />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Vencimento</label>
+                    <input type="date" value={vendaLoteDueDate} onChange={(e) => setVendaLoteDueDate(e.target.value)} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100 [color-scheme:dark]" />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Nota fiscal</label>
+                    <input value={vendaLoteNumber} onChange={(e) => setVendaLoteNumber(e.target.value.toUpperCase())} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100" />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Chave da nota</label>
+                    <input value={vendaLoteChave} onChange={(e) => setVendaLoteChave(e.target.value.toUpperCase())} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100" placeholder="Opcional" />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Total selecionado</label>
+                    <div className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-100">
+                      {vendaLoteTotals.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} KG
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid gap-3 md:grid-cols-3">
+                  <select value={vendaLoteSafra} onChange={(e) => setVendaLoteSafra(e.target.value === "" ? "" : Number(e.target.value))} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100">
+                    <option value="">Safra</option>
+                    {safras.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                  <select value={vendaLoteProdutor} onChange={(e) => setVendaLoteProdutor(e.target.value === "" ? "" : Number(e.target.value))} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100">
+                    <option value="">Produtor</option>
+                    {produtores.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  <select value={vendaLoteCliente} onChange={(e) => setVendaLoteCliente(e.target.value === "" ? "" : Number(e.target.value))} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100">
+                    <option value="">Cliente</option>
+                    {clientes.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="mt-4 max-h-[42vh] overflow-auto rounded-2xl border border-white/10">
+                  <div className="grid grid-cols-[40px_80px_90px_1fr_1fr_110px_120px_110px_110px] gap-2 bg-zinc-950/45 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
+                    <div>Sel</div>
+                    <div>Data</div>
+                    <div>Nota</div>
+                    <div>Produtor</div>
+                    <div>Cliente</div>
+                    <div>Saldo KG</div>
+                    <div>Qtd venda</div>
+                    <div>Preço</div>
+                    <div>Desconto</div>
+                  </div>
+                  <div className="space-y-2 px-2 py-2">
+                    {entradasVendaLoteFiltradas.map(({ nf, saldo }) => {
+                      const st = vendaLoteRows[nf.id] ?? { selected: false, quantity_kg: "", price: String(n(nf.price) || 0), discount: "0" };
+                      return (
+                        <div key={nf.id} className="grid grid-cols-[40px_80px_90px_1fr_1fr_110px_120px_110px_110px] items-center gap-2 rounded-xl border border-white/10 bg-zinc-950/30 px-2 py-2">
+                          <div className="flex justify-center">
+                            <input
+                              type="checkbox"
+                              checked={st.selected}
+                              onChange={(e) =>
+                                changeVendaLoteRow(nf.id, {
+                                  selected: e.target.checked,
+                                  quantity_kg: e.target.checked ? (st.quantity_kg || String(Math.trunc(saldo))) : "",
+                                  price: st.price || String(n(nf.price) || 0),
+                                  discount: st.discount || "0"
+                                })
+                              }
+                              className="h-4 w-4 accent-emerald-500"
+                            />
+                          </div>
+                          <div className="text-xs text-zinc-100">{fmtDate(nf.date)}</div>
+                          <div className="truncate text-xs text-zinc-100">{nf.number || "-"}</div>
+                          <div className="truncate text-xs text-zinc-100">{nf.produtor?.name || "-"}</div>
+                          <div className="truncate text-xs text-zinc-100">{nf.cliente?.name || "-"}</div>
+                          <div className="text-xs text-zinc-100">{saldo.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</div>
+                          <input value={st.quantity_kg} onChange={(e) => changeVendaLoteRow(nf.id, { quantity_kg: e.target.value })} className="rounded-lg border border-white/10 bg-zinc-950/40 px-2 py-1 text-right text-xs text-zinc-100" />
+                          <input value={st.price} onChange={(e) => changeVendaLoteRow(nf.id, { price: e.target.value })} className="rounded-lg border border-white/10 bg-zinc-950/40 px-2 py-1 text-right text-xs text-zinc-100" />
+                          <input value={st.discount} onChange={(e) => changeVendaLoteRow(nf.id, { discount: e.target.value })} className="rounded-lg border border-white/10 bg-zinc-950/40 px-2 py-1 text-right text-xs text-zinc-100" />
+                        </div>
+                      );
+                    })}
+                    {!entradasVendaLoteFiltradas.length ? <p className="px-2 py-3 text-xs text-zinc-500">Sem entradas A Fixar com saldo disponível para venda.</p> : null}
+                  </div>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <p className="text-xs text-zinc-400">
+                    Valor estimado no lote: <span className="font-semibold text-zinc-100">{money(vendaLoteTotals.value)}</span>
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setVendaLoteOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200">
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={saveLoteVenda}
+                      disabled={vendaLoteSaving}
+                      className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-4 py-2 text-sm font-black text-emerald-100 disabled:opacity-40"
+                    >
+                      {vendaLoteSaving ? "Gerando..." : "Gerar venda em lote"}
                     </button>
                   </div>
                 </div>
