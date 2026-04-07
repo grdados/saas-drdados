@@ -11,6 +11,16 @@
   --text-soft: #b8b8c0;
   --gold: #df9830;
   --gold-soft: #f2bc6b;
+
+  /* Escala responsiva global de bordas */
+  --rd-base: 0.25rem;   /* rounded */
+  --rd-sm: 0.375rem;    /* rounded-sm */
+  --rd-md: 0.375rem;    /* rounded-md */
+  --rd-lg: 0.5rem;      /* rounded-lg */
+  --rd-xl: 0.75rem;     /* rounded-xl */
+  --rd-2xl: 1rem;       /* rounded-2xl */
+  --rd-3xl: 1.5rem;     /* rounded-3xl */
+  --rd-arbitrary: 0.75rem;
 }
 
 * {
@@ -81,6 +91,17 @@ button {
   html {
     font-size: 14.5px;
   }
+
+  :root {
+    --rd-base: 0.2rem;
+    --rd-sm: 0.3rem;
+    --rd-md: 0.3rem;
+    --rd-lg: 0.4rem;
+    --rd-xl: 0.6rem;
+    --rd-2xl: 0.8rem;
+    --rd-3xl: 1rem;
+    --rd-arbitrary: 0.6rem;
+  }
 }
 
 @media (min-width: 1441px) and (max-width: 1536px) and (max-height: 900px) {
@@ -93,4 +114,62 @@ button {
   html {
     font-size: 14px;
   }
+
+  :root {
+    --rd-base: 0.15rem;
+    --rd-sm: 0.25rem;
+    --rd-md: 0.25rem;
+    --rd-lg: 0.35rem;
+    --rd-xl: 0.5rem;
+    --rd-2xl: 0.65rem;
+    --rd-3xl: 0.85rem;
+    --rd-arbitrary: 0.5rem;
+  }
+}
+
+@media (max-width: 1024px) and (min-width: 641px) {
+  :root {
+    --rd-base: 0.18rem;
+    --rd-sm: 0.28rem;
+    --rd-md: 0.28rem;
+    --rd-lg: 0.38rem;
+    --rd-xl: 0.56rem;
+    --rd-2xl: 0.72rem;
+    --rd-3xl: 0.95rem;
+    --rd-arbitrary: 0.56rem;
+  }
+}
+
+/* Override global das classes Tailwind de borda arredondada */
+.rounded {
+  border-radius: var(--rd-base);
+}
+
+.rounded-sm {
+  border-radius: var(--rd-sm);
+}
+
+.rounded-md {
+  border-radius: var(--rd-md);
+}
+
+.rounded-lg {
+  border-radius: var(--rd-lg);
+}
+
+.rounded-xl {
+  border-radius: var(--rd-xl);
+}
+
+.rounded-2xl {
+  border-radius: var(--rd-2xl);
+}
+
+.rounded-3xl {
+  border-radius: var(--rd-3xl);
+}
+
+/* Classes arbitrárias rounded-[...] também seguem a escala responsiva */
+[class*="rounded-\\["]:not([class*="rounded-full"]) {
+  border-radius: var(--rd-arbitrary) !important;
 }

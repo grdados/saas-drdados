@@ -1556,38 +1556,38 @@ export default function RomaneioPage() {
                         <div className="text-xs text-zinc-100">{toViewWeightCard(n(r.net_weight))}</div>
                         <div className="text-xs text-zinc-100">{contratoSaldo ? toViewWeightCard(contratoSaldo.qtySaldoKg) : "-"}</div>
                         <div className="text-right">
-                          <div className="inline-flex gap-1.5">
+                          <div className="inline-flex gap-1">
                             <button
                               onClick={(e) => { e.stopPropagation(); openContraNota(r); }}
-                              className="rounded-xl border border-amber-400/25 bg-amber-500/10 p-2.5 text-amber-200 hover:bg-amber-500/20"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-amber-400/25 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20"
                               title={contraNotaTitle}
                               aria-label="Registrar contra-nota"
                             >
-                              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 3h8l4 4v14H7z" /><path d="M15 3v5h5" /><path d="M10 12h6M10 16h6" /></svg>
+                              <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 3h8l4 4v14H7z" /><path d="M15 3v5h5" /><path d="M10 12h6M10 16h6" /></svg>
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); openEdit(r); }}
-                              className="rounded-xl border border-sky-400/25 bg-sky-500/10 p-2.5 text-sky-200 hover:bg-sky-500/20"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-sky-400/25 bg-sky-500/10 text-sky-200 hover:bg-sky-500/20"
                               title="Editar"
                               aria-label="Editar"
                             >
-                              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
+                              <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); printOne(r); }}
-                              className="rounded-xl border border-zinc-400/25 bg-zinc-500/10 p-2.5 text-zinc-200 hover:bg-zinc-500/20"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-400/25 bg-zinc-500/10 text-zinc-200 hover:bg-zinc-500/20"
                               title="Imprimir romaneio"
                               aria-label="Imprimir"
                             >
-                              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7" /><path d="M6 18h12v4H6z" /><path d="M6 14H4a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2" /></svg>
+                              <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7" /><path d="M6 18h12v4H6z" /><path d="M6 14H4a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2" /></svg>
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); setDeleteError(""); setDeleteTarget(r); }}
-                              className="rounded-xl border border-rose-400/25 bg-rose-500/10 p-2.5 text-rose-200 hover:bg-rose-500/20"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-400/25 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20"
                               title="Excluir"
                               aria-label="Excluir"
                             >
-                              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg>
+                              <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6" /></svg>
                             </button>
                           </div>
                         </div>
