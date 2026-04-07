@@ -1276,6 +1276,7 @@ export type NotaFiscalGraosApi = {
   date: string | null;
   due_date: string | null;
   number: string;
+  chave: string;
   romaneio: { id: number; code: string; nfp?: string } | null;
   romaneio_id?: number | null;
   nota_entrada_ref: { id: number; number: string } | null;
@@ -1313,6 +1314,7 @@ export function createNotaGraos(
     date: string | null;
     due_date: string | null;
     number: string;
+    chave: string;
     romaneio_id: number | null;
     nota_entrada_ref_id: number | null;
     safra_id: number | null;
@@ -1343,6 +1345,7 @@ export function updateNotaGraos(
     date: string | null;
     due_date: string | null;
     number: string;
+    chave: string;
     romaneio_id: number | null;
     nota_entrada_ref_id: number | null;
     safra_id: number | null;

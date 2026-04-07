@@ -2305,6 +2305,7 @@ class NotaFiscalGraosSerializer(serializers.ModelSerializer):
             "date",
             "due_date",
             "number",
+            "chave",
             "romaneio",
             "romaneio_id",
             "nota_entrada_ref",

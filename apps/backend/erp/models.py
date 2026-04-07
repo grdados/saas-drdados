@@ -787,6 +787,7 @@ class NotaFiscalGraos(models.Model):
     date = models.DateField(null=True, blank=True)
     due_date = models.DateField(null=True, blank=True)
     number = models.CharField(max_length=60, blank=True, default="")
+    chave = models.CharField(max_length=64, blank=True, default="")
 
     romaneio = models.ForeignKey("erp.RomaneioGraos", null=True, blank=True, on_delete=models.PROTECT, related_name="notas")
     nota_entrada_ref = models.ForeignKey("self", null=True, blank=True, on_delete=models.PROTECT, related_name="notas_saida")
@@ -821,6 +822,8 @@ class NotaFiscalGraos(models.Model):
     def save(self, *args, **kwargs):
         if isinstance(self.number, str) and self.number:
             self.number = self.number.strip().upper()
+        if isinstance(self.chave, str) and self.chave:
+            self.chave = self.chave.strip().upper()
         return super().save(*args, **kwargs)
 
 

@@ -38,10 +38,16 @@ type SaidaModal = {
     date: string;
     due_date: string;
     number: string;
+    chave: string;
     quantity_kg: string;
     price: string;
     discount: string;
   };
+};
+
+type LoteRowState = {
+  selected: boolean;
+  quantity_kg: string;
 };
 
 const STATUS_OPTIONS = [
@@ -80,11 +86,20 @@ export default function NotasGraosPage() {
   const [fProduto, setFProduto] = useState<number | "">("");
   const [fDateFrom, setFDateFrom] = useState("");
   const [fDateTo, setFDateTo] = useState("");
+  const [loteOpen, setLoteOpen] = useState(false);
+  const [loteSaving, setLoteSaving] = useState(false);
+  const [loteDate, setLoteDate] = useState("");
+  const [loteNumber, setLoteNumber] = useState("");
+  const [loteChave, setLoteChave] = useState("");
+  const [loteSafra, setLoteSafra] = useState<number | "">("");
+  const [loteProdutor, setLoteProdutor] = useState<number | "">("");
+  const [loteCliente, setLoteCliente] = useState<number | "">("");
+  const [loteRows, setLoteRows] = useState<Record<number, LoteRowState>>({});
   const [saida, setSaida] = useState<SaidaModal>({
     open: false,
     tipo: "devolucao",
     ref: null,
-    form: { date: "", due_date: "", number: "", quantity_kg: "", price: "0", discount: "0" }
+    form: { date: "", due_date: "", number: "", chave: "", quantity_kg: "", price: "0", discount: "0" }
   });
 
   async function reload() {
@@ -159,6 +174,48 @@ export default function NotasGraosPage() {
     return map;
   }, [notas]);
 
+  const entradasDevolucao = useMemo(() => {
+    return notas
+      .filter((nf) => nf.tipo === "entrada" && String(nf.finalidade || "").toLowerCase() === "remessa_deposito")
+      .map((nf) => {
+        const consumos = saidasByEntrada.get(nf.id) ?? [];
+        const used = consumos.reduce((acc, x) => acc + n(x.quantity_kg), 0);
+        const saldo = Math.max(n(nf.quantity_kg) - used, 0);
+        return { nf, saldo };
+      })
+      .filter((x) => x.saldo > 0);
+  }, [notas, saidasByEntrada]);
+
+  const entradasDevolucaoFiltradas = useMemo(() => {
+    return entradasDevolucao.filter(({ nf }) => {
+      const safraId = nf.safra?.id ?? nf.safra_id ?? null;
+      const produtorId = nf.produtor?.id ?? nf.produtor_id ?? null;
+      const clienteId = nf.cliente?.id ?? nf.cliente_id ?? null;
+      if (loteSafra !== "" && safraId !== Number(loteSafra)) return false;
+      if (loteProdutor !== "" && produtorId !== Number(loteProdutor)) return false;
+      if (loteCliente !== "" && clienteId !== Number(loteCliente)) return false;
+      return true;
+    });
+  }, [entradasDevolucao, loteSafra, loteProdutor, loteCliente]);
+
+  const loteSelected = useMemo(() => {
+    return entradasDevolucaoFiltradas
+      .map((x) => {
+        const state = loteRows[x.nf.id];
+        if (!state?.selected) return null;
+        const qty = Math.max(n(state.quantity_kg), 0);
+        if (qty <= 0) return null;
+        return { ...x, qty: Math.min(qty, x.saldo) };
+      })
+      .filter(Boolean) as Array<{ nf: NotaFiscalGraosApi; saldo: number; qty: number }>;
+  }, [entradasDevolucaoFiltradas, loteRows]);
+
+  const loteTotals = useMemo(() => {
+    const quantity = loteSelected.reduce((acc, x) => acc + x.qty, 0);
+    const value = loteSelected.reduce((acc, x) => acc + x.qty * n(x.nf.price), 0);
+    return { quantity, value };
+  }, [loteSelected]);
+
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return notas.filter((nf) => {
@@ -177,7 +234,7 @@ export default function NotasGraosPage() {
       if (fDateTo && (nf.date || "") > fDateTo) return false;
       if (!needle) return true;
       const blob =
-        `${nf.number} ${nf.romaneio?.code || ""} ${nf.safra?.name || ""} ${nf.produtor?.name || ""} ${nf.cliente?.name || ""} ${nf.produto?.name || ""} ${nf.finalidade} ${nf.status}`.toLowerCase();
+        `${nf.number} ${nf.chave || ""} ${nf.romaneio?.code || ""} ${nf.safra?.name || ""} ${nf.produtor?.name || ""} ${nf.cliente?.name || ""} ${nf.produto?.name || ""} ${nf.finalidade} ${nf.status}`.toLowerCase();
       return blob.includes(needle);
     });
   }, [
@@ -218,11 +275,37 @@ export default function NotasGraosPage() {
         date: today,
         due_date: today,
         number: "",
+        chave: "",
         quantity_kg: "",
         price: n(ref.price) > 0 ? String(n(ref.price)) : "0",
         discount: "0"
       }
     });
+  }
+
+  function openLoteModal() {
+    const today = new Date().toISOString().slice(0, 10);
+    setLoteDate(today);
+    setLoteNumber("");
+    setLoteChave("");
+    setLoteSafra("");
+    setLoteProdutor("");
+    setLoteCliente("");
+    setLoteRows({});
+    setError("");
+    setSuccess("");
+    setLoteOpen(true);
+  }
+
+  function changeLoteRow(id: number, patch: Partial<LoteRowState>) {
+    setLoteRows((prev) => ({
+      ...prev,
+      [id]: {
+        selected: prev[id]?.selected ?? false,
+        quantity_kg: prev[id]?.quantity_kg ?? "",
+        ...patch
+      }
+    }));
   }
 
   async function saveSaida() {
@@ -254,6 +337,7 @@ export default function NotasGraosPage() {
         date: saida.form.date,
         due_date: saida.tipo === "venda" ? saida.form.due_date || null : null,
         number: saida.form.number.trim().toUpperCase(),
+        chave: saida.form.chave.trim().toUpperCase(),
         nota_entrada_ref_id: saida.ref.id,
         romaneio_id: saida.ref.romaneio?.id ?? saida.ref.romaneio_id ?? null,
         safra_id: saida.ref.safra?.id ?? saida.ref.safra_id ?? null,
@@ -281,6 +365,65 @@ export default function NotasGraosPage() {
       setError(err instanceof Error ? err.message : "Falha ao criar NF de saida.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveLoteDevolucao() {
+    const token = getAccessToken();
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
+    if (!loteDate || !loteNumber.trim()) {
+      setError("Preencha Data e Nota Fiscal para devolucao em lote.");
+      return;
+    }
+    if (!loteSelected.length) {
+      setError("Selecione ao menos uma entrada e informe quantidade para devolucao.");
+      return;
+    }
+
+    try {
+      setLoteSaving(true);
+      setError("");
+      setSuccess("");
+      for (const row of loteSelected) {
+        await createNotaGraos(token, {
+          tipo: "saida",
+          finalidade: "devolucao",
+          status: "pendente",
+          date: loteDate,
+          due_date: null,
+          number: loteNumber.trim().toUpperCase(),
+          chave: loteChave.trim().toUpperCase(),
+          nota_entrada_ref_id: row.nf.id,
+          romaneio_id: row.nf.romaneio?.id ?? row.nf.romaneio_id ?? null,
+          safra_id: row.nf.safra?.id ?? row.nf.safra_id ?? null,
+          produtor_id: row.nf.produtor?.id ?? row.nf.produtor_id ?? null,
+          cliente_id: row.nf.cliente?.id ?? row.nf.cliente_id ?? null,
+          produto_id: row.nf.produto?.id ?? row.nf.produto_id ?? null,
+          deposito_id: row.nf.deposito?.id ?? row.nf.deposito_id ?? null,
+          operacao_id: row.nf.operacao?.id ?? row.nf.operacao_id ?? null,
+          quantity_kg: row.qty,
+          price: Math.max(n(row.nf.price), 0),
+          discount: 0
+        });
+      }
+      await reload();
+      setLoteOpen(false);
+      setSuccess(
+        `Devolucao em lote registrada (${loteSelected.length} nota(s), ${loteTotals.quantity.toLocaleString("pt-BR", {
+          maximumFractionDigits: 0
+        })} KG).${loteChave.trim() ? ` Chave informada: ${loteChave.trim()}.` : ""}`
+      );
+    } catch (err) {
+      if (isApiError(err) && err.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      setError(err instanceof Error ? err.message : "Falha ao gerar devolucao em lote.");
+    } finally {
+      setLoteSaving(false);
     }
   }
 
@@ -315,6 +458,12 @@ export default function NotasGraosPage() {
                 </button>
                 <button className="min-h-[34px] rounded-2xl border border-white/15 bg-white/5 px-3 py-1.5 text-[12px] font-medium text-zinc-100">
                   Analitico
+                </button>
+                <button
+                  onClick={openLoteModal}
+                  className="min-h-[34px] rounded-2xl border border-amber-400/25 bg-amber-500/15 px-3 py-1.5 text-[12px] font-semibold text-amber-100"
+                >
+                  Devolucao em lote
                 </button>
               </div>
             </div>
@@ -472,12 +621,13 @@ export default function NotasGraosPage() {
               <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
             </div>
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden grid-cols-[74px_74px_110px_102px_92px_92px_1fr_1fr_130px_100px_120px_220px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
+              <div className="hidden grid-cols-[74px_74px_110px_102px_92px_140px_92px_1fr_1fr_130px_100px_120px_220px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
                 <div>Data</div>
                 <div>Tipo</div>
                 <div>Finalidade</div>
                 <div>Status</div>
                 <div>Nota</div>
+                <div>Chave</div>
                 <div>Romaneio</div>
                 <div>Produtor</div>
                 <div>Cliente</div>
@@ -494,12 +644,13 @@ export default function NotasGraosPage() {
                   const saldo = Math.max(n(nf.quantity_kg) - used, 0);
                   return (
                     <div key={nf.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5">
-                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[74px_74px_110px_102px_92px_92px_1fr_1fr_130px_100px_120px_220px] xl:items-center xl:gap-2">
+                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[74px_74px_110px_102px_92px_140px_92px_1fr_1fr_130px_100px_120px_220px] xl:items-center xl:gap-2">
                         <div className="text-xs text-zinc-100">{fmtDate(nf.date)}</div>
                         <div className="text-xs text-zinc-100">{isEntrada ? "Entrada" : "Saida"}</div>
                         <div className="text-xs text-zinc-100">{nf.finalidade}</div>
                         <div className="text-xs text-zinc-100">{nf.status}</div>
                         <div className="truncate text-xs text-zinc-100">{nf.number || "-"}</div>
+                        <div className="truncate text-xs text-zinc-100">{nf.chave || "-"}</div>
                         <div className="truncate text-xs text-zinc-100">{nf.romaneio?.code || "-"}</div>
                         <div className="truncate text-xs text-zinc-100">{nf.produtor?.name || "-"}</div>
                         <div className="truncate text-xs text-zinc-100">{nf.cliente?.name || "-"}</div>
@@ -538,6 +689,130 @@ export default function NotasGraosPage() {
             </div>
           </section>
 
+          {loteOpen ? (
+            <div className="fixed inset-0 z-[82] grid place-items-center px-4">
+              <button className="absolute inset-0 bg-zinc-950/75" onClick={() => setLoteOpen(false)} />
+              <div className="relative w-full max-w-6xl rounded-3xl border border-white/15 bg-zinc-900/95 p-5 shadow-2xl">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-lg font-black text-white">Devolucao em lote</p>
+                    <p className="mt-1 text-xs text-zinc-400">
+                      Selecione varias notas de deposito, informe quantidades e gere uma devolucao em lote.
+                    </p>
+                  </div>
+                  <button onClick={() => setLoteOpen(false)} className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-zinc-200">
+                    Fechar
+                  </button>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-4">
+                  <div className="grid gap-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Data</label>
+                    <input type="date" value={loteDate} onChange={(e) => setLoteDate(e.target.value)} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100 [color-scheme:dark]" />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Nota fiscal</label>
+                    <input value={loteNumber} onChange={(e) => setLoteNumber(e.target.value.toUpperCase())} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100" />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Chave da nota</label>
+                    <input value={loteChave} onChange={(e) => setLoteChave(e.target.value.toUpperCase())} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100" placeholder="Opcional" />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Total selecionado</label>
+                    <div className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-100">
+                      {loteTotals.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} KG
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid gap-3 md:grid-cols-3">
+                  <select value={loteSafra} onChange={(e) => setLoteSafra(e.target.value === "" ? "" : Number(e.target.value))} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100">
+                    <option value="">Safra</option>
+                    {safras.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                  <select value={loteProdutor} onChange={(e) => setLoteProdutor(e.target.value === "" ? "" : Number(e.target.value))} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100">
+                    <option value="">Produtor</option>
+                    {produtores.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  <select value={loteCliente} onChange={(e) => setLoteCliente(e.target.value === "" ? "" : Number(e.target.value))} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100">
+                    <option value="">Cliente</option>
+                    {clientes.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="mt-4 max-h-[42vh] overflow-auto rounded-2xl border border-white/10">
+                  <div className="grid grid-cols-[40px_80px_90px_1fr_1fr_110px_140px] gap-2 bg-zinc-950/45 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
+                    <div>Sel</div>
+                    <div>Data</div>
+                    <div>Nota</div>
+                    <div>Produtor</div>
+                    <div>Cliente</div>
+                    <div>Saldo KG</div>
+                    <div>Qtd devolver</div>
+                  </div>
+                  <div className="space-y-1 p-2">
+                    {entradasDevolucaoFiltradas.map(({ nf, saldo }) => {
+                      const st = loteRows[nf.id] ?? { selected: false, quantity_kg: "" };
+                      return (
+                        <div key={nf.id} className="grid grid-cols-[40px_80px_90px_1fr_1fr_110px_140px] items-center gap-2 rounded-xl border border-white/10 bg-zinc-950/30 px-2 py-2">
+                          <div>
+                            <input
+                              type="checkbox"
+                              checked={st.selected}
+                              onChange={(e) => changeLoteRow(nf.id, { selected: e.target.checked, quantity_kg: e.target.checked ? (st.quantity_kg || String(Math.trunc(saldo))) : "" })}
+                            />
+                          </div>
+                          <div className="text-xs text-zinc-100">{fmtDate(nf.date)}</div>
+                          <div className="truncate text-xs text-zinc-100">{nf.number || "-"}</div>
+                          <div className="truncate text-xs text-zinc-100">{nf.produtor?.name || "-"}</div>
+                          <div className="truncate text-xs text-zinc-100">{nf.cliente?.name || "-"}</div>
+                          <div className="text-xs font-semibold text-zinc-100">{saldo.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</div>
+                          <input
+                            value={st.quantity_kg}
+                            onChange={(e) => changeLoteRow(nf.id, { quantity_kg: e.target.value })}
+                            disabled={!st.selected}
+                            className="rounded-lg border border-white/10 bg-zinc-900/70 px-2 py-1.5 text-right text-xs text-zinc-100 disabled:opacity-40"
+                            placeholder="0"
+                          />
+                        </div>
+                      );
+                    })}
+                    {!entradasDevolucaoFiltradas.length ? (
+                      <div className="rounded-xl border border-white/10 bg-zinc-950/30 p-3 text-xs text-zinc-400">
+                        Sem notas de entrada (remessa deposito) com saldo para devolucao no filtro atual.
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <div className="text-xs text-zinc-300">
+                    Valor estimado no lote: <span className="font-semibold text-zinc-100">{money(loteTotals.value)}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setLoteOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200">
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={saveLoteDevolucao}
+                      disabled={loteSaving}
+                      className="rounded-2xl border border-amber-400/25 bg-amber-500/15 px-4 py-2 text-sm font-black text-amber-100 disabled:opacity-50"
+                    >
+                      {loteSaving ? "Gerando..." : "Gerar devolucao em lote"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           {saida.open && saida.ref ? (
             <div className="fixed inset-0 z-[80] grid place-items-center px-4">
               <button
@@ -549,7 +824,7 @@ export default function NotasGraosPage() {
                 <p className="mt-1 text-xs text-zinc-400">
                   NF entrada {saida.ref.number} - Romaneio {saida.ref.romaneio?.code || "-"}
                 </p>
-                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <div className="mt-4 grid gap-3 md:grid-cols-4">
                   <div className="grid gap-1.5">
                     <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Data</label>
                     <input
@@ -565,6 +840,16 @@ export default function NotasGraosPage() {
                       value={saida.form.number}
                       onChange={(e) =>
                         setSaida((p) => ({ ...p, form: { ...p.form, number: e.target.value.toUpperCase() } }))
+                      }
+                      className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Chave da nota</label>
+                    <input
+                      value={saida.form.chave}
+                      onChange={(e) =>
+                        setSaida((p) => ({ ...p, form: { ...p.form, chave: e.target.value.toUpperCase() } }))
                       }
                       className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100"
                     />

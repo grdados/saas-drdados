@@ -953,6 +953,7 @@ export default function RomaneioPage() {
         date: string | null;
         due_date: string | null;
         number: string;
+        chave: string;
         romaneio_id: number | null;
         nota_entrada_ref_id: number | null;
         safra_id: number | null;
@@ -969,6 +970,7 @@ export default function RomaneioPage() {
         finalidade: toFinalidadeEntrada(contraNotaForm.operacao, isVendaDiretaContrato),
         date: contraNotaForm.date,
         number: contraNotaForm.nota_fiscal.trim().toUpperCase(),
+        chave: contraNotaForm.chave.trim().toUpperCase(),
         romaneio_id: romaneioPersisted.id,
         safra_id: romaneioPersisted.safra_id ?? null,
         produtor_id: romaneioPersisted.produtor_id ?? null,

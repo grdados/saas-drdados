@@ -198,6 +198,7 @@ export default function EstoqueProdutosPage() {
     date: "",
     due_date: "",
     number: "",
+    chave: "",
     quantity_kg: "",
     price: "",
     discount: "0"
@@ -642,6 +643,7 @@ export default function EstoqueProdutosPage() {
       date: now,
       due_date: now,
       number: "",
+      chave: "",
       quantity_kg: "",
       price: n(entry.entrada.price) > 0 ? String(n(entry.entrada.price)) : "0",
       discount: "0"
@@ -682,6 +684,7 @@ export default function EstoqueProdutosPage() {
         date: saidaForm.date,
         due_date: modalSaidaType === "venda" ? saidaForm.due_date || null : null,
         number: saidaForm.number.trim().toUpperCase(),
+        chave: saidaForm.chave.trim().toUpperCase(),
         nota_entrada_ref_id: modalEntradaRef.entrada.id,
         romaneio_id: modalEntradaRef.entrada.romaneio?.id ?? modalEntradaRef.entrada.romaneio_id ?? null,
         safra_id: modalEntradaRef.entrada.safra?.id ?? modalEntradaRef.entrada.safra_id ?? null,
@@ -1132,6 +1135,10 @@ export default function EstoqueProdutosPage() {
                   <div className="grid gap-1.5">
                     <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Nota Fiscal</label>
                     <input value={saidaForm.number} onChange={(e) => setSaidaForm((p) => ({ ...p, number: e.target.value.toUpperCase() }))} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100" />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Chave da nota</label>
+                    <input value={saidaForm.chave} onChange={(e) => setSaidaForm((p) => ({ ...p, chave: e.target.value.toUpperCase() }))} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100" />
                   </div>
                   <div className="grid gap-1.5">
                     <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Quantidade (KG)</label>
