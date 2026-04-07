@@ -1366,6 +1366,10 @@ export function updateNotaGraos(
   );
 }
 
+export function deleteNotaGraos(token: string, id: number) {
+  return request<void>(`/api/erp/producao/notas-graos/${id}/`, { method: "DELETE" }, token);
+}
+
 export type ChuvaApi = {
   id: number;
   date: string | null;

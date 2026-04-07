@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
 import {
+  deleteNotaGraos,
   NotaFiscalGraosApi,
   Safra,
   createNotaGraos,
@@ -48,6 +49,16 @@ type SaidaModal = {
 type LoteRowState = {
   selected: boolean;
   quantity_kg: string;
+};
+
+type EstornoGroup = {
+  id: string;
+  date: string | null;
+  number: string;
+  chave: string;
+  notes: NotaFiscalGraosApi[];
+  quantity: number;
+  totalValue: number;
 };
 
 const STATUS_OPTIONS = [
@@ -95,6 +106,15 @@ export default function NotasGraosPage() {
   const [loteProdutor, setLoteProdutor] = useState<number | "">("");
   const [loteCliente, setLoteCliente] = useState<number | "">("");
   const [loteRows, setLoteRows] = useState<Record<number, LoteRowState>>({});
+  const [estornoOpen, setEstornoOpen] = useState(false);
+  const [estornoSaving, setEstornoSaving] = useState(false);
+  const [estornoDate, setEstornoDate] = useState("");
+  const [estornoNumber, setEstornoNumber] = useState("");
+  const [estornoChave, setEstornoChave] = useState("");
+  const [estornoRows, setEstornoRows] = useState<Record<string, boolean>>({});
+  const [confirmEstornoOpen, setConfirmEstornoOpen] = useState(false);
+  const [confirmEstornoTitle, setConfirmEstornoTitle] = useState("");
+  const [confirmEstornoNotes, setConfirmEstornoNotes] = useState<NotaFiscalGraosApi[]>([]);
   const [saida, setSaida] = useState<SaidaModal>({
     open: false,
     tipo: "devolucao",
@@ -297,6 +317,16 @@ export default function NotasGraosPage() {
     setLoteOpen(true);
   }
 
+  function openEstornoLoteModal() {
+    setEstornoDate("");
+    setEstornoNumber("");
+    setEstornoChave("");
+    setEstornoRows({});
+    setError("");
+    setSuccess("");
+    setEstornoOpen(true);
+  }
+
   function changeLoteRow(id: number, patch: Partial<LoteRowState>) {
     setLoteRows((prev) => ({
       ...prev,
@@ -427,6 +457,108 @@ export default function NotasGraosPage() {
     }
   }
 
+  const devolucoesEstornaveis = useMemo(() => {
+    const dateNeedle = estornoDate.trim();
+    const numberNeedle = estornoNumber.trim().toLowerCase();
+    const chaveNeedle = estornoChave.trim().toLowerCase();
+    const filteredDev = notas.filter((nf) => {
+      if (nf.tipo !== "saida") return false;
+      if (String(nf.finalidade || "").toLowerCase() !== "devolucao") return false;
+      if (String(nf.status || "").toLowerCase() === "canceled") return false;
+      if (dateNeedle && (nf.date || "") !== dateNeedle) return false;
+      if (numberNeedle && !(nf.number || "").toLowerCase().includes(numberNeedle)) return false;
+      if (chaveNeedle && !(nf.chave || "").toLowerCase().includes(chaveNeedle)) return false;
+      return true;
+    });
+
+    const grouped = new Map<string, EstornoGroup>();
+    for (const nf of filteredDev) {
+      const date = nf.date || "";
+      const number = (nf.number || "").trim().toUpperCase();
+      const chave = (nf.chave || "").trim().toUpperCase();
+      const id = `${date}|${number}|${chave}`;
+      const current = grouped.get(id);
+      if (!current) {
+        grouped.set(id, {
+          id,
+          date: nf.date,
+          number,
+          chave,
+          notes: [nf],
+          quantity: n(nf.quantity_kg),
+          totalValue: n(nf.total_value)
+        });
+      } else {
+        current.notes.push(nf);
+        current.quantity += n(nf.quantity_kg);
+        current.totalValue += n(nf.total_value);
+      }
+    }
+    return [...grouped.values()].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  }, [notas, estornoDate, estornoNumber, estornoChave]);
+
+  const estornoSelectedGroups = useMemo(
+    () => devolucoesEstornaveis.filter((g) => !!estornoRows[g.id]),
+    [devolucoesEstornaveis, estornoRows]
+  );
+
+  const estornoSelectedNotes = useMemo(
+    () => estornoSelectedGroups.flatMap((g) => g.notes),
+    [estornoSelectedGroups]
+  );
+
+  const estornoTotals = useMemo(() => {
+    const quantity = estornoSelectedGroups.reduce((acc, g) => acc + g.quantity, 0);
+    const value = estornoSelectedGroups.reduce((acc, g) => acc + g.totalValue, 0);
+    return { quantity, value, groups: estornoSelectedGroups.length, notes: estornoSelectedNotes.length };
+  }, [estornoSelectedGroups, estornoSelectedNotes]);
+
+  function requestConfirmEstorno(notasSelecionadas: NotaFiscalGraosApi[], title: string) {
+    if (!notasSelecionadas.length) {
+      setError("Selecione ao menos uma devolucao para estornar.");
+      return;
+    }
+    setError("");
+    setConfirmEstornoTitle(title);
+    setConfirmEstornoNotes(notasSelecionadas);
+    setConfirmEstornoOpen(true);
+  }
+
+  async function executeEstorno() {
+    const token = getAccessToken();
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
+    if (!confirmEstornoNotes.length) return;
+    try {
+      setEstornoSaving(true);
+      setSaving(true);
+      setError("");
+      setSuccess("");
+      for (const nf of confirmEstornoNotes) {
+        await deleteNotaGraos(token, nf.id);
+      }
+      await reload();
+      setConfirmEstornoOpen(false);
+      setConfirmEstornoNotes([]);
+      setEstornoOpen(false);
+      setEstornoRows({});
+      setSuccess(
+        `Estorno concluido: ${confirmEstornoNotes.length} devolucao(oes) removida(s) e saldos recalculados.`
+      );
+    } catch (err) {
+      if (isApiError(err) && err.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      setError(err instanceof Error ? err.message : "Falha ao estornar devolucao.");
+    } finally {
+      setEstornoSaving(false);
+      setSaving(false);
+    }
+  }
+
   function clearFilters() {
     setQ("");
     setFSafra("");
@@ -464,6 +596,12 @@ export default function NotasGraosPage() {
                   className="min-h-[34px] rounded-2xl border border-amber-400/25 bg-amber-500/15 px-3 py-1.5 text-[12px] font-semibold text-amber-100"
                 >
                   Devolucao em lote
+                </button>
+                <button
+                  onClick={openEstornoLoteModal}
+                  className="min-h-[34px] rounded-2xl border border-rose-400/25 bg-rose-500/15 px-3 py-1.5 text-[12px] font-semibold text-rose-100"
+                >
+                  Estornar lote
                 </button>
               </div>
             </div>
@@ -678,7 +816,21 @@ export default function NotasGraosPage() {
                               </button>
                             </>
                           ) : (
-                            <span className="text-xs text-zinc-500">-</span>
+                            <>
+                              {nf.finalidade === "devolucao" && nf.status !== "canceled" ? (
+                                <button
+                                  onClick={() =>
+                                    requestConfirmEstorno([nf], `Estornar devolucao ${nf.number || `#${nf.id}`}`)
+                                  }
+                                  disabled={saving || estornoSaving}
+                                  className="rounded-xl border border-rose-400/25 bg-rose-500/10 px-2.5 py-1.5 text-xs font-semibold text-rose-200 disabled:opacity-40"
+                                >
+                                  Estornar
+                                </button>
+                              ) : (
+                                <span className="text-xs text-zinc-500">-</span>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
@@ -808,6 +960,125 @@ export default function NotasGraosPage() {
                       {loteSaving ? "Gerando..." : "Gerar devolucao em lote"}
                     </button>
                   </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {estornoOpen ? (
+            <div className="fixed inset-0 z-[82] grid place-items-center px-4">
+              <button className="absolute inset-0 bg-zinc-950/75" onClick={() => setEstornoOpen(false)} />
+              <div className="relative w-full max-w-5xl rounded-3xl border border-white/15 bg-zinc-900/95 p-5 shadow-2xl">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-lg font-black text-white">Estorno de devolucao em lote</p>
+                    <p className="mt-1 text-xs text-zinc-400">
+                      Selecione os lotes de devolucao para remover e recalcular o saldo.
+                    </p>
+                  </div>
+                  <button onClick={() => setEstornoOpen(false)} className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-zinc-200">
+                    Fechar
+                  </button>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <div className="grid gap-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Data</label>
+                    <input type="date" value={estornoDate} onChange={(e) => setEstornoDate(e.target.value)} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100 [color-scheme:dark]" />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Nota fiscal</label>
+                    <input value={estornoNumber} onChange={(e) => setEstornoNumber(e.target.value.toUpperCase())} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100" />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Chave</label>
+                    <input value={estornoChave} onChange={(e) => setEstornoChave(e.target.value.toUpperCase())} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100" />
+                  </div>
+                </div>
+
+                <div className="mt-4 max-h-[42vh] overflow-auto rounded-2xl border border-white/10">
+                  <div className="grid grid-cols-[40px_90px_120px_1fr_120px_120px_90px] gap-2 bg-zinc-950/45 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">
+                    <div>Sel</div>
+                    <div>Data</div>
+                    <div>Nota</div>
+                    <div>Chave</div>
+                    <div>Qtd KG</div>
+                    <div>Valor</div>
+                    <div>NFs</div>
+                  </div>
+                  <div className="space-y-1 p-2">
+                    {devolucoesEstornaveis.map((g) => (
+                      <div key={g.id} className="grid grid-cols-[40px_90px_120px_1fr_120px_120px_90px] items-center gap-2 rounded-xl border border-white/10 bg-zinc-950/30 px-2 py-2">
+                        <div>
+                          <input
+                            type="checkbox"
+                            checked={!!estornoRows[g.id]}
+                            onChange={(e) => setEstornoRows((prev) => ({ ...prev, [g.id]: e.target.checked }))}
+                          />
+                        </div>
+                        <div className="text-xs text-zinc-100">{fmtDate(g.date)}</div>
+                        <div className="truncate text-xs text-zinc-100">{g.number || "-"}</div>
+                        <div className="truncate text-xs text-zinc-100">{g.chave || "-"}</div>
+                        <div className="text-xs font-semibold text-zinc-100">
+                          {g.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
+                        </div>
+                        <div className="text-xs text-zinc-100">{money(g.totalValue)}</div>
+                        <div className="text-xs text-zinc-300">{g.notes.length}</div>
+                      </div>
+                    ))}
+                    {!devolucoesEstornaveis.length ? (
+                      <div className="rounded-xl border border-white/10 bg-zinc-950/30 p-3 text-xs text-zinc-400">
+                        Nenhuma devolucao encontrada para os filtros.
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <div className="text-xs text-zinc-300">
+                    Selecionado: <span className="font-semibold text-zinc-100">{estornoTotals.groups}</span> lote(s),{" "}
+                    <span className="font-semibold text-zinc-100">{estornoTotals.notes}</span> NF(s),{" "}
+                    <span className="font-semibold text-zinc-100">{estornoTotals.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} KG</span>.
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setEstornoOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200">
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() => requestConfirmEstorno(estornoSelectedNotes, `Estornar ${estornoTotals.groups} lote(s) de devolucao`)}
+                      disabled={estornoSaving || !estornoSelectedNotes.length}
+                      className="rounded-2xl border border-rose-400/25 bg-rose-500/15 px-4 py-2 text-sm font-black text-rose-100 disabled:opacity-50"
+                    >
+                      {estornoSaving ? "Estornando..." : "Confirmar estorno do lote"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {confirmEstornoOpen ? (
+            <div className="fixed inset-0 z-[84] grid place-items-center px-4">
+              <button className="absolute inset-0 bg-zinc-950/75" onClick={() => setConfirmEstornoOpen(false)} />
+              <div className="relative w-full max-w-2xl rounded-3xl border border-white/15 bg-zinc-900/95 p-5 shadow-2xl">
+                <p className="text-lg font-black text-white">{confirmEstornoTitle || "Confirmar estorno"}</p>
+                <p className="mt-2 text-sm text-zinc-300">
+                  Esta acao vai remover {confirmEstornoNotes.length} nota(s) de devolucao e recalcular os saldos de estoque.
+                </p>
+                <div className="mt-3 rounded-2xl border border-rose-400/25 bg-rose-500/10 p-3 text-xs text-rose-100">
+                  Essa acao e irreversivel.
+                </div>
+                <div className="mt-4 flex justify-end gap-2">
+                  <button onClick={() => setConfirmEstornoOpen(false)} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200">
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={executeEstorno}
+                    disabled={estornoSaving || saving}
+                    className="rounded-2xl border border-rose-400/25 bg-rose-500/15 px-4 py-2 text-sm font-black text-rose-100 disabled:opacity-50"
+                  >
+                    {estornoSaving || saving ? "Estornando..." : "Estornar agora"}
+                  </button>
                 </div>
               </div>
             </div>
