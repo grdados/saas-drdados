@@ -866,7 +866,7 @@ export default function EstoqueProdutosPage() {
             </div>
           </section>
 
-          <section className="rounded-3xl border border-zinc-200 bg-white p-4">
+          <section className="rounded-3xl bg-white p-4">
             <div className="flex items-center justify-between gap-3">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#212121]/70">Relatórios</p>
               <div className="flex items-center gap-2">
@@ -888,9 +888,9 @@ export default function EstoqueProdutosPage() {
 
           {reportView === "resumo" ? (
           <>
-          <section className="rounded-3xl border border-zinc-200 p-4">
+          <section className="rounded-3xl p-4">
             <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-              <article className="rounded-2xl border border-zinc-200 p-3 xl:col-span-1">
+              <article className="rounded-2xl p-3 xl:col-span-1">
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#212121]/70">Produtor</p>
                 <select
                   value={filterProdutorId}
@@ -922,14 +922,14 @@ export default function EstoqueProdutosPage() {
               ))}
             </div>
             {!loading && productSummary.length === 0 ? (
-              <div className="mt-3 rounded-2xl border border-zinc-200 p-4 text-sm text-[#212121]/70">
+              <div className="mt-3 rounded-2xl p-4 text-sm text-[#212121]/70">
                 Nenhum produto com estoque para venda no filtro atual.
               </div>
             ) : null}
           </section>
 
-          <section className="rounded-3xl border border-zinc-200 p-4">
-            <div className="mt-3 overflow-x-auto rounded-2xl border border-zinc-200">
+          <section className="rounded-3xl p-4">
+            <div className="mt-3 overflow-x-auto rounded-2xl">
               <table className="min-w-[920px] w-full border-collapse text-xs text-[#212121]">
                 <thead className="bg-[#212121]">
                   <tr className="text-[10px] font-black uppercase tracking-[0.18em] text-white">
@@ -978,8 +978,8 @@ export default function EstoqueProdutosPage() {
           </section>
 
           <section className="space-y-3">
-            <div className="rounded-3xl border border-zinc-200 p-4">
-              <div className="mt-3 overflow-x-auto rounded-2xl border border-zinc-200">
+            <div className="rounded-3xl p-4">
+              <div className="mt-3 overflow-x-auto rounded-2xl">
                 <table className="min-w-[560px] w-full border-collapse text-xs text-[#212121]">
                   <thead className="bg-[#212121]">
                     <tr className="text-[10px] font-black uppercase tracking-[0.18em] text-white">
@@ -1015,8 +1015,8 @@ export default function EstoqueProdutosPage() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-zinc-200 p-4">
-              <div className="mt-3 overflow-x-auto rounded-2xl border border-zinc-200">
+            <div className="rounded-3xl p-4">
+              <div className="mt-3 overflow-x-auto rounded-2xl">
                 <table className="min-w-[560px] w-full border-collapse text-xs text-[#212121]">
                   <thead className="bg-[#212121]">
                     <tr className="text-[10px] font-black uppercase tracking-[0.18em] text-white">
@@ -1053,7 +1053,7 @@ export default function EstoqueProdutosPage() {
             </div>
           </section>
 
-          <section className="rounded-3xl border border-zinc-200 p-4">
+          <section className="rounded-3xl p-4">
             <div className="flex items-center justify-start">
               <p className="text-sm font-black text-[#212121]">Operações de saída (devolução e venda)</p>
             </div>
@@ -1061,7 +1061,7 @@ export default function EstoqueProdutosPage() {
               Remessa p/ depósito: precisa devolução para liberar venda. A fixar: venda direta liberada.
             </p>
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden grid-cols-[78px_82px_90px_110px_1fr_120px_120px_120px_220px] gap-2 rounded-2xl border border-zinc-200 bg-[#212121] px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-white xl:grid">
+              <div className="hidden grid-cols-[78px_82px_90px_110px_1fr_120px_120px_120px_220px] gap-2 rounded-2xl bg-[#212121] px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-white xl:grid">
                 <div>Data</div>
                 <div>Entrada</div>
                 <div>Romaneio</div>
@@ -1077,7 +1077,7 @@ export default function EstoqueProdutosPage() {
                   const e = op.entrada;
                   const isAFixar = (e.finalidade || "").toLowerCase() === "a_fixar";
                   return (
-                    <div key={e.id} className="rounded-2xl border border-zinc-200 bg-white px-3 py-2.5">
+                    <div key={e.id} className="rounded-2xl bg-white px-3 py-2.5">
                       <div className="grid grid-cols-1 gap-2 xl:grid-cols-[78px_82px_90px_110px_1fr_120px_120px_120px_220px] xl:items-center xl:gap-2">
                         <div className="text-xs text-[#212121]">{e.date ? new Date(`${e.date}T00:00:00`).toLocaleDateString("pt-BR") : "-"}</div>
                         <div className="truncate text-xs text-[#212121]">{e.number || "-"}</div>
@@ -1110,7 +1110,7 @@ export default function EstoqueProdutosPage() {
                   );
                 })}
                 {!loading && entradasOperacionais.length === 0 ? (
-                  <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-[#212121]/70">
+                  <div className="rounded-2xl bg-white p-4 text-sm text-[#212121]/70">
                     Sem entradas fiscais elegíveis no filtro atual.
                   </div>
                 ) : null}
@@ -1118,11 +1118,11 @@ export default function EstoqueProdutosPage() {
             </div>
           </section>
 
-          <section className="rounded-3xl border border-zinc-200 p-4">
+          <section className="rounded-3xl p-4">
             <div className="flex items-center justify-start">
               <p className="text-sm font-black text-[#212121]">Lista de estoque</p>
             </div>
-            <div className="mt-3 hidden grid-cols-[1fr_0.6fr_1.2fr_0.85fr_0.85fr_0.8fr_0.85fr_0.7fr_0.8fr] gap-3 rounded-2xl border border-zinc-200 bg-[#212121] px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-white xl:grid">
+            <div className="mt-3 hidden grid-cols-[1fr_0.6fr_1.2fr_0.85fr_0.85fr_0.8fr_0.85fr_0.7fr_0.8fr] gap-3 rounded-2xl bg-[#212121] px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-white xl:grid">
               <div>Safra</div>
               <div>Cultura</div>
               <div>Produtor</div>
@@ -1135,7 +1135,7 @@ export default function EstoqueProdutosPage() {
             </div>
             <div className="mt-3 space-y-2">
               {rows.map((r, idx) => (
-                <div key={`${r.safra}-${r.cultura}-${r.produto}-${r.produtor}-${r.cliente}-${r.deposito}-${idx}`} className="rounded-2xl border border-zinc-200 bg-white px-3 py-3">
+                <div key={`${r.safra}-${r.cultura}-${r.produto}-${r.produtor}-${r.cliente}-${r.deposito}-${idx}`} className="rounded-2xl bg-white px-3 py-3">
                   <div className="grid grid-cols-1 gap-2 xl:grid-cols-[1fr_0.6fr_1.2fr_0.85fr_0.85fr_0.8fr_0.85fr_0.7fr_0.8fr] xl:items-center xl:gap-3">
                     <div className="truncate text-xs text-[#212121]">{r.safra}</div>
                     <CulturaBadge name={r.cultura} />
@@ -1150,7 +1150,7 @@ export default function EstoqueProdutosPage() {
                 </div>
               ))}
               {!loading && rows.length === 0 ? (
-                <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-[#212121]/70">
+                <div className="rounded-2xl bg-white p-4 text-sm text-[#212121]/70">
                   Sem movimentações de romaneio com contra-nota (remessa para depósito/a fixar) para os filtros selecionados.
                 </div>
               ) : null}
@@ -1158,12 +1158,12 @@ export default function EstoqueProdutosPage() {
           </section>
           </>
           ) : (
-          <section className="rounded-3xl border border-zinc-200 p-4">
+          <section className="rounded-3xl p-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-black text-[#212121]">Relatório analítico por produtor/safra</p>
               <p className="text-xs text-[#212121]/70">{relatorioAnalitico.length} registro(s)</p>
             </div>
-            <div className="mt-3 overflow-x-auto rounded-2xl border border-zinc-200">
+            <div className="mt-3 overflow-x-auto rounded-2xl">
               <table className="min-w-[1080px] w-full border-collapse text-xs text-[#212121]">
                 <thead className="bg-[#212121]">
                   <tr className="text-[10px] font-black uppercase tracking-[0.18em] text-white">
