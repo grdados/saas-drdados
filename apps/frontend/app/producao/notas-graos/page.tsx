@@ -965,7 +965,7 @@ export default function NotasGraosPage() {
               <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
             </div>
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden grid-cols-[74px_72px_130px_200px_100px_92px_180px_140px_130px_90px_120px_150px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
+              <div className="hidden grid-cols-[64px_56px_110px_82px_78px_74px_minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_74px_92px_146px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
                 <div>Data</div>
                 <div>Tipo</div>
                 <div>Finalidade</div>
@@ -994,7 +994,7 @@ export default function NotasGraosPage() {
                     (finalidadeKey === "a_fixar" || (finalidadeKey === "remessa_deposito" && saldoDevolvido > 0));
                   return (
                     <div key={nf.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5">
-                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[74px_72px_130px_200px_100px_92px_180px_140px_130px_90px_120px_150px] xl:items-center xl:gap-2">
+                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[64px_56px_110px_82px_78px_74px_minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_74px_92px_146px] xl:items-center xl:gap-2">
                         <div className="text-xs text-zinc-100">{fmtDate(nf.date)}</div>
                         <div className="text-xs text-zinc-100">{isEntrada ? "Entrada" : "Saida"}</div>
                         <div>
@@ -1002,11 +1002,7 @@ export default function NotasGraosPage() {
                             {FINALIDADE_LABEL[finalidadeKey] || nf.finalidade || "-"}
                           </span>
                         </div>
-                        <div className="space-y-1">
-                          <p className="truncate text-xs text-zinc-100">
-                            {nf.number || "-"}
-                            {nf.chave ? ` • ${nf.chave}` : ""}
-                          </p>
+                        <div className="flex items-center">
                           <span className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold ${statusTagClass(nf.status)}`}>
                             {STATUS_LABEL[String(nf.status || "").toLowerCase()] || nf.status || "-"}
                           </span>
@@ -1020,7 +1016,7 @@ export default function NotasGraosPage() {
                           {n(nf.quantity_kg).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
                         </div>
                         <div className="text-xs text-zinc-100">{money(n(nf.total_value))}</div>
-                        <div className="flex justify-end gap-1.5">
+                        <div className="flex justify-end gap-1.5 pr-1">
                           {isEntrada ? (
                             <>
                               {canDevolver ? (
