@@ -612,8 +612,8 @@ export default function NotasGraosPage() {
       Math.max(n(saida.form.discount_rat), 0) +
       Math.max(n(saida.form.discount_cota_capital), 0) +
       Math.max(n(saida.form.discount_armazenagem), 0);
-    const descontoManual = Math.max(n(saida.form.discount), 0);
-    const descontoTotal = saida.tipo === "venda" ? Math.max(descontoDetalhado + descontoManual, 0) : descontoManual;
+    const descontoTotal =
+      saida.tipo === "venda" ? Math.max(descontoDetalhado, 0) : Math.max(n(saida.form.discount), 0);
 
     try {
       setSaving(true);
@@ -1095,7 +1095,7 @@ export default function NotasGraosPage() {
               <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
             </div>
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden grid-cols-[64px_56px_90px_68px_80px_84px_minmax(0,1fr)_minmax(0,0.75fr)_minmax(0,0.75fr)_74px_92px_160px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
+              <div className="hidden grid-cols-[64px_56px_94px_78px_84px_92px_minmax(0,1fr)_minmax(0,0.9fr)_74px_164px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
                 <div>Data</div>
                 <div>Tipo</div>
                 <div>Finalidade</div>
@@ -1103,10 +1103,8 @@ export default function NotasGraosPage() {
                 <div>Nota</div>
                 <div>Romaneio</div>
                 <div>Produtor</div>
-                <div>Cliente</div>
                 <div>Produto</div>
                 <div>Qtd KG</div>
-                <div>Valor</div>
                 <div className="text-right">Acoes</div>
               </div>
               <div className="mt-2 space-y-2">
@@ -1145,7 +1143,7 @@ export default function NotasGraosPage() {
                       : statusTagClass(nf.status);
                   return (
                     <div key={nf.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5">
-                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[64px_56px_90px_68px_80px_84px_minmax(0,1fr)_minmax(0,0.75fr)_minmax(0,0.75fr)_74px_92px_160px] xl:items-center xl:gap-2">
+                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[64px_56px_94px_78px_84px_92px_minmax(0,1fr)_minmax(0,0.9fr)_74px_164px] xl:items-center xl:gap-2">
                         <div className="text-xs text-zinc-100">{fmtDate(nf.date)}</div>
                         <div className="text-xs text-zinc-100">{isEntrada ? "Entrada" : "Saida"}</div>
                         <div>
@@ -1161,12 +1159,10 @@ export default function NotasGraosPage() {
                         <div className="truncate text-xs text-zinc-100">{nf.number || "-"}</div>
                         <div className="truncate text-xs text-zinc-100">{nf.romaneio?.code || "-"}</div>
                         <div className="truncate text-xs text-zinc-100">{nf.produtor?.name || "-"}</div>
-                        <div className="truncate text-xs text-zinc-100">{nf.cliente?.name || "-"}</div>
                         <div className="truncate text-xs text-zinc-100">{nf.produto?.name || "-"}</div>
                         <div className="text-xs text-zinc-100">
                           {n(nf.quantity_kg).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
                         </div>
-                        <div className="text-xs text-zinc-100">{money(n(nf.total_value))}</div>
                         <div className="flex flex-nowrap items-center justify-end gap-1.5 pr-1">
                           {isEntrada ? (
                             <>
@@ -1623,80 +1619,119 @@ export default function NotasGraosPage() {
                   </div>
                 ) : null}
                 {saida.step === 1 || saida.tipo === "devolucao" ? (
-                <div className="mt-4 grid gap-3 md:grid-cols-4">
-                  <div className="grid gap-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Data</label>
-                    <input
-                      type="date"
-                      value={saida.form.date}
-                      onChange={(e) => setSaida((p) => ({ ...p, form: { ...p.form, date: e.target.value } }))}
-                      className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100 [color-scheme:dark]"
-                    />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Nota Fiscal</label>
-                    <input
-                      value={saida.form.number}
-                      onChange={(e) =>
-                        setSaida((p) => ({ ...p, form: { ...p.form, number: e.target.value.toUpperCase() } }))
-                      }
-                      className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100"
-                    />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Chave da nota</label>
-                    <input
-                      value={saida.form.chave}
-                      onChange={(e) =>
-                        setSaida((p) => ({ ...p, form: { ...p.form, chave: e.target.value.toUpperCase() } }))
-                      }
-                      className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100"
-                    />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Quantidade KG</label>
-                    <p className="text-[11px] text-zinc-400">
-                      Disponivel:{" "}
-                      <span className="font-semibold text-zinc-200">
-                        {Math.max(saida.available_kg, 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })} KG
-                      </span>
-                    </p>
-                    <input
-                      value={saida.form.quantity_kg}
-                      onChange={(e) => setSaida((p) => ({ ...p, form: { ...p.form, quantity_kg: e.target.value } }))}
-                      className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-right text-sm text-zinc-100"
-                    />
-                  </div>
-                  {saida.tipo === "venda" ? (
-                    <>
+                  <div className="mt-4 space-y-3">
+                    <div className="grid gap-3 md:grid-cols-3">
                       <div className="grid gap-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Vencimento</label>
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Data</label>
                         <input
                           type="date"
-                          value={saida.form.due_date}
-                          onChange={(e) => setSaida((p) => ({ ...p, form: { ...p.form, due_date: e.target.value } }))}
+                          value={saida.form.date}
+                          onChange={(e) => setSaida((p) => ({ ...p, form: { ...p.form, date: e.target.value } }))}
                           className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100 [color-scheme:dark]"
                         />
                       </div>
                       <div className="grid gap-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Preco</label>
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Nota Fiscal</label>
                         <input
-                          value={saida.form.price}
-                          onChange={(e) => setSaida((p) => ({ ...p, form: { ...p.form, price: e.target.value } }))}
-                          className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-right text-sm text-zinc-100"
+                          value={saida.form.number}
+                          onChange={(e) =>
+                            setSaida((p) => ({ ...p, form: { ...p.form, number: e.target.value.toUpperCase() } }))
+                          }
+                          className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100"
                         />
                       </div>
                       <div className="grid gap-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Desconto</label>
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Quantidade KG</label>
+                        <p className="text-[11px] text-zinc-400">
+                          Disponivel:{" "}
+                          <span className="font-semibold text-zinc-200">
+                            {Math.max(saida.available_kg, 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })} KG
+                          </span>
+                        </p>
                         <input
-                          value={saida.form.discount}
-                          onChange={(e) => setSaida((p) => ({ ...p, form: { ...p.form, discount: e.target.value } }))}
+                          value={saida.form.quantity_kg}
+                          onChange={(e) => setSaida((p) => ({ ...p, form: { ...p.form, quantity_kg: e.target.value } }))}
                           className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-right text-sm text-zinc-100"
                         />
                       </div>
-                    </>
-                  ) : null}
-                </div>
+                    </div>
+
+                    {saida.tipo === "venda" ? (
+                      <div className="space-y-3">
+                        <div className="grid gap-3 md:grid-cols-3">
+                          <div className="grid gap-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Vencimento</label>
+                            <input
+                              type="date"
+                              value={saida.form.due_date}
+                              onChange={(e) => setSaida((p) => ({ ...p, form: { ...p.form, due_date: e.target.value } }))}
+                              className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100 [color-scheme:dark]"
+                            />
+                          </div>
+                          <div className="grid gap-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Preco</label>
+                            <input
+                              value={saida.form.price}
+                              onChange={(e) => setSaida((p) => ({ ...p, form: { ...p.form, price: e.target.value } }))}
+                              className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-right text-sm text-zinc-100"
+                            />
+                          </div>
+                          <div className="grid gap-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Desconto</label>
+                            {(() => {
+                              const descontosAuto =
+                                Math.max(n(saida.form.discount_funrural), 0) +
+                                Math.max(n(saida.form.discount_senar), 0) +
+                                Math.max(n(saida.form.discount_rat), 0) +
+                                Math.max(n(saida.form.discount_cota_capital), 0) +
+                                Math.max(n(saida.form.discount_armazenagem), 0);
+                              return (
+                                <input
+                                  value={descontosAuto.toLocaleString("pt-BR", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                  })}
+                                  readOnly
+                                  disabled
+                                  className="rounded-xl border border-white/10 bg-zinc-900/70 px-3 py-2 text-right text-sm text-zinc-300"
+                                />
+                              );
+                            })()}
+                          </div>
+                        </div>
+                        {(() => {
+                          const qty = Math.max(n(saida.form.quantity_kg), 0);
+                          const price = Math.max(n(saida.form.price), 0);
+                          const bruto = qty * price;
+                          const descontos =
+                            Math.max(n(saida.form.discount_funrural), 0) +
+                            Math.max(n(saida.form.discount_senar), 0) +
+                            Math.max(n(saida.form.discount_rat), 0) +
+                            Math.max(n(saida.form.discount_cota_capital), 0) +
+                            Math.max(n(saida.form.discount_armazenagem), 0);
+                          const liquido = Math.max(bruto - descontos, 0);
+                          return (
+                            <div className="rounded-2xl border border-emerald-400/25 bg-emerald-500/10 p-3 text-sm text-emerald-100">
+                              <p>Bruto: <span className="font-semibold">{money(bruto)}</span></p>
+                              <p>Descontos: <span className="font-semibold">{money(descontos)}</span></p>
+                              <p>Valor total: <span className="font-semibold">{money(liquido)}</span></p>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    ) : null}
+
+                    <div className="grid gap-1.5">
+                      <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Chave da nota</label>
+                      <input
+                        value={saida.form.chave}
+                        onChange={(e) =>
+                          setSaida((p) => ({ ...p, form: { ...p.form, chave: e.target.value.toUpperCase() } }))
+                        }
+                        className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-sm text-zinc-100"
+                      />
+                    </div>
+                  </div>
                 ) : null}
                 {saida.tipo === "venda" && saida.step === 2 ? (
                   <div className="mt-4 space-y-3">
@@ -1721,10 +1756,6 @@ export default function NotasGraosPage() {
                         <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Armazenagem (R$)</label>
                         <input value={saida.form.discount_armazenagem} onChange={(e) => setSaida((p) => ({ ...p, form: { ...p.form, discount_armazenagem: e.target.value } }))} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-right text-sm text-zinc-100" />
                       </div>
-                      <div className="grid gap-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Desconto adicional (R$)</label>
-                        <input value={saida.form.discount} onChange={(e) => setSaida((p) => ({ ...p, form: { ...p.form, discount: e.target.value } }))} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-right text-sm text-zinc-100" />
-                      </div>
                     </div>
                     {(() => {
                       const qty = Math.max(n(saida.form.quantity_kg), 0);
@@ -1735,8 +1766,7 @@ export default function NotasGraosPage() {
                         Math.max(n(saida.form.discount_senar), 0) +
                         Math.max(n(saida.form.discount_rat), 0) +
                         Math.max(n(saida.form.discount_cota_capital), 0) +
-                        Math.max(n(saida.form.discount_armazenagem), 0) +
-                        Math.max(n(saida.form.discount), 0);
+                        Math.max(n(saida.form.discount_armazenagem), 0);
                       const liquido = Math.max(bruto - descontos, 0);
                       return (
                         <div className="rounded-2xl border border-emerald-400/25 bg-emerald-500/10 p-3 text-sm text-emerald-100">
