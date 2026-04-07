@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 
 import { AuthedAdminShell } from "@/components/AuthedAdminShell";
 import { getAccessToken } from "@/lib/auth";
@@ -35,6 +36,8 @@ type SaidaModal = {
   open: boolean;
   tipo: "devolucao" | "venda";
   ref: NotaFiscalGraosApi | null;
+  step: 1 | 2;
+  available_kg: number;
   form: {
     date: string;
     due_date: string;
@@ -43,6 +46,11 @@ type SaidaModal = {
     quantity_kg: string;
     price: string;
     discount: string;
+    discount_funrural: string;
+    discount_senar: string;
+    discount_rat: string;
+    discount_cota_capital: string;
+    discount_armazenagem: string;
   };
 };
 
@@ -74,6 +82,7 @@ const STATUS_OPTIONS = [
   { value: "vencido", label: "Vencido" },
   { value: "recebido", label: "Recebido" },
   { value: "em_deposito", label: "Em deposito" },
+  { value: "devolvido", label: "Devolvido" },
   { value: "a_fixar", label: "A fixar" },
   { value: "fixado_parcial", label: "Fixado parcial" },
   { value: "fixado", label: "Fixado" }
@@ -108,6 +117,7 @@ const STATUS_LABEL: Record<string, string> = {
   vencido: "Vencido",
   recebido: "Recebido",
   em_deposito: "Em depósito",
+  devolvido: "Devolvido",
   a_fixar: "A fixar",
   fixado_parcial: "Fixado parcial",
   fixado: "Fixado",
@@ -120,6 +130,7 @@ function statusTagClass(status: string) {
   if (key === "vencido") return "border-rose-400/30 bg-rose-500/12 text-rose-200";
   if (key === "recebido") return "border-emerald-400/30 bg-emerald-500/12 text-emerald-200";
   if (key === "em_deposito") return "border-cyan-400/30 bg-cyan-500/12 text-cyan-200";
+  if (key === "devolvido") return "border-blue-400/30 bg-blue-500/12 text-blue-200";
   if (key === "a_fixar") return "border-violet-400/30 bg-violet-500/12 text-violet-200";
   if (key === "fixado_parcial") return "border-sky-400/30 bg-sky-500/12 text-sky-200";
   if (key === "fixado") return "border-emerald-400/30 bg-emerald-500/12 text-emerald-200";
@@ -128,6 +139,12 @@ function statusTagClass(status: string) {
 }
 
 export default function NotasGraosPage() {
+  const pathname = usePathname();
+  const panelMode: "geral" | "devolucao" | "vendas" = pathname.endsWith("/devolucao")
+    ? "devolucao"
+    : pathname.endsWith("/vendas")
+      ? "vendas"
+      : "geral";
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -176,7 +193,22 @@ export default function NotasGraosPage() {
     open: false,
     tipo: "devolucao",
     ref: null,
-    form: { date: "", due_date: "", number: "", chave: "", quantity_kg: "", price: "0", discount: "0" }
+    step: 1,
+    available_kg: 0,
+    form: {
+      date: "",
+      due_date: "",
+      number: "",
+      chave: "",
+      quantity_kg: "",
+      price: "0",
+      discount: "0",
+      discount_funrural: "0",
+      discount_senar: "0",
+      discount_rat: "0",
+      discount_cota_capital: "0",
+      discount_armazenagem: "0"
+    }
   });
 
   async function reload() {
@@ -275,6 +307,41 @@ export default function NotasGraosPage() {
     return map;
   }, [notas]);
 
+  const saldoVendidoByEntrada = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const nf of notas) {
+      if (nf.tipo !== "saida" || String(nf.finalidade || "").toLowerCase() !== "venda") continue;
+      if (String(nf.status || "").toLowerCase() === "canceled") continue;
+      const refId = nf.nota_entrada_ref?.id ?? nf.nota_entrada_ref_id ?? null;
+      if (!refId) continue;
+      map.set(refId, (map.get(refId) ?? 0) + n(nf.quantity_kg));
+    }
+    return map;
+  }, [notas]);
+
+  const saldoDisponivelVendaByEntrada = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const nf of notas) {
+      if (nf.tipo !== "entrada") continue;
+      const key = String(nf.finalidade || "").toLowerCase();
+      const entryId = nf.id;
+      if (key === "a_fixar") {
+        const consumos = saidasByEntrada.get(entryId) ?? [];
+        const used = consumos
+          .filter((s) => String(s.status || "").toLowerCase() !== "canceled")
+          .reduce((acc, s) => acc + n(s.quantity_kg), 0);
+        map.set(entryId, Math.max(n(nf.quantity_kg) - used, 0));
+        continue;
+      }
+      if (key === "remessa_deposito") {
+        const devolvido = saldoDevolvidoByEntrada.get(entryId) ?? 0;
+        const vendido = saldoVendidoByEntrada.get(entryId) ?? 0;
+        map.set(entryId, Math.max(devolvido - vendido, 0));
+      }
+    }
+    return map;
+  }, [notas, saidasByEntrada, saldoDevolvidoByEntrada, saldoVendidoByEntrada]);
+
   const entradasDevolucaoFiltradas = useMemo(() => {
     return entradasDevolucao.filter(({ nf }) => {
       const safraId = nf.safra?.id ?? nf.safra_id ?? null;
@@ -365,6 +432,30 @@ export default function NotasGraosPage() {
       if (fStatus && nf.status !== fStatus) return false;
       if (fDateFrom && (nf.date || "") < fDateFrom) return false;
       if (fDateTo && (nf.date || "") > fDateTo) return false;
+
+      const finalidadeKey = String(nf.finalidade || "").toLowerCase();
+      const isEntrada = nf.tipo === "entrada";
+      const entryId = nf.id;
+      const entrySaldoVenda = saldoDisponivelVendaByEntrada.get(entryId) ?? 0;
+
+      if (panelMode === "devolucao") {
+        if (!isEntrada) return false;
+        if (finalidadeKey !== "remessa_deposito") return false;
+        const consumos = saidasByEntrada.get(entryId) ?? [];
+        const used = consumos
+          .filter((s) => String(s.status || "").toLowerCase() !== "canceled")
+          .reduce((acc, s) => acc + n(s.quantity_kg), 0);
+        const saldoEntrada = Math.max(n(nf.quantity_kg) - used, 0);
+        if (saldoEntrada <= 0) return false;
+      }
+
+      if (panelMode === "vendas") {
+        const isSaidaDevolucao = !isEntrada && finalidadeKey === "devolucao";
+        const isSaidaVenda = !isEntrada && finalidadeKey === "venda";
+        const isEntradaAFixar = isEntrada && finalidadeKey === "a_fixar" && entrySaldoVenda > 0;
+        if (!isSaidaDevolucao && !isSaidaVenda && !isEntradaAFixar) return false;
+      }
+
       if (!needle) return true;
       const blob =
         `${nf.number} ${nf.chave || ""} ${nf.romaneio?.code || ""} ${nf.safra?.name || ""} ${nf.produtor?.name || ""} ${nf.cliente?.name || ""} ${nf.produto?.name || ""} ${nf.finalidade} ${nf.status}`.toLowerCase();
@@ -381,7 +472,10 @@ export default function NotasGraosPage() {
     fFinalidade,
     fStatus,
     fDateFrom,
-    fDateTo
+    fDateTo,
+    panelMode,
+    saidasByEntrada,
+    saldoDisponivelVendaByEntrada
   ]);
 
   const cards = useMemo(() => {
@@ -396,7 +490,7 @@ export default function NotasGraosPage() {
     };
   }, [filtered]);
 
-  function openSaida(tipo: "devolucao" | "venda", ref: NotaFiscalGraosApi) {
+  function openSaida(tipo: "devolucao" | "venda", ref: NotaFiscalGraosApi, availableKg?: number) {
     const today = new Date().toISOString().slice(0, 10);
     setError("");
     setSuccess("");
@@ -404,6 +498,8 @@ export default function NotasGraosPage() {
       open: true,
       tipo,
       ref,
+      step: 1,
+      available_kg: Math.max(availableKg ?? n(ref.quantity_kg), 0),
       form: {
         date: today,
         due_date: today,
@@ -411,7 +507,12 @@ export default function NotasGraosPage() {
         chave: "",
         quantity_kg: "",
         price: n(ref.price) > 0 ? String(n(ref.price)) : "0",
-        discount: "0"
+        discount: "0",
+        discount_funrural: "0",
+        discount_senar: "0",
+        discount_rat: "0",
+        discount_cota_capital: "0",
+        discount_armazenagem: "0"
       }
     });
   }
@@ -496,6 +597,23 @@ export default function NotasGraosPage() {
       setError("Quantidade deve ser maior que zero.");
       return;
     }
+    if (saida.tipo === "venda" && qty > Math.max(saida.available_kg, 0)) {
+      setError(
+        `Quantidade acima do disponivel para venda. Disponivel: ${Math.max(saida.available_kg, 0).toLocaleString("pt-BR", {
+          maximumFractionDigits: 0
+        })} KG.`
+      );
+      return;
+    }
+
+    const descontoDetalhado =
+      Math.max(n(saida.form.discount_funrural), 0) +
+      Math.max(n(saida.form.discount_senar), 0) +
+      Math.max(n(saida.form.discount_rat), 0) +
+      Math.max(n(saida.form.discount_cota_capital), 0) +
+      Math.max(n(saida.form.discount_armazenagem), 0);
+    const descontoManual = Math.max(n(saida.form.discount), 0);
+    const descontoTotal = saida.tipo === "venda" ? Math.max(descontoDetalhado + descontoManual, 0) : descontoManual;
 
     try {
       setSaving(true);
@@ -519,13 +637,13 @@ export default function NotasGraosPage() {
         operacao_id: saida.ref.operacao?.id ?? saida.ref.operacao_id ?? null,
         quantity_kg: qty,
         price: Math.max(n(saida.form.price), 0),
-        discount: Math.max(n(saida.form.discount), 0)
+        discount: descontoTotal
       });
       await reload();
       setSaida((p) => ({ ...p, open: false, ref: null }));
       setSuccess(
         saida.tipo === "venda"
-          ? "Saida de venda registrada. Contas a receber e fluxo de caixa foram atualizados."
+          ? "Saida de venda registrada. Conta a receber foi atualizada."
           : "Saida de devolucao registrada com sucesso."
       );
     } catch (err) {
@@ -779,8 +897,16 @@ export default function NotasGraosPage() {
           <section className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Producao</p>
-              <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Notas de Graos</h1>
-              <p className="mt-1 text-sm text-zinc-300">Historico completo de entradas e saidas, com devolucao e venda.</p>
+              <h1 className="mt-1 text-2xl font-black tracking-tight text-white">
+                {panelMode === "devolucao" ? "Devolucao de Graos" : panelMode === "vendas" ? "Vendas de Graos" : "Notas de Graos"}
+              </h1>
+              <p className="mt-1 text-sm text-zinc-300">
+                {panelMode === "devolucao"
+                  ? "Visualize apenas notas em deposito e execute devolucoes parciais ou totais."
+                  : panelMode === "vendas"
+                    ? "Venda por nota ou em lote para itens A Fixar (incluindo devolvidos)."
+                    : "Historico completo de entradas e saidas, com devolucao e venda."}
+              </p>
             </div>
             <div className="rounded-3xl border border-white/15 bg-zinc-900/55 p-2.5">
               <p className="text-[9px] font-black uppercase tracking-[0.2em] text-zinc-500">Relatorios</p>
@@ -791,18 +917,22 @@ export default function NotasGraosPage() {
                 <button className="min-h-[34px] rounded-2xl border border-white/15 bg-white/5 px-3 py-1.5 text-[12px] font-medium text-zinc-100">
                   Analitico
                 </button>
-                <button
-                  onClick={openVendaLoteModal}
-                  className="min-h-[34px] rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-3 py-1.5 text-[12px] font-semibold text-emerald-100"
-                >
-                  Venda em lote
-                </button>
-                <button
-                  onClick={openLoteModal}
-                  className="min-h-[34px] rounded-2xl border border-amber-400/25 bg-amber-500/15 px-3 py-1.5 text-[12px] font-semibold text-amber-100"
-                >
-                  Devolucao em lote
-                </button>
+                {panelMode !== "devolucao" ? (
+                  <button
+                    onClick={openVendaLoteModal}
+                    className="min-h-[34px] rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-3 py-1.5 text-[12px] font-semibold text-emerald-100"
+                  >
+                    Venda em lote
+                  </button>
+                ) : null}
+                {panelMode !== "vendas" ? (
+                  <button
+                    onClick={openLoteModal}
+                    className="min-h-[34px] rounded-2xl border border-amber-400/25 bg-amber-500/15 px-3 py-1.5 text-[12px] font-semibold text-amber-100"
+                  >
+                    Devolucao em lote
+                  </button>
+                ) : null}
                 <button
                   onClick={openEstornoLoteModal}
                   className="min-h-[34px] rounded-2xl border border-rose-400/25 bg-rose-500/15 px-3 py-1.5 text-[12px] font-semibold text-rose-100"
@@ -965,7 +1095,7 @@ export default function NotasGraosPage() {
               <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
             </div>
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden grid-cols-[64px_56px_110px_82px_78px_74px_minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_74px_92px_146px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
+              <div className="hidden grid-cols-[64px_56px_90px_68px_80px_84px_minmax(0,1fr)_minmax(0,0.75fr)_minmax(0,0.75fr)_74px_92px_160px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
                 <div>Data</div>
                 <div>Tipo</div>
                 <div>Finalidade</div>
@@ -987,14 +1117,35 @@ export default function NotasGraosPage() {
                   const used = consumos.reduce((acc, x) => acc + n(x.quantity_kg), 0);
                   const saldo = Math.max(n(nf.quantity_kg) - used, 0);
                   const saldoDevolvido = saldoDevolvidoByEntrada.get(nf.id) ?? 0;
-                  const canDevolver = isEntrada && finalidadeKey === "remessa_deposito" && saldo > 0;
-                  const canVender =
-                    isEntrada &&
-                    saldo > 0 &&
-                    (finalidadeKey === "a_fixar" || (finalidadeKey === "remessa_deposito" && saldoDevolvido > 0));
+                  const entradaRefId = nf.nota_entrada_ref?.id ?? nf.nota_entrada_ref_id ?? null;
+                  const entradaRef = entradaRefId ? notas.find((x) => x.id === entradaRefId) ?? null : null;
+                  const disponivelVendaEntrada = saldoDisponivelVendaByEntrada.get(nf.id) ?? 0;
+                  const disponivelVendaRef = entradaRefId ? saldoDisponivelVendaByEntrada.get(entradaRefId) ?? 0 : 0;
+                  const canDevolver = isEntrada && finalidadeKey === "remessa_deposito" && saldo > 0 && panelMode !== "vendas";
+                  const canVenderEntrada = isEntrada && finalidadeKey === "a_fixar" && saldo > 0;
+                  const canVenderDevolucao =
+                    !isEntrada &&
+                    finalidadeKey === "devolucao" &&
+                    String(nf.status || "").toLowerCase() !== "canceled" &&
+                    !!entradaRef &&
+                    disponivelVendaRef > 0;
+                  const loteLabel =
+                    !isEntrada && finalidadeKey === "devolucao"
+                      ? "A fixar"
+                      :
+                    isEntrada && finalidadeKey === "remessa_deposito" && saldoDevolvido > 0
+                      ? "A fixar"
+                      : STATUS_LABEL[String(nf.status || "").toLowerCase()] || nf.status || "-";
+                  const loteClass =
+                    !isEntrada && finalidadeKey === "devolucao"
+                      ? statusTagClass("a_fixar")
+                      :
+                    isEntrada && finalidadeKey === "remessa_deposito" && saldoDevolvido > 0
+                      ? statusTagClass("a_fixar")
+                      : statusTagClass(nf.status);
                   return (
                     <div key={nf.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5">
-                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[64px_56px_110px_82px_78px_74px_minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_74px_92px_146px] xl:items-center xl:gap-2">
+                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[64px_56px_90px_68px_80px_84px_minmax(0,1fr)_minmax(0,0.75fr)_minmax(0,0.75fr)_74px_92px_160px] xl:items-center xl:gap-2">
                         <div className="text-xs text-zinc-100">{fmtDate(nf.date)}</div>
                         <div className="text-xs text-zinc-100">{isEntrada ? "Entrada" : "Saida"}</div>
                         <div>
@@ -1003,8 +1154,8 @@ export default function NotasGraosPage() {
                           </span>
                         </div>
                         <div className="flex items-center">
-                          <span className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold ${statusTagClass(nf.status)}`}>
-                            {STATUS_LABEL[String(nf.status || "").toLowerCase()] || nf.status || "-"}
+                          <span className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-semibold ${loteClass}`}>
+                            {loteLabel}
                           </span>
                         </div>
                         <div className="truncate text-xs text-zinc-100">{nf.number || "-"}</div>
@@ -1016,41 +1167,49 @@ export default function NotasGraosPage() {
                           {n(nf.quantity_kg).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
                         </div>
                         <div className="text-xs text-zinc-100">{money(n(nf.total_value))}</div>
-                        <div className="flex justify-end gap-1.5 pr-1">
+                        <div className="flex flex-nowrap items-center justify-end gap-1.5 pr-1">
                           {isEntrada ? (
                             <>
                               {canDevolver ? (
                                 <button
                                   onClick={() => openSaida("devolucao", nf)}
-                                  className="rounded-xl border border-amber-400/25 bg-amber-500/10 px-2.5 py-1.5 text-xs font-semibold text-amber-200"
+                                  className="rounded-xl border border-amber-400/25 bg-amber-500/10 px-2 py-1.5 text-[11px] font-semibold text-amber-200"
                                 >
                                   Devolver
                                 </button>
                               ) : null}
-                              {canVender ? (
+                              {canVenderEntrada && panelMode !== "devolucao" ? (
                                 <button
-                                  onClick={() => openSaida("venda", nf)}
-                                  className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-2.5 py-1.5 text-xs font-semibold text-emerald-200"
+                                  onClick={() => openSaida("venda", nf, disponivelVendaEntrada)}
+                                  className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-2 py-1.5 text-[11px] font-semibold text-emerald-200"
                                 >
                                   Vender
                                 </button>
                               ) : null}
-                              {!canDevolver && !canVender ? <span className="text-xs text-zinc-500">-</span> : null}
+                              {!canDevolver && !canVenderEntrada ? <span className="text-xs text-zinc-500">-</span> : null}
                             </>
                           ) : (
                             <>
+                              {canVenderDevolucao && panelMode !== "devolucao" ? (
+                                <button
+                                  onClick={() => entradaRef && openSaida("venda", entradaRef, disponivelVendaRef)}
+                                  className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-2 py-1.5 text-[11px] font-semibold text-emerald-200"
+                                >
+                                  Vender
+                                </button>
+                              ) : null}
                               {nf.finalidade === "devolucao" && nf.status !== "canceled" ? (
                                 <button
                                   onClick={() =>
                                     requestConfirmEstorno([nf], `Estornar devolucao ${nf.number || `#${nf.id}`}`)
                                   }
                                   disabled={saving || estornoSaving}
-                                  className="rounded-xl border border-rose-400/25 bg-rose-500/10 px-2.5 py-1.5 text-xs font-semibold text-rose-200 disabled:opacity-40"
+                                  className="rounded-xl border border-rose-400/25 bg-rose-500/10 px-2 py-1.5 text-[11px] font-semibold text-rose-200 disabled:opacity-40"
                                 >
                                   Estornar
                                 </button>
                               ) : (
-                                <span className="text-xs text-zinc-500">-</span>
+                                !canVenderDevolucao ? <span className="text-xs text-zinc-500">-</span> : null
                               )}
                             </>
                           )}
@@ -1447,6 +1606,23 @@ export default function NotasGraosPage() {
                 <p className="mt-1 text-xs text-zinc-400">
                   NF entrada {saida.ref.number} - Romaneio {saida.ref.romaneio?.code || "-"}
                 </p>
+                {saida.tipo === "venda" ? (
+                  <div className="mt-3 grid grid-cols-2 gap-1.5 rounded-xl border border-white/10 bg-zinc-950/35 p-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
+                    <button
+                      onClick={() => setSaida((p) => ({ ...p, step: 1 }))}
+                      className={`rounded-lg px-3 py-2 ${saida.step === 1 ? "border border-accent-400/50 bg-accent-500/15 text-accent-200" : "border border-white/10 bg-white/5 text-zinc-300"}`}
+                    >
+                      Dados da venda
+                    </button>
+                    <button
+                      onClick={() => setSaida((p) => ({ ...p, step: 2 }))}
+                      className={`rounded-lg px-3 py-2 ${saida.step === 2 ? "border border-accent-400/50 bg-accent-500/15 text-accent-200" : "border border-white/10 bg-white/5 text-zinc-300"}`}
+                    >
+                      Descontos e resumo
+                    </button>
+                  </div>
+                ) : null}
+                {saida.step === 1 || saida.tipo === "devolucao" ? (
                 <div className="mt-4 grid gap-3 md:grid-cols-4">
                   <div className="grid gap-1.5">
                     <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Data</label>
@@ -1479,6 +1655,12 @@ export default function NotasGraosPage() {
                   </div>
                   <div className="grid gap-1.5">
                     <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Quantidade KG</label>
+                    <p className="text-[11px] text-zinc-400">
+                      Disponivel:{" "}
+                      <span className="font-semibold text-zinc-200">
+                        {Math.max(saida.available_kg, 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })} KG
+                      </span>
+                    </p>
                     <input
                       value={saida.form.quantity_kg}
                       onChange={(e) => setSaida((p) => ({ ...p, form: { ...p.form, quantity_kg: e.target.value } }))}
@@ -1515,6 +1697,57 @@ export default function NotasGraosPage() {
                     </>
                   ) : null}
                 </div>
+                ) : null}
+                {saida.tipo === "venda" && saida.step === 2 ? (
+                  <div className="mt-4 space-y-3">
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div className="grid gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Funrural (R$)</label>
+                        <input value={saida.form.discount_funrural} onChange={(e) => setSaida((p) => ({ ...p, form: { ...p.form, discount_funrural: e.target.value } }))} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-right text-sm text-zinc-100" />
+                      </div>
+                      <div className="grid gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Senar (R$)</label>
+                        <input value={saida.form.discount_senar} onChange={(e) => setSaida((p) => ({ ...p, form: { ...p.form, discount_senar: e.target.value } }))} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-right text-sm text-zinc-100" />
+                      </div>
+                      <div className="grid gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">RAT (R$)</label>
+                        <input value={saida.form.discount_rat} onChange={(e) => setSaida((p) => ({ ...p, form: { ...p.form, discount_rat: e.target.value } }))} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-right text-sm text-zinc-100" />
+                      </div>
+                      <div className="grid gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Cota Capital (R$)</label>
+                        <input value={saida.form.discount_cota_capital} onChange={(e) => setSaida((p) => ({ ...p, form: { ...p.form, discount_cota_capital: e.target.value } }))} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-right text-sm text-zinc-100" />
+                      </div>
+                      <div className="grid gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Armazenagem (R$)</label>
+                        <input value={saida.form.discount_armazenagem} onChange={(e) => setSaida((p) => ({ ...p, form: { ...p.form, discount_armazenagem: e.target.value } }))} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-right text-sm text-zinc-100" />
+                      </div>
+                      <div className="grid gap-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Desconto adicional (R$)</label>
+                        <input value={saida.form.discount} onChange={(e) => setSaida((p) => ({ ...p, form: { ...p.form, discount: e.target.value } }))} className="rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-right text-sm text-zinc-100" />
+                      </div>
+                    </div>
+                    {(() => {
+                      const qty = Math.max(n(saida.form.quantity_kg), 0);
+                      const price = Math.max(n(saida.form.price), 0);
+                      const bruto = qty * price;
+                      const descontos =
+                        Math.max(n(saida.form.discount_funrural), 0) +
+                        Math.max(n(saida.form.discount_senar), 0) +
+                        Math.max(n(saida.form.discount_rat), 0) +
+                        Math.max(n(saida.form.discount_cota_capital), 0) +
+                        Math.max(n(saida.form.discount_armazenagem), 0) +
+                        Math.max(n(saida.form.discount), 0);
+                      const liquido = Math.max(bruto - descontos, 0);
+                      return (
+                        <div className="rounded-2xl border border-emerald-400/25 bg-emerald-500/10 p-3 text-sm text-emerald-100">
+                          <p>Bruto: <span className="font-semibold">{money(bruto)}</span></p>
+                          <p>Descontos: <span className="font-semibold">{money(descontos)}</span></p>
+                          <p>Financeiro a receber: <span className="font-semibold">{money(liquido)}</span></p>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                ) : null}
                 <div className="mt-4 flex justify-end gap-2">
                   <button
                     onClick={() => setSaida((p) => ({ ...p, open: false, ref: null }))}
@@ -1522,12 +1755,28 @@ export default function NotasGraosPage() {
                   >
                     Cancelar
                   </button>
+                  {saida.tipo === "venda" && saida.step === 1 ? (
+                    <button
+                      onClick={() => setSaida((p) => ({ ...p, step: 2 }))}
+                      className="rounded-2xl border border-accent-400/25 bg-accent-500/15 px-4 py-2 text-sm font-black text-accent-100"
+                    >
+                      Próximo
+                    </button>
+                  ) : null}
+                  {saida.tipo === "venda" && saida.step === 2 ? (
+                    <button
+                      onClick={() => setSaida((p) => ({ ...p, step: 1 }))}
+                      className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200"
+                    >
+                      Voltar
+                    </button>
+                  ) : null}
                   <button
                     onClick={saveSaida}
-                    disabled={saving}
+                    disabled={saving || (saida.tipo === "venda" && saida.step !== 2)}
                     className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-4 py-2 text-sm font-black text-emerald-100 disabled:opacity-50"
                   >
-                    {saving ? "Salvando..." : "Salvar saida"}
+                    {saving ? "Salvando..." : saida.tipo === "venda" ? "Salvar venda" : "Salvar devolucao"}
                   </button>
                 </div>
               </div>

@@ -771,6 +771,7 @@ class NotaFiscalGraos(models.Model):
 
     class Status(models.TextChoices):
         EM_DEPOSITO = "em_deposito", "Em deposito"
+        DEVOLVIDO = "devolvido", "Devolvido"
         A_FIXAR = "a_fixar", "A fixar"
         FIXADO_PARCIAL = "fixado_parcial", "Fixado parcial"
         FIXADO = "fixado", "Fixado"

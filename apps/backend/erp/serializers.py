@@ -118,6 +118,44 @@ def _sync_conta_receber_nota_venda(nota: models.NotaFiscalGraos):
     conta.save()
 
 
+def _sync_status_nota_saida_venda_from_conta(company, document_number: str):
+    number = (document_number or "").strip().upper()
+    if not number:
+        return
+    nota = (
+        models.NotaFiscalGraos.objects.filter(
+            company=company,
+            tipo=models.NotaFiscalGraos.Tipo.SAIDA,
+            finalidade=models.NotaFiscalGraos.Finalidade.VENDA,
+            number=number,
+        )
+        .order_by("-id")
+        .first()
+    )
+    if not nota or nota.status == models.NotaFiscalGraos.Status.CANCELED:
+        return
+    conta = (
+        models.ContaReceber.objects.filter(
+            company=company,
+            origem=models.ContaReceber.Origem.NOTA_FISCAL,
+            document_number=number,
+        )
+        .order_by("-id")
+        .first()
+    )
+    if conta is None:
+        return
+    if conta.status == models.ContaReceber.Status.PAID:
+        new_status = models.NotaFiscalGraos.Status.RECEBIDO
+    elif conta.status == models.ContaReceber.Status.OVERDUE:
+        new_status = models.NotaFiscalGraos.Status.VENCIDO
+    else:
+        new_status = models.NotaFiscalGraos.Status.PENDENTE
+    if nota.status != new_status:
+        nota.status = new_status
+        nota.save(update_fields=["status", "updated_at"])
+
+
 def _sync_conta_receber_contrato(contrato: models.ContratoVenda):
     if not contrato:
         return
@@ -1192,6 +1230,8 @@ class ContaReceberSerializer(serializers.ModelSerializer):
         if received <= 0:
             obj.receive_date = None
         obj.save(update_fields=["status", "received_value", "balance_value", "receive_date", "updated_at"])
+        if obj.origem == models.ContaReceber.Origem.NOTA_FISCAL and obj.document_number:
+            _sync_status_nota_saida_venda_from_conta(obj.company, obj.document_number)
         return obj
 
 CombustivelSerializer = _mk_serializer(models.Combustivel)
@@ -2501,22 +2541,36 @@ class NotaFiscalGraosSerializer(serializers.ModelSerializer):
                 tipo=models.NotaFiscalGraos.Tipo.SAIDA,
                 nota_entrada_ref=entrada,
             ).exclude(status=models.NotaFiscalGraos.Status.CANCELED)
-            consumed = saidas.aggregate(v=Coalesce(Sum("quantity_kg"), Decimal("0")))["v"] or Decimal("0")
             total_entrada = entrada.quantity_kg or Decimal("0")
-            remaining = total_entrada - consumed
-            if remaining < 0:
-                remaining = Decimal("0")
+            total_devolucao = (
+                saidas.filter(finalidade=models.NotaFiscalGraos.Finalidade.DEVOLUCAO)
+                .aggregate(v=Coalesce(Sum("quantity_kg"), Decimal("0")))["v"]
+                or Decimal("0")
+            )
+            total_venda = (
+                saidas.filter(finalidade=models.NotaFiscalGraos.Finalidade.VENDA)
+                .aggregate(v=Coalesce(Sum("quantity_kg"), Decimal("0")))["v"]
+                or Decimal("0")
+            )
 
-            if remaining <= 0 and total_entrada > 0:
-                new_status = models.NotaFiscalGraos.Status.FIXADO
-            elif consumed > 0:
-                new_status = models.NotaFiscalGraos.Status.FIXADO_PARCIAL
+            if entrada.finalidade == models.NotaFiscalGraos.Finalidade.REMESSA_DEPOSITO:
+                if total_venda >= total_entrada and total_entrada > 0:
+                    new_status = models.NotaFiscalGraos.Status.FIXADO
+                elif total_venda > 0:
+                    new_status = models.NotaFiscalGraos.Status.FIXADO_PARCIAL
+                elif total_devolucao >= total_entrada and total_entrada > 0:
+                    new_status = models.NotaFiscalGraos.Status.DEVOLVIDO
+                elif total_devolucao > 0:
+                    new_status = models.NotaFiscalGraos.Status.FIXADO_PARCIAL
+                else:
+                    new_status = models.NotaFiscalGraos.Status.EM_DEPOSITO
             else:
-                new_status = (
-                    models.NotaFiscalGraos.Status.EM_DEPOSITO
-                    if entrada.finalidade == models.NotaFiscalGraos.Finalidade.REMESSA_DEPOSITO
-                    else models.NotaFiscalGraos.Status.A_FIXAR
-                )
+                if total_venda >= total_entrada and total_entrada > 0:
+                    new_status = models.NotaFiscalGraos.Status.FIXADO
+                elif total_venda > 0:
+                    new_status = models.NotaFiscalGraos.Status.FIXADO_PARCIAL
+                else:
+                    new_status = models.NotaFiscalGraos.Status.A_FIXAR
             if entrada.status != new_status:
                 entrada.status = new_status
                 entrada.save(update_fields=["status", "updated_at"])
@@ -2525,10 +2579,26 @@ class NotaFiscalGraosSerializer(serializers.ModelSerializer):
             company=company,
             tipo=models.NotaFiscalGraos.Tipo.SAIDA,
         ).exclude(status=models.NotaFiscalGraos.Status.CANCELED)
+        contas_by_doc = {
+            (c.document_number or "").strip().upper(): c.status
+            for c in models.ContaReceber.objects.filter(
+                company=company,
+                origem=models.ContaReceber.Origem.NOTA_FISCAL,
+            )
+        }
         for saida in saidas:
-            new_status = models.NotaFiscalGraos.Status.PENDENTE
-            if saida.due_date and saida.due_date < date.today():
-                new_status = models.NotaFiscalGraos.Status.VENCIDO
+            if saida.finalidade == models.NotaFiscalGraos.Finalidade.VENDA:
+                conta_status = contas_by_doc.get((saida.number or "").strip().upper())
+                if conta_status == models.ContaReceber.Status.PAID:
+                    new_status = models.NotaFiscalGraos.Status.RECEBIDO
+                elif conta_status == models.ContaReceber.Status.OVERDUE:
+                    new_status = models.NotaFiscalGraos.Status.VENCIDO
+                else:
+                    new_status = models.NotaFiscalGraos.Status.PENDENTE
+            else:
+                new_status = models.NotaFiscalGraos.Status.PENDENTE
+                if saida.due_date and saida.due_date < date.today():
+                    new_status = models.NotaFiscalGraos.Status.VENCIDO
             if saida.status != new_status:
                 saida.status = new_status
                 saida.save(update_fields=["status", "updated_at"])
@@ -2552,6 +2622,20 @@ class NotaFiscalGraosSerializer(serializers.ModelSerializer):
         models.EstoqueGraosSaldo.objects.filter(company=company).delete()
         saldos = {}
 
+        saidas_por_entrada: dict[int, dict[str, Decimal]] = {}
+        for saida in saidas:
+            ref_id = getattr(saida, "nota_entrada_ref_id", None)
+            if not ref_id:
+                continue
+            data = saidas_por_entrada.setdefault(
+                ref_id,
+                {"devolucao": Decimal("0"), "venda": Decimal("0")},
+            )
+            if saida.finalidade == models.NotaFiscalGraos.Finalidade.DEVOLUCAO:
+                data["devolucao"] += saida.quantity_kg or Decimal("0")
+            elif saida.finalidade == models.NotaFiscalGraos.Finalidade.VENDA:
+                data["venda"] += saida.quantity_kg or Decimal("0")
+
         for entrada in entradas:
             if getattr(entrada.romaneio, "contrato_id", None):
                 # Venda direta por contrato: nao compoe saldo de estoque.
@@ -2570,44 +2654,28 @@ class NotaFiscalGraosSerializer(serializers.ModelSerializer):
                     "total_devolucao_kg": Decimal("0"),
                     "total_vendas_kg": Decimal("0"),
                 }
-            consumed = (
-                models.NotaFiscalGraos.objects.filter(
-                    company=company,
-                    tipo=models.NotaFiscalGraos.Tipo.SAIDA,
-                    nota_entrada_ref=entrada,
-                )
-                .exclude(status=models.NotaFiscalGraos.Status.CANCELED)
-                .aggregate(v=Coalesce(Sum("quantity_kg"), Decimal("0")))["v"]
-                or Decimal("0")
-            )
-            remaining = (entrada.quantity_kg or Decimal("0")) - consumed
-            if remaining < 0:
-                remaining = Decimal("0")
+            totals = saidas_por_entrada.get(entrada.id, {"devolucao": Decimal("0"), "venda": Decimal("0")})
+            total_entrada = entrada.quantity_kg or Decimal("0")
+            total_devolucao = totals["devolucao"]
+            total_venda = totals["venda"]
 
             if entrada.finalidade == models.NotaFiscalGraos.Finalidade.REMESSA_DEPOSITO:
-                saldos[key]["saldo_em_deposito_kg"] += remaining
+                saldo_deposito = total_entrada - total_devolucao
+                if saldo_deposito < 0:
+                    saldo_deposito = Decimal("0")
+                saldo_a_fixar = total_devolucao - total_venda
+                if saldo_a_fixar < 0:
+                    saldo_a_fixar = Decimal("0")
+                saldos[key]["saldo_em_deposito_kg"] += saldo_deposito
+                saldos[key]["saldo_a_fixar_kg"] += saldo_a_fixar
             else:
-                saldos[key]["saldo_a_fixar_kg"] += remaining
+                saldo_a_fixar = total_entrada - total_venda
+                if saldo_a_fixar < 0:
+                    saldo_a_fixar = Decimal("0")
+                saldos[key]["saldo_a_fixar_kg"] += saldo_a_fixar
 
-        for saida in saidas:
-            key = (
-                saida.safra_id,
-                saida.produtor_id,
-                saida.cliente_id,
-                saida.produto_id,
-                saida.deposito_id,
-            )
-            if key not in saldos:
-                saldos[key] = {
-                    "saldo_em_deposito_kg": Decimal("0"),
-                    "saldo_a_fixar_kg": Decimal("0"),
-                    "total_devolucao_kg": Decimal("0"),
-                    "total_vendas_kg": Decimal("0"),
-                }
-            if saida.finalidade == models.NotaFiscalGraos.Finalidade.DEVOLUCAO:
-                saldos[key]["total_devolucao_kg"] += saida.quantity_kg or Decimal("0")
-            elif saida.finalidade == models.NotaFiscalGraos.Finalidade.VENDA:
-                saldos[key]["total_vendas_kg"] += saida.quantity_kg or Decimal("0")
+            saldos[key]["total_devolucao_kg"] += total_devolucao
+            saldos[key]["total_vendas_kg"] += total_venda
 
         for key, values in saldos.items():
             models.EstoqueGraosSaldo.objects.create(

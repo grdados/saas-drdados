@@ -464,6 +464,8 @@ export function AdminShell({
             { label: "Empreendimentos", href: "/producao/empreendimentos" },
             { label: "Romaneio", href: "/producao/romaneio" },
             { label: "Notas de Grãos", href: "/producao/notas-graos" },
+            { label: "Devolucao", href: "/producao/notas-graos/devolucao" },
+            { label: "Vendas de Graos", href: "/producao/notas-graos/vendas" },
             { label: "Chuvas", href: "/producao/chuvas" },
           ]
         },
