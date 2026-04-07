@@ -37,6 +37,7 @@ type SaidaModal = {
   tipo: "devolucao" | "venda";
   ref: NotaFiscalGraosApi | null;
   step: 1 | 2;
+  just_saved: boolean;
   available_kg: number;
   form: {
     date: string;
@@ -194,6 +195,7 @@ export default function NotasGraosPage() {
     tipo: "devolucao",
     ref: null,
     step: 1,
+    just_saved: false,
     available_kg: 0,
     form: {
       date: "",
@@ -492,6 +494,11 @@ export default function NotasGraosPage() {
 
   function openSaida(tipo: "devolucao" | "venda", ref: NotaFiscalGraosApi, availableKg?: number) {
     const today = new Date().toISOString().slice(0, 10);
+    const available = Math.max(availableKg ?? n(ref.quantity_kg), 0);
+    if (tipo === "venda" && available <= 0) {
+      setError("Sem saldo disponivel para venda neste registro.");
+      return;
+    }
     setError("");
     setSuccess("");
     setSaida({
@@ -499,7 +506,8 @@ export default function NotasGraosPage() {
       tipo,
       ref,
       step: 1,
-      available_kg: Math.max(availableKg ?? n(ref.quantity_kg), 0),
+      just_saved: false,
+      available_kg: available,
       form: {
         date: today,
         due_date: today,
@@ -619,6 +627,58 @@ export default function NotasGraosPage() {
       setSaving(true);
       setError("");
       setSuccess("");
+      let notaEntradaRefId: number | null = null;
+      if (saida.ref.tipo === "entrada") {
+        notaEntradaRefId = saida.ref.id;
+      } else {
+        notaEntradaRefId = saida.ref.nota_entrada_ref?.id ?? saida.ref.nota_entrada_ref_id ?? null;
+      }
+
+      if (!notaEntradaRefId) {
+        setError("Nao foi possivel identificar a nota de entrada de referencia.");
+        return;
+      }
+
+      if (saida.tipo === "venda") {
+        // Revalida saldo da entrada em tempo real para evitar erro por dado desatualizado na tela.
+        const latestNotas = await listNotasGraos(token);
+        const entrada = latestNotas.find((x) => x.id === notaEntradaRefId);
+        if (!entrada || entrada.tipo !== "entrada") {
+          setError("NF de entrada de referencia nao encontrada ou invalida.");
+          return;
+        }
+        const saidasRef = latestNotas.filter(
+          (x) =>
+            x.tipo === "saida" &&
+            (x.nota_entrada_ref?.id ?? x.nota_entrada_ref_id ?? null) === notaEntradaRefId &&
+            String(x.status || "").toLowerCase() !== "canceled"
+        );
+        const finalidadeEntrada = String(entrada.finalidade || "").toLowerCase();
+        let availableLive = 0;
+        if (finalidadeEntrada === "a_fixar") {
+          const used = saidasRef.reduce((acc, x) => acc + n(x.quantity_kg), 0);
+          availableLive = Math.max(n(entrada.quantity_kg) - used, 0);
+        } else if (finalidadeEntrada === "remessa_deposito") {
+          const devolvido = saidasRef
+            .filter((x) => String(x.finalidade || "").toLowerCase() === "devolucao")
+            .reduce((acc, x) => acc + n(x.quantity_kg), 0);
+          const vendido = saidasRef
+            .filter((x) => String(x.finalidade || "").toLowerCase() === "venda")
+            .reduce((acc, x) => acc + n(x.quantity_kg), 0);
+          availableLive = Math.max(devolvido - vendido, 0);
+        }
+
+        setSaida((p) => ({ ...p, available_kg: availableLive }));
+        if (qty > availableLive) {
+          setError(
+            `Quantidade acima do disponivel para venda. Disponivel: ${availableLive.toLocaleString("pt-BR", {
+              maximumFractionDigits: 0
+            })} KG.`
+          );
+          return;
+        }
+      }
+
       await createNotaGraos(token, {
         tipo: "saida",
         finalidade: saida.tipo,
@@ -627,7 +687,7 @@ export default function NotasGraosPage() {
         due_date: saida.tipo === "venda" ? saida.form.due_date || null : null,
         number: saida.form.number.trim().toUpperCase(),
         chave: saida.form.chave.trim().toUpperCase(),
-        nota_entrada_ref_id: saida.ref.id,
+        nota_entrada_ref_id: notaEntradaRefId,
         romaneio_id: saida.ref.romaneio?.id ?? saida.ref.romaneio_id ?? null,
         safra_id: saida.ref.safra?.id ?? saida.ref.safra_id ?? null,
         produtor_id: saida.ref.produtor?.id ?? saida.ref.produtor_id ?? null,
@@ -640,12 +700,18 @@ export default function NotasGraosPage() {
         discount: descontoTotal
       });
       await reload();
-      setSaida((p) => ({ ...p, open: false, ref: null }));
-      setSuccess(
-        saida.tipo === "venda"
-          ? "Saida de venda registrada. Conta a receber foi atualizada."
-          : "Saida de devolucao registrada com sucesso."
-      );
+      if (saida.tipo === "venda") {
+        setError("");
+        setSaida((p) => ({ ...p, just_saved: true }));
+        setSuccess("Venda salva com sucesso. Estoque, contas a receber e status atualizados.");
+        window.setTimeout(() => {
+          setError("");
+          setSaida((p) => ({ ...p, open: false, ref: null, just_saved: false }));
+        }, 1400);
+      } else {
+        setSaida((p) => ({ ...p, open: false, ref: null }));
+        setSuccess("Saida de devolucao registrada com sucesso.");
+      }
     } catch (err) {
       if (isApiError(err) && err.status === 401) {
         window.location.href = "/login";
@@ -1095,7 +1161,7 @@ export default function NotasGraosPage() {
               <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${filtered.length} item(ns)`}</p>
             </div>
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden grid-cols-[64px_56px_94px_78px_84px_92px_minmax(0,1fr)_minmax(0,0.9fr)_74px_164px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
+              <div className="hidden grid-cols-[64px_56px_94px_90px_84px_92px_minmax(0,1fr)_minmax(0,0.9fr)_74px_106px_164px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
                 <div>Data</div>
                 <div>Tipo</div>
                 <div>Finalidade</div>
@@ -1105,6 +1171,7 @@ export default function NotasGraosPage() {
                 <div>Produtor</div>
                 <div>Produto</div>
                 <div>Qtd KG</div>
+                <div>{panelMode === "vendas" ? "Saldo a fixar" : "Saldo devolver"}</div>
                 <div className="text-right">Acoes</div>
               </div>
               <div className="mt-2 space-y-2">
@@ -1115,23 +1182,46 @@ export default function NotasGraosPage() {
                   const used = consumos.reduce((acc, x) => acc + n(x.quantity_kg), 0);
                   const saldo = Math.max(n(nf.quantity_kg) - used, 0);
                   const saldoDevolvido = saldoDevolvidoByEntrada.get(nf.id) ?? 0;
+                  const saldoDevolver = Math.max(n(nf.quantity_kg) - saldoDevolvido, 0);
                   const entradaRefId = nf.nota_entrada_ref?.id ?? nf.nota_entrada_ref_id ?? null;
                   const entradaRef = entradaRefId ? notas.find((x) => x.id === entradaRefId) ?? null : null;
                   const disponivelVendaEntrada = saldoDisponivelVendaByEntrada.get(nf.id) ?? 0;
                   const disponivelVendaRef = entradaRefId ? saldoDisponivelVendaByEntrada.get(entradaRefId) ?? 0 : 0;
-                  const canDevolver = isEntrada && finalidadeKey === "remessa_deposito" && saldo > 0 && panelMode !== "vendas";
-                  const canVenderEntrada = isEntrada && finalidadeKey === "a_fixar" && saldo > 0;
+                  const devolucoesDaEntrada = notas.filter(
+                    (x) =>
+                      x.tipo === "saida" &&
+                      String(x.finalidade || "").toLowerCase() === "devolucao" &&
+                      String(x.status || "").toLowerCase() !== "canceled" &&
+                      (x.nota_entrada_ref?.id ?? x.nota_entrada_ref_id ?? null) === nf.id
+                  );
+                  const possuiVendaDaEntrada = notas.some(
+                    (x) =>
+                      x.tipo === "saida" &&
+                      String(x.finalidade || "").toLowerCase() === "venda" &&
+                      String(x.status || "").toLowerCase() !== "canceled" &&
+                      (x.nota_entrada_ref?.id ?? x.nota_entrada_ref_id ?? null) === nf.id
+                  );
+                  const canDevolver = isEntrada && finalidadeKey === "remessa_deposito" && saldoDevolver > 0 && panelMode !== "vendas";
+                  const canEstornarRemessa = isEntrada && finalidadeKey === "remessa_deposito" && saldoDevolver <= 0 && devolucoesDaEntrada.length > 0;
+                  const canVenderEntrada = isEntrada && finalidadeKey === "a_fixar" && disponivelVendaEntrada > 0;
+                  const possuiVendaDaReferencia = entradaRefId ? (saldoVendidoByEntrada.get(entradaRefId) ?? 0) > 0 : false;
+                  const saldoAFixar = isEntrada
+                    ? (finalidadeKey === "a_fixar" ? saldo : 0)
+                    : (finalidadeKey === "devolucao" ? Math.max(disponivelVendaRef, 0) : 0);
                   const canVenderDevolucao =
                     !isEntrada &&
                     finalidadeKey === "devolucao" &&
                     String(nf.status || "").toLowerCase() !== "canceled" &&
                     !!entradaRef &&
-                    disponivelVendaRef > 0;
+                    saldoAFixar > 0;
                   const loteLabel =
                     !isEntrada && finalidadeKey === "devolucao"
                       ? "A fixar"
                       :
-                    isEntrada && finalidadeKey === "remessa_deposito" && saldoDevolvido > 0
+                    isEntrada && finalidadeKey === "remessa_deposito" && saldoDevolvido > 0 && saldoDevolver > 0
+                      ? "A fixar parcial"
+                      :
+                    isEntrada && finalidadeKey === "remessa_deposito" && saldoDevolvido > 0 && saldoDevolver <= 0
                       ? "A fixar"
                       : STATUS_LABEL[String(nf.status || "").toLowerCase()] || nf.status || "-";
                   const loteClass =
@@ -1143,7 +1233,7 @@ export default function NotasGraosPage() {
                       : statusTagClass(nf.status);
                   return (
                     <div key={nf.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5">
-                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[64px_56px_94px_78px_84px_92px_minmax(0,1fr)_minmax(0,0.9fr)_74px_164px] xl:items-center xl:gap-2">
+                      <div className="grid grid-cols-1 gap-2 xl:grid-cols-[64px_56px_94px_90px_84px_92px_minmax(0,1fr)_minmax(0,0.9fr)_74px_106px_164px] xl:items-center xl:gap-2">
                         <div className="text-xs text-zinc-100">{fmtDate(nf.date)}</div>
                         <div className="text-xs text-zinc-100">{isEntrada ? "Entrada" : "Saida"}</div>
                         <div>
@@ -1163,6 +1253,21 @@ export default function NotasGraosPage() {
                         <div className="text-xs text-zinc-100">
                           {n(nf.quantity_kg).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}
                         </div>
+                        <div className="text-xs text-zinc-100">
+                          {panelMode === "vendas"
+                            ? (
+                              !isEntrada && finalidadeKey === "devolucao"
+                                ? saldoAFixar.toLocaleString("pt-BR", { maximumFractionDigits: 0 })
+                                : isEntrada && finalidadeKey === "a_fixar"
+                                  ? saldoAFixar.toLocaleString("pt-BR", { maximumFractionDigits: 0 })
+                                  : "-"
+                            )
+                            : (
+                              isEntrada && finalidadeKey === "remessa_deposito"
+                                ? saldoDevolver.toLocaleString("pt-BR", { maximumFractionDigits: 0 })
+                                : "-"
+                            )}
+                        </div>
                         <div className="flex flex-nowrap items-center justify-end gap-1.5 pr-1">
                           {isEntrada ? (
                             <>
@@ -1174,22 +1279,36 @@ export default function NotasGraosPage() {
                                   Devolver
                                 </button>
                               ) : null}
-                              {canVenderEntrada && panelMode !== "devolucao" ? (
+                              {canEstornarRemessa ? (
+                                <button
+                                  onClick={() => requestConfirmEstorno(devolucoesDaEntrada, `Estornar devolucao da entrada ${nf.number || `#${nf.id}`}`)}
+                                  disabled={saving || estornoSaving || possuiVendaDaEntrada}
+                                  className="rounded-xl border border-rose-400/25 bg-rose-500/10 px-2 py-1.5 text-[11px] font-semibold text-rose-200 disabled:cursor-not-allowed disabled:opacity-40"
+                                  title={possuiVendaDaEntrada ? "Nao e possivel estornar: existe venda vinculada." : "Estornar devolucao"}
+                                >
+                                  Estornar
+                                </button>
+                              ) : null}
+                              {panelMode !== "devolucao" && finalidadeKey === "a_fixar" ? (
                                 <button
                                   onClick={() => openSaida("venda", nf, disponivelVendaEntrada)}
-                                  className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-2 py-1.5 text-[11px] font-semibold text-emerald-200"
+                                  disabled={!canVenderEntrada}
+                                  className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-2 py-1.5 text-[11px] font-semibold text-emerald-200 disabled:cursor-not-allowed disabled:opacity-40"
+                                  title={!canVenderEntrada ? "Sem saldo a fixar disponivel para venda." : "Vender"}
                                 >
                                   Vender
                                 </button>
                               ) : null}
-                              {!canDevolver && !canVenderEntrada ? <span className="text-xs text-zinc-500">-</span> : null}
+                              {!canDevolver && !canEstornarRemessa && !canVenderEntrada ? <span className="text-xs text-zinc-500">-</span> : null}
                             </>
                           ) : (
                             <>
-                              {canVenderDevolucao && panelMode !== "devolucao" ? (
+                              {panelMode !== "devolucao" && finalidadeKey === "devolucao" ? (
                                 <button
-                                  onClick={() => entradaRef && openSaida("venda", entradaRef, disponivelVendaRef)}
-                                  className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-2 py-1.5 text-[11px] font-semibold text-emerald-200"
+                                  onClick={() => entradaRef && openSaida("venda", entradaRef, saldoAFixar)}
+                                  disabled={!canVenderDevolucao}
+                                  className="rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-2 py-1.5 text-[11px] font-semibold text-emerald-200 disabled:cursor-not-allowed disabled:opacity-40"
+                                  title={!canVenderDevolucao ? "Sem saldo a fixar disponivel para venda." : "Vender"}
                                 >
                                   Vender
                                 </button>
@@ -1199,8 +1318,15 @@ export default function NotasGraosPage() {
                                   onClick={() =>
                                     requestConfirmEstorno([nf], `Estornar devolucao ${nf.number || `#${nf.id}`}`)
                                   }
-                                  disabled={saving || estornoSaving}
-                                  className="rounded-xl border border-rose-400/25 bg-rose-500/10 px-2 py-1.5 text-[11px] font-semibold text-rose-200 disabled:opacity-40"
+                                  disabled={saving || estornoSaving || saldoAFixar <= 0 || possuiVendaDaReferencia}
+                                  className="rounded-xl border border-rose-400/25 bg-rose-500/10 px-2 py-1.5 text-[11px] font-semibold text-rose-200 disabled:cursor-not-allowed disabled:opacity-40"
+                                  title={
+                                    possuiVendaDaReferencia
+                                      ? "Nao e possivel estornar: existe venda vinculada."
+                                      : saldoAFixar <= 0
+                                        ? "Sem saldo a fixar disponivel para estorno."
+                                        : "Estornar devolucao"
+                                  }
                                 >
                                   Estornar
                                 </button>
@@ -1595,13 +1721,21 @@ export default function NotasGraosPage() {
             <div className="fixed inset-0 z-[80] grid place-items-center px-4">
               <button
                 className="absolute inset-0 bg-zinc-950/75"
-                onClick={() => setSaida((p) => ({ ...p, open: false, ref: null }))}
+                onClick={() => {
+                  setError("");
+                  setSaida((p) => ({ ...p, open: false, ref: null }));
+                }}
               />
               <div className="relative w-full max-w-3xl rounded-3xl border border-white/15 bg-zinc-900/95 p-5 shadow-2xl">
                 <p className="text-lg font-black text-white">{saida.tipo === "devolucao" ? "Nova devolucao" : "Nova venda"}</p>
                 <p className="mt-1 text-xs text-zinc-400">
                   NF entrada {saida.ref.number} - Romaneio {saida.ref.romaneio?.code || "-"}
                 </p>
+                {saida.just_saved ? (
+                  <div className="mt-3 rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                    Venda salva com sucesso.
+                  </div>
+                ) : null}
                 {saida.tipo === "venda" ? (
                   <div className="mt-3 grid grid-cols-2 gap-1.5 rounded-xl border border-white/10 bg-zinc-950/35 p-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
                     <button
@@ -1778,9 +1912,17 @@ export default function NotasGraosPage() {
                     })()}
                   </div>
                 ) : null}
+                {error ? (
+                  <div className="mt-3 rounded-xl border border-rose-400/25 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+                    {error}
+                  </div>
+                ) : null}
                 <div className="mt-4 flex justify-end gap-2">
                   <button
-                    onClick={() => setSaida((p) => ({ ...p, open: false, ref: null }))}
+                    onClick={() => {
+                      setError("");
+                      setSaida((p) => ({ ...p, open: false, ref: null }));
+                    }}
                     className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-black text-zinc-200"
                   >
                     Cancelar
@@ -1803,7 +1945,7 @@ export default function NotasGraosPage() {
                   ) : null}
                   <button
                     onClick={saveSaida}
-                    disabled={saving || (saida.tipo === "venda" && saida.step !== 2)}
+                    disabled={saving || saida.just_saved || (saida.tipo === "venda" && saida.step !== 2)}
                     className="rounded-2xl border border-emerald-400/25 bg-emerald-500/15 px-4 py-2 text-sm font-black text-emerald-100 disabled:opacity-50"
                   >
                     {saving ? "Salvando..." : saida.tipo === "venda" ? "Salvar venda" : "Salvar devolucao"}

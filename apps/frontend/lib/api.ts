@@ -1540,7 +1540,7 @@ export type ContaReceber = {
   cliente: { id: number; name: string } | null;
   operacao: { id: number; name: string; kind: string } | null;
   contrato: { id: number; code: string } | null;
-  origem: "contrato" | "nota_fiscal" | "duplicata";
+  origem: "contrato" | "nota_fiscal" | "fixacao" | "duplicata";
   total_value: string;
   received_value: string;
   balance_value: string;

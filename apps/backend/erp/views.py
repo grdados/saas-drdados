@@ -389,7 +389,7 @@ class NotaFiscalGraosViewSet(CompanyScopedViewSet):
             if was_venda and venda_number:
                 models.ContaReceber.objects.filter(
                     company=company,
-                    origem=models.ContaReceber.Origem.NOTA_FISCAL,
+                    origem__in=[models.ContaReceber.Origem.NOTA_FISCAL, models.ContaReceber.Origem.FIXACAO],
                     document_number=venda_number,
                 ).delete()
             if contrato is not None:

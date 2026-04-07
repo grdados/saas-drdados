@@ -1,4 +1,4 @@
-from datetime import date
+﻿from datetime import date
 from decimal import Decimal
 from uuid import uuid4
 
@@ -75,7 +75,7 @@ def _sync_conta_receber_nota_venda(nota: models.NotaFiscalGraos):
     if nota.status == models.NotaFiscalGraos.Status.CANCELED:
         models.ContaReceber.objects.filter(
             company=nota.company,
-            origem=models.ContaReceber.Origem.NOTA_FISCAL,
+            origem=models.ContaReceber.Origem.FIXACAO,
             document_number=(nota.number or "").strip().upper(),
         ).delete()
         return
@@ -83,7 +83,7 @@ def _sync_conta_receber_nota_venda(nota: models.NotaFiscalGraos):
     conta = (
         models.ContaReceber.objects.filter(
             company=nota.company,
-            origem=models.ContaReceber.Origem.NOTA_FISCAL,
+            origem=models.ContaReceber.Origem.FIXACAO,
             document_number=(nota.number or "").strip().upper(),
         )
         .order_by("id")
@@ -92,7 +92,7 @@ def _sync_conta_receber_nota_venda(nota: models.NotaFiscalGraos):
     if conta is None:
         conta = models.ContaReceber(
             company=nota.company,
-            origem=models.ContaReceber.Origem.NOTA_FISCAL,
+            origem=models.ContaReceber.Origem.FIXACAO,
             payment_method=models.FaturamentoCompra.PaymentMethod.PIX,
             received_value=Decimal("0"),
             discount_value=Decimal("0"),
@@ -137,7 +137,7 @@ def _sync_status_nota_saida_venda_from_conta(company, document_number: str):
     conta = (
         models.ContaReceber.objects.filter(
             company=company,
-            origem=models.ContaReceber.Origem.NOTA_FISCAL,
+            origem__in=[models.ContaReceber.Origem.NOTA_FISCAL, models.ContaReceber.Origem.FIXACAO],
             document_number=number,
         )
         .order_by("-id")
@@ -389,19 +389,19 @@ class OperacaoSerializer(serializers.ModelSerializer):
         raw = str(value or "").strip().lower()
         alias = {
             "credito": models.Operacao.Kind.CREDIT,
-            "crédito": models.Operacao.Kind.CREDIT,
+            "crÃ©dito": models.Operacao.Kind.CREDIT,
             "debito": models.Operacao.Kind.DEBIT,
-            "débito": models.Operacao.Kind.DEBIT,
+            "dÃ©bito": models.Operacao.Kind.DEBIT,
             "transferencia": models.Operacao.Kind.TRANSFER,
-            "transferência": models.Operacao.Kind.TRANSFER,
+            "transferÃªncia": models.Operacao.Kind.TRANSFER,
             "remessa p/ deposito": models.Operacao.Kind.REMESSA_DEPOSITO,
-            "remessa p/ depósito": models.Operacao.Kind.REMESSA_DEPOSITO,
+            "remessa p/ depÃ³sito": models.Operacao.Kind.REMESSA_DEPOSITO,
             "remessa para deposito": models.Operacao.Kind.REMESSA_DEPOSITO,
-            "remessa para depósito": models.Operacao.Kind.REMESSA_DEPOSITO,
+            "remessa para depÃ³sito": models.Operacao.Kind.REMESSA_DEPOSITO,
             "afixar": models.Operacao.Kind.A_FIXAR,
             "a fixar": models.Operacao.Kind.A_FIXAR,
             "devolucao": models.Operacao.Kind.DEVOLUCAO,
-            "devolução": models.Operacao.Kind.DEVOLUCAO,
+            "devoluÃ§Ã£o": models.Operacao.Kind.DEVOLUCAO,
         }
         return alias.get(raw, raw)
 
@@ -1230,7 +1230,7 @@ class ContaReceberSerializer(serializers.ModelSerializer):
         if received <= 0:
             obj.receive_date = None
         obj.save(update_fields=["status", "received_value", "balance_value", "receive_date", "updated_at"])
-        if obj.origem == models.ContaReceber.Origem.NOTA_FISCAL and obj.document_number:
+        if obj.origem in {models.ContaReceber.Origem.NOTA_FISCAL, models.ContaReceber.Origem.FIXACAO} and obj.document_number:
             _sync_status_nota_saida_venda_from_conta(obj.company, obj.document_number)
         return obj
 
@@ -1741,7 +1741,7 @@ class FaturamentoCompraSerializer(serializers.ModelSerializer):
                 conta_pedido.payment_date = None
             conta_pedido.save()
 
-        # remove contas de NF sem referência ativa e sem pagamento
+        # remove contas de NF sem referÃªncia ativa e sem pagamento
         models.ContaPagar.objects.filter(
             pedido=pedido,
             origem=models.ContaPagar.Origem.NOTA_FISCAL,
@@ -1761,7 +1761,7 @@ class FaturamentoCompraSerializer(serializers.ModelSerializer):
             if not pedido_item and not (produto or peca):
                 raise serializers.ValidationError({"items": "Informe pedido_item_id, produto_id ou peca_id."})
             if pedido_item and (not getattr(fat, "pedido_id", None) or pedido_item.pedido_id != fat.pedido_id):
-                raise serializers.ValidationError({"items": "Item não pertence ao pedido selecionado."})
+                raise serializers.ValidationError({"items": "Item nÃ£o pertence ao pedido selecionado."})
 
             billed = (
                 models.FaturamentoCompraItem.objects.filter(
@@ -1794,7 +1794,7 @@ class FaturamentoCompraSerializer(serializers.ModelSerializer):
             )
             total += obj.total_item
 
-            # recebido/status é recalculado ao final por _recalc_pedido_status()
+            # recebido/status Ã© recalculado ao final por _recalc_pedido_status()
 
         fat.total_value = total
         fat.save(update_fields=["total_value", "updated_at"])
@@ -1813,7 +1813,7 @@ class FaturamentoCompraSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         items_data = validated_data.pop("items", [])
         fat = models.FaturamentoCompra.objects.create(**validated_data)
-        # preencher dados derivados do pedido quando necessário
+        # preencher dados derivados do pedido quando necessÃ¡rio
         if fat.pedido_id:
             if not fat.fornecedor_id:
                 fat.fornecedor_id = fat.pedido.fornecedor_id
@@ -2449,13 +2449,6 @@ class NotaFiscalGraosSerializer(serializers.ModelSerializer):
         ).exclude(status=models.NotaFiscalGraos.Status.CANCELED)
         if self.instance and self.instance.pk:
             used_qs = used_qs.exclude(pk=self.instance.pk)
-        used = used_qs.aggregate(v=Coalesce(Sum("quantity_kg"), Decimal("0")))["v"] or Decimal("0")
-        available = (entrada.quantity_kg or Decimal("0")) - used
-        if qty > available:
-            raise serializers.ValidationError(
-                {"quantity_kg": f"Quantidade acima do saldo disponivel da entrada. Disponivel: {available} KG."}
-            )
-
         finalidade = attrs.get("finalidade", getattr(self.instance, "finalidade", None))
         if (
             finalidade == models.NotaFiscalGraos.Finalidade.VENDA
@@ -2478,11 +2471,20 @@ class NotaFiscalGraosSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {
                         "quantity_kg": (
-                            "Para Remessa p/ Depósito, venda permitida apenas até o volume já devolvido. "
-                            f"Disponível para venda: {available_for_sale} KG."
+                            "Para Remessa p/ Deposito, venda permitida apenas ate o volume ja devolvido. "
+                            f"Disponivel para venda: {available_for_sale} KG."
                         )
                     }
                 )
+            return
+
+        used = used_qs.aggregate(v=Coalesce(Sum("quantity_kg"), Decimal("0")))["v"] or Decimal("0")
+        available = (entrada.quantity_kg or Decimal("0")) - used
+        if qty > available:
+            raise serializers.ValidationError(
+                {"quantity_kg": f"Quantidade acima do saldo disponivel da entrada. Disponivel: {available} KG."}
+            )
+
 
     def validate(self, attrs):
         company = get_current_company(self.context["request"].user) if self.context.get("request") else None
@@ -2583,7 +2585,7 @@ class NotaFiscalGraosSerializer(serializers.ModelSerializer):
             (c.document_number or "").strip().upper(): c.status
             for c in models.ContaReceber.objects.filter(
                 company=company,
-                origem=models.ContaReceber.Origem.NOTA_FISCAL,
+                origem__in=[models.ContaReceber.Origem.NOTA_FISCAL, models.ContaReceber.Origem.FIXACAO],
             )
         }
         for saida in saidas:
@@ -2618,7 +2620,7 @@ class NotaFiscalGraosSerializer(serializers.ModelSerializer):
         if rom_ids:
             models.RomaneioGraos.objects.filter(company=company, id__in=rom_ids).update(status=models.RomaneioGraos.Status.OK)
 
-        # 3) reconstrói saldos por chave.
+        # 3) reconstrÃ³i saldos por chave.
         models.EstoqueGraosSaldo.objects.filter(company=company).delete()
         saldos = {}
 

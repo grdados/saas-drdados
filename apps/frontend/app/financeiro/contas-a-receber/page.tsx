@@ -159,6 +159,7 @@ function normalizeStatus(it: ContaReceber): Status {
 function origem(it: ContaReceber) {
   if (it.origem === "contrato") return "Contrato";
   if (it.origem === "nota_fiscal") return "Nota Fiscal";
+  if (it.origem === "fixacao") return "Fixação";
   return "Duplicata";
 }
 

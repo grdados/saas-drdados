@@ -222,7 +222,7 @@ function SidebarLink({
   onNavigate?: () => void;
 }) {
   const base =
-    "group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold transition-colors";
+    "group flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors";
   const activeCls = "bg-[#FFB30D]/30 text-[#001542] ring-1 ring-[#FFB30D]/60";
   const idleCls = "text-white/78 hover:bg-white/[0.05] hover:text-white";
 
@@ -310,7 +310,7 @@ function SidebarTreeNode({
   }, [descendantActive, hasChildren]);
 
   const base =
-    "group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-semibold transition-colors";
+    "group flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors";
   const activeCls = "bg-[#FFB30D]/30 text-[#001542] ring-1 ring-[#FFB30D]/60";
   const idleCls = "text-white/78 hover:bg-white/[0.05] hover:text-white";
 
@@ -399,14 +399,14 @@ function SidebarContent({
       </div>
 
       <div className="mt-4">
-        <p className="px-2 text-[11px] font-black uppercase tracking-[0.24em] text-[#767A81]">Dashboard</p>
+        <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#767A81]">Dashboard</p>
         <nav className="mt-2 rounded-[24px] bg-[#24262B] p-2">
           <SidebarTree nodes={navTree.dashboard} pathname={pathname} onNavigate={onNavigate} />
         </nav>
       </div>
 
       <div className="mt-5">
-        <p className="px-2 text-[11px] font-black uppercase tracking-[0.24em] text-[#767A81]">Advanced</p>
+        <p className="px-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#767A81]">Advanced</p>
         <nav className="mt-2 rounded-[24px] bg-[#24262B] p-2">
           <SidebarTree nodes={navTree.advanced} pathname={pathname} onNavigate={onNavigate} />
         </nav>
@@ -463,7 +463,6 @@ export function AdminShell({
             { label: "Contratos", href: "/producao/contrato" },
             { label: "Empreendimentos", href: "/producao/empreendimentos" },
             { label: "Romaneio", href: "/producao/romaneio" },
-            { label: "Notas de Grãos", href: "/producao/notas-graos" },
             { label: "Devolucao", href: "/producao/notas-graos/devolucao" },
             { label: "Vendas de Graos", href: "/producao/notas-graos/vendas" },
             { label: "Chuvas", href: "/producao/chuvas" },
@@ -477,11 +476,6 @@ export function AdminShell({
             { label: "Faturamento", href: "/compra/faturamento" },
             { label: "Produtos", href: "/compra/produtos" }
           ]
-        },
-        {
-          label: "Venda",
-          icon: <Icon name="orders" />,
-          children: [{ label: "Vendas", href: "/venda/vendas" }]
         },
         {
           label: "Estoque",

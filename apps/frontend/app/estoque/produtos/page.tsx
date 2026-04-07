@@ -21,14 +21,6 @@ import {
   listRomaneiosGraos,
   listSafras
 } from "@/lib/api";
-import {
-  ContraNotaEntrada,
-  Empreendimento,
-  Romaneio,
-  loadContraNotasEntrada,
-  loadEmpreendimentos,
-  loadRomaneios
-} from "@/lib/producaoLocal";
 
 function n(v: unknown) {
   const x = Number(String(v ?? "0").replace(",", "."));
@@ -56,7 +48,7 @@ function CulturaBadge({ name }: { name: string }) {
       <span className={`grid h-5 w-5 place-items-center rounded-lg border text-[12px] leading-none ${meta.tone}`}>
         {meta.icon}
       </span>
-      <span className="truncate text-xs text-zinc-100">{name}</span>
+      <span className="truncate text-xs text-[#212121]">{name}</span>
     </div>
   );
 }
@@ -91,6 +83,17 @@ function productMetaV2(name: string, cultura?: string) {
   return { abbr: name.slice(0, 2).toUpperCase() || "PR", tone: "border-sky-400/30 bg-sky-500/10 text-sky-100" };
 }
 
+function productCardTone(name: string, cultura?: string) {
+  const normalized = `${name} ${cultura || ""}`.toLowerCase();
+  if (normalized.includes("soja")) return "bg-emerald-100 border-emerald-300";
+  if (normalized.includes("milho")) return "bg-amber-100 border-amber-300";
+  if (normalized.includes("trigo")) return "bg-yellow-100 border-yellow-300";
+  if (normalized.includes("amendo")) return "bg-orange-100 border-orange-300";
+  if (normalized.includes("aveia")) return "bg-violet-100 border-violet-300";
+  if (normalized.includes("feij")) return "bg-cyan-100 border-cyan-300";
+  return "bg-slate-100 border-slate-300";
+}
+
 function ProductIcon({ name, cultura }: { name: string; cultura?: string }) {
   const meta = productMetaV2(name, cultura);
   return (
@@ -98,12 +101,6 @@ function ProductIcon({ name, cultura }: { name: string; cultura?: string }) {
       {"icon" in meta ? meta.icon : meta.abbr}
     </div>
   );
-}
-
-function statusFromRomaneio(r: Romaneio, contra: ContraNotaEntrada | undefined): "ok" | "pending" {
-  if (contra) return "ok";
-  if (r.status === "ok" || r.status === "pending") return r.status;
-  return "pending";
 }
 
 type EstoqueRow = {
@@ -170,6 +167,7 @@ function sortByQtyDesc<T extends { quantidade: number }>(arr: T[]): T[] {
 }
 
 export default function EstoqueProdutosPage() {
+  const [reportView, setReportView] = useState<"resumo" | "analitico">("resumo");
   const [unitView, setUnitView] = useState<"KG" | "SC">("SC");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -186,9 +184,6 @@ export default function EstoqueProdutosPage() {
   const [filterProdutorId, setFilterProdutorId] = useState<number | "">("");
   const [filterClienteId, setFilterClienteId] = useState<number | "">("");
   const [q, setQ] = useState("");
-  const [romaneios, setRomaneios] = useState<Romaneio[]>([]);
-  const [empreendimentos, setEmpreendimentos] = useState<Empreendimento[]>([]);
-  const [contraNotas, setContraNotas] = useState<ContraNotaEntrada[]>([]);
   const [romaneiosApi, setRomaneiosApi] = useState<Awaited<ReturnType<typeof listRomaneiosGraos>>>([]);
   const [notasGraos, setNotasGraos] = useState<NotaFiscalGraosApi[]>([]);
   const [modalSaidaOpen, setModalSaidaOpen] = useState(false);
@@ -208,6 +203,8 @@ export default function EstoqueProdutosPage() {
     const valor = unitView === "SC" ? valorKg / 60 : valorKg;
     return kg(valor);
   };
+
+  const fmtQtdKg = (valorKg: number) => `${formatQtd(valorKg)} ${unitView}`;
 
   useEffect(() => {
     async function run() {
@@ -234,9 +231,6 @@ export default function EstoqueProdutosPage() {
           setNotasGraos(nfApi);
           setFilterSafraId("");
         }
-        setRomaneios(loadRomaneios());
-        setEmpreendimentos(loadEmpreendimentos());
-        setContraNotas(loadContraNotasEntrada());
       } catch (err) {
         if (isApiError(err) && err.status === 401) {
           window.location.href = "/login";
@@ -249,12 +243,6 @@ export default function EstoqueProdutosPage() {
     }
     void run();
   }, []);
-
-  const empreendimentoById = useMemo(() => {
-    const map = new Map<string, Empreendimento>();
-    for (const e of empreendimentos) map.set(e.id, e);
-    return map;
-  }, [empreendimentos]);
 
   const produtoById = useMemo(() => {
     const map = new Map<number, string>();
@@ -292,37 +280,47 @@ export default function EstoqueProdutosPage() {
     return map;
   }, [clientes]);
 
-  const contraNotaByRomaneioId = useMemo(() => {
-    const map = new Map<string, ContraNotaEntrada>();
-    for (const cn of contraNotas) map.set(cn.romaneio_id, cn);
-    return map;
-  }, [contraNotas]);
-
   const rows = useMemo(() => {
     const grouped = new Map<string, EstoqueRow>();
-    for (const r of romaneios) {
-      if (!r.empreendimento_id) continue;
-      if (!r.deposito) continue;
+    const saidasByEntrada = new Map<number, NotaFiscalGraosApi[]>();
+    for (const nf of notasGraos) {
+      if (nf.tipo !== "saida") continue;
+      if ((nf.status || "").toLowerCase() === "canceled") continue;
+      const refId = nf.nota_entrada_ref?.id ?? nf.nota_entrada_ref_id ?? null;
+      if (!refId) continue;
+      const arr = saidasByEntrada.get(refId) ?? [];
+      arr.push(nf);
+      saidasByEntrada.set(refId, arr);
+    }
 
-      const contra = contraNotaByRomaneioId.get(r.id);
-      const hasEntradaFiscal =
-        (contra && (contra.operacao === "remessa_deposito" || contra.operacao === "a_fixar")) ||
-        (!contra && r.status === "ok");
-      if (!hasEntradaFiscal) continue;
+    for (const entrada of notasGraos) {
+      if (entrada.tipo !== "entrada") continue;
+      if ((entrada.status || "").toLowerCase() === "canceled") continue;
+      const finalidade = String(entrada.finalidade || "").toLowerCase();
+      if (!["remessa_deposito", "a_fixar"].includes(finalidade)) continue;
 
-      const emp = empreendimentoById.get(r.empreendimento_id);
-      const sId = r.safra_id ?? emp?.safra_id ?? null;
+      const saidas = saidasByEntrada.get(entrada.id) ?? [];
+      const totalEntrada = Math.max(n(entrada.quantity_kg), 0);
+      const totalDevolucao = saidas
+        .filter((s) => String(s.finalidade || "").toLowerCase() === "devolucao")
+        .reduce((acc, s) => acc + Math.max(n(s.quantity_kg), 0), 0);
+      const totalVenda = saidas
+        .filter((s) => String(s.finalidade || "").toLowerCase() === "venda")
+        .reduce((acc, s) => acc + Math.max(n(s.quantity_kg), 0), 0);
+
+      const saldoDeposito = finalidade === "remessa_deposito" ? Math.max(totalEntrada - totalDevolucao, 0) : 0;
+      const saldoAFixar =
+        finalidade === "a_fixar"
+          ? Math.max(totalEntrada - totalVenda, 0)
+          : Math.max(totalDevolucao - totalVenda, 0);
+      const saldoTotal = saldoDeposito + saldoAFixar;
+      if (saldoTotal <= 0) continue;
+
+      const sId = entrada.safra?.id ?? entrada.safra_id ?? null;
       const cId = sId ? (safraCulturaById.get(sId) ?? null) : null;
-      const inferredProdutoId =
-        cId
-          ? (() => {
-              const options = produtos.filter((p) => p.cultura_id === cId && p.is_active);
-              return options.length === 1 ? options[0].id : null;
-            })()
-          : null;
-      const pId = r.produto_id ?? emp?.produto_id ?? inferredProdutoId ?? null;
-      const produtorId = r.produtor_id ?? null;
-      const clienteId = r.cliente_id ?? null;
+      const pId = entrada.produto?.id ?? entrada.produto_id ?? null;
+      const produtorId = entrada.produtor?.id ?? entrada.produtor_id ?? null;
+      const clienteId = entrada.cliente?.id ?? entrada.cliente_id ?? null;
 
       if (filterSafraId !== "" && sId !== Number(filterSafraId)) continue;
       if (filterCulturaId !== "" && cId !== Number(filterCulturaId)) continue;
@@ -335,15 +333,19 @@ export default function EstoqueProdutosPage() {
       const culturaNome = cId ? culturaById.get(cId) ?? `CULTURA #${cId}` : "SEM CULTURA";
       const produtorNome = produtorId ? produtorById.get(produtorId) ?? `PRODUTOR #${produtorId}` : "SEM PRODUTOR";
       const clienteNome = clienteId ? clienteById.get(clienteId) ?? `CLIENTE #${clienteId}` : "SEM CLIENTE";
+      const depositoNome = (entrada.deposito?.name || "").trim() || "DEPÓSITO PRODUÇÃO";
+      const romaneioCode = entrada.romaneio?.code || "-";
+      const nfp = (entrada.romaneio as { nfp?: string } | null)?.nfp || "-";
+      const notaFiscal = entrada.number || "-";
 
-      const key = `${sId ?? "x"}::${cId ?? "x"}::${pId ?? "x"}::${produtorId ?? "x"}::${clienteId ?? "x"}::${r.deposito.toUpperCase()}`;
+      const key = `${sId ?? "x"}::${cId ?? "x"}::${pId ?? "x"}::${produtorId ?? "x"}::${clienteId ?? "x"}::${depositoNome.toUpperCase()}`;
       const current = grouped.get(key) ?? {
         safra: safraNome,
         cultura: culturaNome,
         produto: produtoNome,
         produtor: produtorNome,
         cliente: clienteNome,
-        deposito: r.deposito.toUpperCase(),
+        deposito: depositoNome.toUpperCase(),
         quantidade: 0,
         totalLoads: 0,
         pendingLoads: 0,
@@ -351,14 +353,11 @@ export default function EstoqueProdutosPage() {
         nfpRefs: [],
         notaFiscalRefs: []
       };
-      current.quantidade += Math.max(n(r.net_weight), 0);
+      current.quantidade += saldoTotal;
       current.totalLoads += 1;
-      if (statusFromRomaneio(r, contra) === "pending") current.pendingLoads += 1;
-      if (r.code && !current.romaneioCodes.includes(r.code)) current.romaneioCodes.push(r.code);
-      if (r.nfp && !current.nfpRefs.includes(r.nfp)) current.nfpRefs.push(r.nfp);
-      if (contra?.nota_fiscal && !current.notaFiscalRefs.includes(contra.nota_fiscal)) {
-        current.notaFiscalRefs.push(contra.nota_fiscal);
-      }
+      if (romaneioCode !== "-" && !current.romaneioCodes.includes(romaneioCode)) current.romaneioCodes.push(romaneioCode);
+      if (nfp !== "-" && !current.nfpRefs.includes(nfp)) current.nfpRefs.push(nfp);
+      if (notaFiscal !== "-" && !current.notaFiscalRefs.includes(notaFiscal)) current.notaFiscalRefs.push(notaFiscal);
       grouped.set(key, current);
     }
 
@@ -373,12 +372,9 @@ export default function EstoqueProdutosPage() {
       )
       .sort((a, b) => a.produto.localeCompare(b.produto, "pt-BR"));
   }, [
-    romaneios,
-    contraNotaByRomaneioId,
-    empreendimentoById,
+    notasGraos,
     safraCulturaById,
     produtoById,
-    produtos,
     safraById,
     culturaById,
     produtorById,
@@ -634,6 +630,61 @@ export default function EstoqueProdutosPage() {
     q
   ]);
 
+  const relatorioAnalitico = useMemo(() => {
+    const saidasByEntrada = new Map<number, NotaFiscalGraosApi[]>();
+    for (const nf of notasGraos) {
+      if (nf.tipo !== "saida") continue;
+      if ((nf.status || "").toLowerCase() === "canceled") continue;
+      const refId = nf.nota_entrada_ref?.id ?? nf.nota_entrada_ref_id ?? null;
+      if (!refId) continue;
+      const arr = saidasByEntrada.get(refId) ?? [];
+      arr.push(nf);
+      saidasByEntrada.set(refId, arr);
+    }
+
+    const rows = notasGraos
+      .filter((nf) => nf.tipo === "entrada")
+      .filter((nf) => (nf.status || "").toLowerCase() !== "canceled")
+      .filter((nf) => ["remessa_deposito", "a_fixar"].includes((nf.finalidade || "").toLowerCase()))
+      .map((entrada) => {
+        const saidas = saidasByEntrada.get(entrada.id) ?? [];
+        const quantidadeEntrada = Math.max(n(entrada.quantity_kg), 0);
+        const depositoKg = (entrada.finalidade || "").toLowerCase() === "remessa_deposito" ? quantidadeEntrada : 0;
+        const devolucaoKg = saidas
+          .filter((s) => (s.finalidade || "").toLowerCase() === "devolucao")
+          .reduce((acc, s) => acc + Math.max(n(s.quantity_kg), 0), 0);
+        const vendaKg = saidas
+          .filter((s) => (s.finalidade || "").toLowerCase() === "venda")
+          .reduce((acc, s) => acc + Math.max(n(s.quantity_kg), 0), 0);
+        const saldoKg =
+          (entrada.finalidade || "").toLowerCase() === "a_fixar"
+            ? Math.max(quantidadeEntrada - vendaKg, 0)
+            : Math.max(devolucaoKg - vendaKg, 0);
+        return {
+          id: entrada.id,
+          produtor: entrada.produtor?.name || "-",
+          safra: entrada.safra?.name || "-",
+          data: entrada.date || "",
+          notaFiscal: entrada.number || "-",
+          operacao: entrada.operacao?.name || ((entrada.finalidade || "").toLowerCase() === "a_fixar" ? "A fixar" : "Remessa depósito"),
+          depositoKg,
+          devolucaoKg,
+          vendaKg,
+          saldoKg
+        };
+      });
+
+    rows.sort((a, b) => {
+      const p = a.produtor.localeCompare(b.produtor, "pt-BR");
+      if (p !== 0) return p;
+      const s = a.safra.localeCompare(b.safra, "pt-BR");
+      if (s !== 0) return s;
+      return (b.data || "").localeCompare(a.data || "");
+    });
+
+    return rows;
+  }, [notasGraos]);
+
   function openSaidaModal(tipo: "devolucao" | "venda", entry: EntradaOperacional) {
     const now = new Date().toISOString().slice(0, 10);
     setOpError("");
@@ -716,19 +767,19 @@ export default function EstoqueProdutosPage() {
   return (
     <AuthedAdminShell hideHeader>
       {() => (
-        <div className="space-y-5">
+        <div className="space-y-5 rounded-3xl bg-[#F9FAFB] p-4 text-[#212121]">
           <section className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_260px] lg:items-start">
             <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-zinc-400">Estoque</p>
-              <h1 className="mt-1 text-2xl font-black tracking-tight text-white">Estoque de produtos</h1>
-              <p className="mt-1 text-sm text-zinc-300">Entradas fiscais por romaneio com contra-nota de remessa para depósito ou a fixar.</p>
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-[#212121]/70">Estoque</p>
+              <h1 className="mt-1 text-2xl font-black tracking-tight text-[#212121]">Estoque de produtos</h1>
+              <p className="mt-1 text-sm text-[#212121]/80">Entradas fiscais por romaneio com contra-nota de remessa para depósito ou a fixar.</p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">Unidade</p>
+            <div className="rounded-2xl border border-zinc-300 bg-white p-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#212121]/70">Unidade</p>
               <select
                 value={unitView}
                 onChange={(e) => setUnitView(e.target.value === "KG" ? "KG" : "SC")}
-                className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-950/40 px-3 py-2 text-[12px] font-semibold text-zinc-100 outline-none focus:border-accent-500/50"
+                className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-[12px] font-semibold text-[#212121] outline-none focus:border-[#212121]/50"
               >
                 <option value="SC" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>Sacas (SC)</option>
                 <option value="KG" style={{ backgroundColor: "#e5e7eb", color: "#111827" }}>Quilos (KG)</option>
@@ -815,14 +866,32 @@ export default function EstoqueProdutosPage() {
             </div>
           </section>
 
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-black text-white">Resumo geral por produto</p>
-              <p className="text-xs font-semibold text-zinc-400">{productSummary.length} produto(s)</p>
+          <section className="rounded-3xl border border-zinc-200 bg-white p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#212121]/70">Relatórios</p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setReportView("resumo")}
+                  className={`rounded-xl border px-3 py-1.5 text-xs font-semibold ${reportView === "resumo" ? "border-[#212121] bg-[#212121] text-white" : "border-zinc-300 bg-white text-[#212121]"}`}
+                >
+                  Resumo
+                </button>
+                <button
+                  onClick={() => setReportView("analitico")}
+                  className={`rounded-xl border px-3 py-1.5 text-xs font-semibold ${reportView === "analitico" ? "border-[#212121] bg-[#212121] text-white" : "border-zinc-300 bg-white text-[#212121]"}`}
+                >
+                  Analítico
+                </button>
+              </div>
             </div>
+          </section>
+
+          {reportView === "resumo" ? (
+          <>
+          <section className="rounded-3xl border border-zinc-200 p-4">
             <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-              <article className="rounded-2xl border border-white/10 bg-zinc-950/30 p-3 xl:col-span-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Produtor</p>
+              <article className="rounded-2xl border border-zinc-200 p-3 xl:col-span-1">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#212121]/70">Produtor</p>
                 <select
                   value={filterProdutorId}
                   onChange={(e) => setFilterProdutorId(e.target.value === "" ? "" : Number(e.target.value))}
@@ -838,36 +907,32 @@ export default function EstoqueProdutosPage() {
               </article>
 
               {productSummary.map((p) => (
-                <article key={p.produto} className="overflow-hidden rounded-2xl border border-white/15 bg-zinc-900/60">
+                <article key={p.produto} className={`overflow-hidden rounded-2xl border ${productCardTone(p.produto, p.cultura)}`}>
                   <div className="flex items-center justify-between gap-2 px-3 py-3">
                     <ProductIcon name={p.produto} cultura={p.cultura} />
                     <div className="min-w-0 text-right">
-                      <p className="truncate text-[14px] font-black leading-none text-zinc-100">{formatQtd(p.totalKg)}</p>
-                      <p className="mt-1 text-[11px] text-zinc-400">{unitView}</p>
+                      <p className="truncate text-[32px] font-black leading-none text-[#212121]">{formatQtd(p.totalKg)}</p>
+                      <p className="mt-1 text-[11px] text-[#212121]/70">{unitView}</p>
                     </div>
                   </div>
-                  <div className="bg-[#00507a] px-3 py-1.5 text-center">
-                    <p className="truncate text-[12px] font-black uppercase tracking-[0.12em] text-white">{p.produto}</p>
+                  <div className="px-3 py-1.5 text-center">
+                    <p className="truncate text-[12px] font-black uppercase tracking-[0.12em] text-[#212121]">{p.produto}</p>
                   </div>
                 </article>
               ))}
             </div>
             {!loading && productSummary.length === 0 ? (
-              <div className="mt-3 rounded-2xl border border-white/10 bg-zinc-950/30 p-4 text-sm text-zinc-300">
+              <div className="mt-3 rounded-2xl border border-zinc-200 p-4 text-sm text-[#212121]/70">
                 Nenhum produto com estoque para venda no filtro atual.
               </div>
             ) : null}
           </section>
 
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-black text-white">Matriz de estoque por produtor/fazenda</p>
-              <p className="text-xs font-semibold text-zinc-400">{matrixRows.length} linha(s)</p>
-            </div>
-            <div className="mt-3 overflow-x-auto rounded-2xl border border-white/10">
-              <table className="min-w-[920px] w-full border-collapse text-xs text-zinc-100">
-                <thead className="bg-zinc-950/45">
-                  <tr className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-300">
+          <section className="rounded-3xl border border-zinc-200 p-4">
+            <div className="mt-3 overflow-x-auto rounded-2xl border border-zinc-200">
+              <table className="min-w-[920px] w-full border-collapse text-xs text-[#212121]">
+                <thead className="bg-[#212121]">
+                  <tr className="text-[10px] font-black uppercase tracking-[0.18em] text-white">
                     <th className="whitespace-nowrap px-3 py-2 text-left">Produtor/Fazenda</th>
                     <th className="whitespace-nowrap px-3 py-2 text-left">Safra</th>
                     {matrixClients.map((c) => (
@@ -878,7 +943,7 @@ export default function EstoqueProdutosPage() {
                 </thead>
                 <tbody>
                   {matrixRows.map((r) => (
-                    <tr key={r.rowKey} className="border-t border-white/10">
+                    <tr key={r.rowKey} className="border-t border-zinc-200">
                       <td className="whitespace-nowrap px-3 py-2.5">{r.produtor}</td>
                       <td className="whitespace-nowrap px-3 py-2.5">{r.safra}</td>
                       {matrixClients.map((c) => {
@@ -888,21 +953,21 @@ export default function EstoqueProdutosPage() {
                           <td
                             key={`${r.rowKey}-${c}`}
                             className={`whitespace-nowrap px-2 py-2.5 text-center font-semibold ${
-                              hasValue ? "bg-amber-300/75 text-zinc-900" : "text-zinc-500"
+                              hasValue ? "text-[#212121]" : "text-[#212121]/60"
                             }`}
                           >
                             {hasValue ? formatQtd(raw) : "-"}
                           </td>
                         );
                       })}
-                      <td className="whitespace-nowrap px-3 py-2.5 text-right font-black text-zinc-100">
+                      <td className="whitespace-nowrap px-3 py-2.5 text-right font-black text-[#212121]">
                         {formatQtd(r.totalKg)}
                       </td>
                     </tr>
                   ))}
                   {!loading && matrixRows.length === 0 ? (
                     <tr>
-                      <td colSpan={Math.max(3, matrixClients.length + 3)} className="px-3 py-4 text-sm text-zinc-400">
+                      <td colSpan={Math.max(3, matrixClients.length + 3)} className="px-3 py-4 text-sm text-[#212121]/60">
                         Sem dados para montar a matriz no filtro atual.
                       </td>
                     </tr>
@@ -912,37 +977,37 @@ export default function EstoqueProdutosPage() {
             </div>
           </section>
 
-          <section className="grid gap-3 xl:grid-cols-2">
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-black text-white">Estoque por produtor</p>
-                <p className="text-xs font-semibold text-zinc-400">{producerPivotRows.length} produtor(es)</p>
-              </div>
-              <div className="mt-3 overflow-x-auto rounded-2xl border border-white/10">
-                <table className="min-w-[560px] w-full border-collapse text-xs text-zinc-100">
-                  <thead className="bg-zinc-950/45">
-                    <tr className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-300">
+          <section className="space-y-3">
+            <div className="rounded-3xl border border-zinc-200 p-4">
+              <div className="mt-3 overflow-x-auto rounded-2xl border border-zinc-200">
+                <table className="min-w-[560px] w-full border-collapse text-xs text-[#212121]">
+                  <thead className="bg-[#212121]">
+                    <tr className="text-[10px] font-black uppercase tracking-[0.18em] text-white">
                       <th className="whitespace-nowrap px-3 py-2 text-left">Produtor</th>
                       {productColumns.map((p) => (
-                        <th key={`pp-h-${p}`} className="whitespace-nowrap px-2 py-2 text-center">{p}</th>
+                        <th key={`pp-h-${p}`} className="whitespace-nowrap px-2 py-2 text-center">
+                          <div className="inline-flex items-center justify-center" title={p}>
+                            <ProductIcon name={p} />
+                          </div>
+                        </th>
                       ))}
                       <th className="whitespace-nowrap px-3 py-2 text-right">Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {producerPivotRows.map((row) => (
-                      <tr key={`pp-${row.produtor}`} className="border-t border-white/10">
+                      <tr key={`pp-${row.produtor}`} className="border-t border-zinc-200">
                         <td className="whitespace-nowrap px-3 py-2.5">{row.produtor}</td>
                         {productColumns.map((p) => {
                           const v = row.byProduct.get(p) ?? 0;
                           const hasValue = v > 0;
                           return (
-                            <td key={`pp-${row.produtor}-${p}`} className={`whitespace-nowrap px-2 py-2.5 text-center font-semibold ${hasValue ? "bg-amber-300/75 text-zinc-900" : "text-zinc-500"}`}>
+                            <td key={`pp-${row.produtor}-${p}`} className={`whitespace-nowrap px-2 py-2.5 text-center font-semibold ${hasValue ? "text-[#212121]" : "text-[#212121]/60"}`}>
                               {hasValue ? formatQtd(v) : "0"}
                             </td>
                           );
                         })}
-                        <td className="whitespace-nowrap px-3 py-2.5 text-right font-black text-zinc-100">{formatQtd(row.totalKg)}</td>
+                        <td className="whitespace-nowrap px-3 py-2.5 text-right font-black text-[#212121]">{formatQtd(row.totalKg)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -950,36 +1015,36 @@ export default function EstoqueProdutosPage() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-black text-white">Estoque por safra</p>
-                <p className="text-xs font-semibold text-zinc-400">{safraPivotRows.length} safra(s)</p>
-              </div>
-              <div className="mt-3 overflow-x-auto rounded-2xl border border-white/10">
-                <table className="min-w-[560px] w-full border-collapse text-xs text-zinc-100">
-                  <thead className="bg-zinc-950/45">
-                    <tr className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-300">
+            <div className="rounded-3xl border border-zinc-200 p-4">
+              <div className="mt-3 overflow-x-auto rounded-2xl border border-zinc-200">
+                <table className="min-w-[560px] w-full border-collapse text-xs text-[#212121]">
+                  <thead className="bg-[#212121]">
+                    <tr className="text-[10px] font-black uppercase tracking-[0.18em] text-white">
                       <th className="whitespace-nowrap px-3 py-2 text-left">Safra</th>
                       {productColumns.map((p) => (
-                        <th key={`sp-h-${p}`} className="whitespace-nowrap px-2 py-2 text-center">{p}</th>
+                        <th key={`sp-h-${p}`} className="whitespace-nowrap px-2 py-2 text-center">
+                          <div className="inline-flex items-center justify-center" title={p}>
+                            <ProductIcon name={p} />
+                          </div>
+                        </th>
                       ))}
                       <th className="whitespace-nowrap px-3 py-2 text-right">Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {safraPivotRows.map((row) => (
-                      <tr key={`sp-${row.safra}`} className="border-t border-white/10">
+                      <tr key={`sp-${row.safra}`} className="border-t border-zinc-200">
                         <td className="whitespace-nowrap px-3 py-2.5">{row.safra}</td>
                         {productColumns.map((p) => {
                           const v = row.byProduct.get(p) ?? 0;
                           const hasValue = v > 0;
                           return (
-                            <td key={`sp-${row.safra}-${p}`} className={`whitespace-nowrap px-2 py-2.5 text-center font-semibold ${hasValue ? "bg-amber-300/75 text-zinc-900" : "text-zinc-500"}`}>
+                            <td key={`sp-${row.safra}-${p}`} className={`whitespace-nowrap px-2 py-2.5 text-center font-semibold ${hasValue ? "text-[#212121]" : "text-[#212121]/60"}`}>
                               {hasValue ? formatQtd(v) : "0"}
                             </td>
                           );
                         })}
-                        <td className="whitespace-nowrap px-3 py-2.5 text-right font-black text-zinc-100">{formatQtd(row.totalKg)}</td>
+                        <td className="whitespace-nowrap px-3 py-2.5 text-right font-black text-[#212121]">{formatQtd(row.totalKg)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -988,16 +1053,15 @@ export default function EstoqueProdutosPage() {
             </div>
           </section>
 
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-black text-white">Operações de saída (devolução e venda)</p>
-              <p className="text-xs font-semibold text-zinc-400">{entradasOperacionais.length} entrada(s)</p>
+          <section className="rounded-3xl border border-zinc-200 p-4">
+            <div className="flex items-center justify-start">
+              <p className="text-sm font-black text-[#212121]">Operações de saída (devolução e venda)</p>
             </div>
-            <p className="mt-1 text-xs text-zinc-400">
+            <p className="mt-1 text-xs text-[#212121]/70">
               Remessa p/ depósito: precisa devolução para liberar venda. A fixar: venda direta liberada.
             </p>
             <div className="mt-3 overflow-x-auto">
-              <div className="hidden grid-cols-[78px_82px_90px_110px_1fr_120px_120px_120px_220px] gap-2 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
+              <div className="hidden grid-cols-[78px_82px_90px_110px_1fr_120px_120px_120px_220px] gap-2 rounded-2xl border border-zinc-200 bg-[#212121] px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-white xl:grid">
                 <div>Data</div>
                 <div>Entrada</div>
                 <div>Romaneio</div>
@@ -1013,16 +1077,16 @@ export default function EstoqueProdutosPage() {
                   const e = op.entrada;
                   const isAFixar = (e.finalidade || "").toLowerCase() === "a_fixar";
                   return (
-                    <div key={e.id} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-2.5">
+                    <div key={e.id} className="rounded-2xl border border-zinc-200 bg-white px-3 py-2.5">
                       <div className="grid grid-cols-1 gap-2 xl:grid-cols-[78px_82px_90px_110px_1fr_120px_120px_120px_220px] xl:items-center xl:gap-2">
-                        <div className="text-xs text-zinc-100">{e.date ? new Date(`${e.date}T00:00:00`).toLocaleDateString("pt-BR") : "-"}</div>
-                        <div className="truncate text-xs text-zinc-100">{e.number || "-"}</div>
-                        <div className="truncate text-xs text-zinc-100">{e.romaneio?.code || "-"}</div>
-                        <div className="text-xs text-zinc-100">{isAFixar ? "A fixar" : "Depósito"}</div>
-                        <div className="truncate text-xs text-zinc-100">{e.produto?.name || "-"}</div>
-                        <div className="text-xs font-semibold text-zinc-100">{kg(op.saldoDisponivelKg)}</div>
-                        <div className="text-xs font-semibold text-emerald-200">{kg(op.saldoVendaKg)}</div>
-                        <div className="truncate text-xs text-zinc-100">{e.cliente?.name || "-"}</div>
+                        <div className="text-xs text-[#212121]">{e.date ? new Date(`${e.date}T00:00:00`).toLocaleDateString("pt-BR") : "-"}</div>
+                        <div className="truncate text-xs text-[#212121]">{e.number || "-"}</div>
+                        <div className="truncate text-xs text-[#212121]">{e.romaneio?.code || "-"}</div>
+                        <div className="text-xs text-[#212121]">{isAFixar ? "A fixar" : "Depósito"}</div>
+                        <div className="truncate text-xs text-[#212121]">{e.produto?.name || "-"}</div>
+                        <div className="text-xs font-semibold text-[#212121]">{kg(op.saldoDisponivelKg)}</div>
+                        <div className="text-xs font-semibold text-emerald-700">{kg(op.saldoVendaKg)}</div>
+                        <div className="truncate text-xs text-[#212121]">{e.cliente?.name || "-"}</div>
                         <div className="flex justify-end gap-2">
                           <button
                             onClick={() => openSaidaModal("devolucao", op)}
@@ -1046,7 +1110,7 @@ export default function EstoqueProdutosPage() {
                   );
                 })}
                 {!loading && entradasOperacionais.length === 0 ? (
-                  <div className="rounded-2xl border border-white/10 bg-zinc-950/30 p-4 text-sm text-zinc-300">
+                  <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-[#212121]/70">
                     Sem entradas fiscais elegíveis no filtro atual.
                   </div>
                 ) : null}
@@ -1054,12 +1118,11 @@ export default function EstoqueProdutosPage() {
             </div>
           </section>
 
-          <section className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-black text-white">Lista de estoque</p>
-              <p className="text-xs font-semibold text-zinc-400">{loading ? "Carregando..." : `${rows.length} item(ns)`}</p>
+          <section className="rounded-3xl border border-zinc-200 p-4">
+            <div className="flex items-center justify-start">
+              <p className="text-sm font-black text-[#212121]">Lista de estoque</p>
             </div>
-            <div className="mt-3 hidden grid-cols-[1fr_0.6fr_1.2fr_0.85fr_0.85fr_0.8fr_0.85fr_0.7fr_0.8fr] gap-3 rounded-2xl border border-white/10 bg-zinc-950/30 px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 xl:grid">
+            <div className="mt-3 hidden grid-cols-[1fr_0.6fr_1.2fr_0.85fr_0.85fr_0.8fr_0.85fr_0.7fr_0.8fr] gap-3 rounded-2xl border border-zinc-200 bg-[#212121] px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-white xl:grid">
               <div>Safra</div>
               <div>Cultura</div>
               <div>Produtor</div>
@@ -1072,27 +1135,77 @@ export default function EstoqueProdutosPage() {
             </div>
             <div className="mt-3 space-y-2">
               {rows.map((r, idx) => (
-                <div key={`${r.safra}-${r.cultura}-${r.produto}-${r.produtor}-${r.cliente}-${r.deposito}-${idx}`} className="rounded-2xl border border-white/10 bg-zinc-950/35 px-3 py-3">
+                <div key={`${r.safra}-${r.cultura}-${r.produto}-${r.produtor}-${r.cliente}-${r.deposito}-${idx}`} className="rounded-2xl border border-zinc-200 bg-white px-3 py-3">
                   <div className="grid grid-cols-1 gap-2 xl:grid-cols-[1fr_0.6fr_1.2fr_0.85fr_0.85fr_0.8fr_0.85fr_0.7fr_0.8fr] xl:items-center xl:gap-3">
-                    <div className="truncate text-xs text-zinc-100">{r.safra}</div>
+                    <div className="truncate text-xs text-[#212121]">{r.safra}</div>
                     <CulturaBadge name={r.cultura} />
-                    <div className="truncate text-xs text-zinc-100">{r.produtor}</div>
-                    <div className="truncate text-xs text-zinc-100">{r.cliente}</div>
-                    <div className="truncate text-xs text-zinc-100">{r.deposito}</div>
-                    <div className="truncate text-xs font-semibold text-zinc-100">{formatQtd(r.quantidade)}</div>
-                    <div className="truncate text-xs text-zinc-100">{r.romaneioCodes.join(", ") || "-"}</div>
-                    <div className="truncate text-xs text-zinc-100">{r.nfpRefs.join(", ") || "-"}</div>
-                    <div className="truncate text-xs text-zinc-100">{r.notaFiscalRefs.join(", ") || "-"}</div>
+                    <div className="truncate text-xs text-[#212121]">{r.produtor}</div>
+                    <div className="truncate text-xs text-[#212121]">{r.cliente}</div>
+                    <div className="truncate text-xs text-[#212121]">{r.deposito}</div>
+                    <div className="truncate text-xs font-semibold text-[#212121]">{formatQtd(r.quantidade)}</div>
+                    <div className="truncate text-xs text-[#212121]">{r.romaneioCodes.join(", ") || "-"}</div>
+                    <div className="truncate text-xs text-[#212121]">{r.nfpRefs.join(", ") || "-"}</div>
+                    <div className="truncate text-xs text-[#212121]">{r.notaFiscalRefs.join(", ") || "-"}</div>
                   </div>
                 </div>
               ))}
               {!loading && rows.length === 0 ? (
-                <div className="rounded-2xl border border-white/10 bg-zinc-950/30 p-4 text-sm text-zinc-300">
+                <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-[#212121]/70">
                   Sem movimentações de romaneio com contra-nota (remessa para depósito/a fixar) para os filtros selecionados.
                 </div>
               ) : null}
             </div>
           </section>
+          </>
+          ) : (
+          <section className="rounded-3xl border border-zinc-200 p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-black text-[#212121]">Relatório analítico por produtor/safra</p>
+              <p className="text-xs text-[#212121]/70">{relatorioAnalitico.length} registro(s)</p>
+            </div>
+            <div className="mt-3 overflow-x-auto rounded-2xl border border-zinc-200">
+              <table className="min-w-[1080px] w-full border-collapse text-xs text-[#212121]">
+                <thead className="bg-[#212121]">
+                  <tr className="text-[10px] font-black uppercase tracking-[0.18em] text-white">
+                    <th className="px-3 py-2 text-left">Produtor</th>
+                    <th className="px-3 py-2 text-left">Safra</th>
+                    <th className="px-3 py-2 text-left">Data</th>
+                    <th className="px-3 py-2 text-left">Nota Fiscal</th>
+                    <th className="px-3 py-2 text-left">Operação</th>
+                    <th className="px-3 py-2 text-right">Depósito</th>
+                    <th className="px-3 py-2 text-right">Devolução</th>
+                    <th className="px-3 py-2 text-right">Venda</th>
+                    <th className="px-3 py-2 text-right">Saldo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {relatorioAnalitico.map((row) => (
+                    <tr key={`an-${row.id}`} className="border-t border-zinc-200">
+                      <td className="whitespace-nowrap px-3 py-2.5">{row.produtor}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5">{row.safra}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5">
+                        {row.data ? new Date(`${row.data}T00:00:00`).toLocaleDateString("pt-BR") : "-"}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2.5">{row.notaFiscal}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5">{row.operacao}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">{fmtQtdKg(row.depositoKg)}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">{fmtQtdKg(row.devolucaoKg)}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">{fmtQtdKg(row.vendaKg)}</td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-right font-black">{fmtQtdKg(row.saldoKg)}</td>
+                    </tr>
+                  ))}
+                  {!loading && relatorioAnalitico.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="px-3 py-4 text-sm text-[#212121]/70">
+                        Sem dados para o relatório analítico no filtro atual.
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          </section>
+          )}
 
           {modalSaidaOpen && modalEntradaRef ? (
             <div className="fixed inset-0 z-[80] grid place-items-center px-4">

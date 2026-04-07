@@ -63,6 +63,7 @@ function statusLabel(status: FluxStatus) {
 
 function origemLabel(origem: string) {
   if (origem === "nota_fiscal") return "Nota Fiscal";
+  if (origem === "fixacao") return "Fixação";
   if (origem === "contrato") return "Contrato";
   if (origem === "pedido") return "Pedido";
   if (origem === "duplicata") return "Duplicata";

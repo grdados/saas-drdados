@@ -576,6 +576,7 @@ class ContaReceber(models.Model):
     class Origem(models.TextChoices):
         CONTRATO = "contrato", "Contrato"
         NOTA_FISCAL = "nota_fiscal", "Nota Fiscal"
+        FIXACAO = "fixacao", "Fixação"
         DUPLICATA = "duplicata", "Duplicata"
 
     class Status(models.TextChoices):
