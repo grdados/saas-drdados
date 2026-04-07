@@ -1483,7 +1483,7 @@ export default function RomaneioPage() {
                         <p className="text-xs text-zinc-400">{item.loads} cargas</p>
                       </div>
                       <div className="mt-1 h-2 rounded bg-zinc-800"><div className="h-2 rounded bg-cyan-400" style={{ width: `${pct}%` }} /></div>
-                      <p className="mt-1 text-[11px] text-zinc-400" title={`Quantidade carregada: ${fmtKg(item.qty)} | Cargas: ${item.loads}`}>{fmtKg(item.qty)}</p>
+                      <p className="mt-1 text-[11px] text-zinc-400" title={`Quantidade carregada: ${toViewWeight(item.qty)} | Cargas: ${item.loads}`}>{toViewWeight(item.qty)}</p>
                     </div>
                   );
                 })}
@@ -1502,7 +1502,7 @@ export default function RomaneioPage() {
                     <div key={`${item.cliente}-${item.produtor}`} className="rounded-2xl border border-white/10 bg-zinc-950/30 p-2">
                       <p className="truncate text-xs font-black text-zinc-200">{item.cliente} / {item.produtor}</p>
                       <div className="mt-1 h-2 rounded bg-zinc-800"><div className="h-2 rounded bg-violet-400" style={{ width: `${pct}%` }} /></div>
-                      <p className="mt-1 text-[11px] text-zinc-400" title={`Quantidade: ${fmtKg(item.qty)} | Carregamentos: ${item.loads}`}>{fmtKg(item.qty)} · {item.loads} cargas</p>
+                      <p className="mt-1 text-[11px] text-zinc-400" title={`Quantidade: ${toViewWeight(item.qty)} | Carregamentos: ${item.loads}`}>{toViewWeight(item.qty)} · {item.loads} cargas</p>
                     </div>
                   );
                 })}

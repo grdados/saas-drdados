@@ -463,6 +463,7 @@ export function AdminShell({
             { label: "Contratos", href: "/producao/contrato" },
             { label: "Empreendimentos", href: "/producao/empreendimentos" },
             { label: "Romaneio", href: "/producao/romaneio" },
+            { label: "Notas de Grãos", href: "/producao/notas-graos" },
             { label: "Chuvas", href: "/producao/chuvas" },
           ]
         },

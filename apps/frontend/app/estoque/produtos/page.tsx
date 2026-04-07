@@ -42,7 +42,7 @@ function kg(v: number) {
 function culturaMeta(name: string) {
   const normalized = (name || "").toLowerCase();
   if (normalized.includes("milho")) return { icon: "\u{1F33D}", tone: "border-amber-400/30 bg-amber-500/10 text-amber-100" };
-  if (normalized.includes("soja")) return { icon: "\u{1FABB}", tone: "border-emerald-400/30 bg-emerald-500/10 text-emerald-100" };
+  if (normalized.includes("soja")) return { icon: "🌱", tone: "border-emerald-400/30 bg-emerald-500/10 text-emerald-100" };
   if (normalized.includes("trigo")) return { icon: "\u{1F33E}", tone: "border-yellow-300/30 bg-yellow-500/10 text-yellow-100" };
   if (normalized.includes("amendo")) return { icon: "\u{1F95C}", tone: "border-orange-400/30 bg-orange-500/10 text-orange-100" };
   if (normalized.includes("aveia")) return { icon: "\u{1F33E}", tone: "border-violet-400/30 bg-violet-500/10 text-violet-100" };
@@ -63,7 +63,7 @@ function CulturaBadge({ name }: { name: string }) {
 
 function productMeta(name: string, cultura?: string) {
   const normalized = name.toLowerCase();
-  if (normalized.includes("soja")) return { icon: "🫛", tone: "border-emerald-400/30 bg-emerald-500/10 text-emerald-100" };
+  if (normalized.includes("soja")) return { icon: "🌱", tone: "border-emerald-400/30 bg-emerald-500/10 text-emerald-100" };
   if (normalized.includes("milho")) return { icon: "🌽", tone: "border-amber-400/30 bg-amber-500/10 text-amber-100" };
   if (normalized.includes("trigo")) return { icon: "🌾", tone: "border-yellow-300/30 bg-yellow-500/10 text-yellow-100" };
   if (normalized.includes("amendo")) return { icon: "🥜", tone: "border-orange-400/30 bg-orange-500/10 text-orange-100" };
@@ -78,7 +78,7 @@ function productMeta(name: string, cultura?: string) {
 
 function productMetaV2(name: string, cultura?: string) {
   const normalized = name.toLowerCase();
-  if (normalized.includes("soja")) return { icon: "\u{1FABB}", tone: "border-emerald-400/30 bg-emerald-500/10 text-emerald-100" };
+  if (normalized.includes("soja")) return { icon: "🌱", tone: "border-emerald-400/30 bg-emerald-500/10 text-emerald-100" };
   if (normalized.includes("milho")) return { icon: "\u{1F33D}", tone: "border-amber-400/30 bg-amber-500/10 text-amber-100" };
   if (normalized.includes("trigo")) return { icon: "\u{1F33E}", tone: "border-yellow-300/30 bg-yellow-500/10 text-yellow-100" };
   if (normalized.includes("amendo")) return { icon: "\u{1F95C}", tone: "border-orange-400/30 bg-orange-500/10 text-orange-100" };
