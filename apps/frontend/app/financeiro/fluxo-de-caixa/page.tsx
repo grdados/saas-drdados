@@ -16,6 +16,19 @@ function money(v: unknown) {
   return formatCurrencyBRL(n(v));
 }
 
+function moneyCompact(v: number) {
+  try {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+      notation: "compact",
+      maximumFractionDigits: 1
+    }).format(v);
+  } catch {
+    return money(v);
+  }
+}
+
 function d(v: string | null | undefined) {
   if (!v) return "-";
   const dt = new Date(`${v}T00:00:00`);
@@ -196,6 +209,36 @@ export default function FluxoCaixaPage() {
     return [...set];
   }, [allItems]);
 
+  const monthlySeries = useMemo(() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const monthLabels = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+    const rows = monthLabels.map((label, index) => ({
+      label,
+      month: index,
+      receber: 0,
+      pagar: 0
+    }));
+
+    for (const it of filtered) {
+      const ref = it.due_date || it.date;
+      if (!ref) continue;
+      const dt = new Date(`${ref}T00:00:00`);
+      if (Number.isNaN(dt.getTime()) || dt.getFullYear() !== currentYear) continue;
+      const m = dt.getMonth();
+      if (m < 0 || m > 11) continue;
+      if (it.direction === "entrada") rows[m].receber += it.total;
+      else rows[m].pagar += it.total;
+    }
+
+    const maxValue = Math.max(
+      1,
+      ...rows.map((r) => Math.max(r.receber, r.pagar))
+    );
+
+    return { year: currentYear, rows, maxValue };
+  }, [filtered]);
+
   return (
     <AuthedAdminShell hideHeader>
       {() => (
@@ -316,6 +359,89 @@ export default function FluxoCaixaPage() {
             <div className="rounded-3xl border border-white/15 bg-white/5 p-3">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Saldo realizado</p>
               <p className="mt-1 text-xl font-black text-white">{money(stats.saldoRealizado)}</p>
+            </div>
+          </section>
+
+          <section className="rounded-3xl border border-white/10 bg-white/5 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-black text-white">A receber x a pagar ({monthlySeries.year})</p>
+                <p className="mt-1 text-xs text-zinc-400">Período mensal do ano vigente.</p>
+              </div>
+              <div className="flex items-center gap-3 text-xs">
+                <span className="inline-flex items-center gap-1.5 text-emerald-200">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                  A receber
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-rose-200">
+                  <span className="h-2 w-2 rounded-full bg-rose-400" />
+                  A pagar
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-3 overflow-x-auto">
+              <svg viewBox="0 0 1120 320" className="h-[320px] min-w-[960px] w-full">
+                <rect x="0" y="0" width="1120" height="320" rx="18" className="fill-zinc-950/35" />
+                {[0, 1, 2, 3].map((i) => {
+                  const y = 52 + i * 58;
+                  return (
+                    <line
+                      key={i}
+                      x1="50"
+                      x2="1070"
+                      y1={y}
+                      y2={y}
+                      className="stroke-white/10"
+                      strokeDasharray="4 6"
+                    />
+                  );
+                })}
+
+                {(() => {
+                  const chartLeft = 70;
+                  const chartRight = 1040;
+                  const chartTop = 44;
+                  const chartBottom = 258;
+                  const spanX = chartRight - chartLeft;
+                  const spanY = chartBottom - chartTop;
+                  const points = monthlySeries.rows.map((row, idx) => {
+                    const x = chartLeft + (idx / 11) * spanX;
+                    const yReceber = chartBottom - (row.receber / monthlySeries.maxValue) * spanY;
+                    const yPagar = chartBottom - (row.pagar / monthlySeries.maxValue) * spanY;
+                    return { ...row, x, yReceber, yPagar };
+                  });
+                  const receberPath = points.map((p) => `${p.x},${p.yReceber}`).join(" ");
+                  const pagarPath = points.map((p) => `${p.x},${p.yPagar}`).join(" ");
+                  return (
+                    <>
+                      <polyline points={receberPath} fill="none" className="stroke-emerald-400" strokeWidth="2.5" />
+                      <polyline points={pagarPath} fill="none" className="stroke-rose-400" strokeWidth="2.5" />
+                      {points.map((p) => (
+                        <g key={`r-${p.month}`}>
+                          <circle cx={p.x} cy={p.yReceber} r="4" className="fill-emerald-400" />
+                          <text x={p.x} y={p.yReceber - 10} textAnchor="middle" className="fill-emerald-200 text-[10px] font-semibold">
+                            {moneyCompact(p.receber)}
+                          </text>
+                        </g>
+                      ))}
+                      {points.map((p) => (
+                        <g key={`p-${p.month}`}>
+                          <circle cx={p.x} cy={p.yPagar} r="4" className="fill-rose-400" />
+                          <text x={p.x} y={p.yPagar + 16} textAnchor="middle" className="fill-rose-200 text-[10px] font-semibold">
+                            {moneyCompact(p.pagar)}
+                          </text>
+                        </g>
+                      ))}
+                      {points.map((p) => (
+                        <text key={`m-${p.month}`} x={p.x} y="286" textAnchor="middle" className="fill-zinc-400 text-[10px] font-black">
+                          {p.label}
+                        </text>
+                      ))}
+                    </>
+                  );
+                })()}
+              </svg>
             </div>
           </section>
 

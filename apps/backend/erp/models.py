@@ -664,6 +664,40 @@ class Combustivel(CompanyNamedModel):
     pass
 
 
+class AbastecimentoCombustivel(models.Model):
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
+    date = models.DateField(null=True, blank=True)
+    empreendimento = models.ForeignKey("erp.Empreendimento", null=True, blank=True, on_delete=models.PROTECT)
+    deposito = models.ForeignKey("erp.Deposito", null=True, blank=True, on_delete=models.PROTECT)
+    centro_custo = models.ForeignKey("erp.CentroCusto", null=True, blank=True, on_delete=models.PROTECT)
+    veiculo = models.ForeignKey("erp.TransportadorPlaca", null=True, blank=True, on_delete=models.PROTECT)
+    operacao = models.ForeignKey("erp.Operacao", null=True, blank=True, on_delete=models.PROTECT)
+    km = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    quantity_liters = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    unit_price = models.DecimalField(max_digits=14, decimal_places=5, default=0)
+    total_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    notes = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-date", "-id"]
+        indexes = [
+            models.Index(fields=["company", "date"]),
+            models.Index(fields=["company", "deposito"]),
+            models.Index(fields=["company", "centro_custo"]),
+            models.Index(fields=["company", "veiculo"]),
+            models.Index(fields=["company", "empreendimento"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        qty = self.quantity_liters or 0
+        price = self.unit_price or 0
+        total = qty * price
+        self.total_value = total if total > 0 else 0
+        return super().save(*args, **kwargs)
+
+
 class Cultivar(CompanyNamedModel):
     description = models.TextField(blank=True, default="")
     cycle = models.CharField(max_length=80, blank=True, default="")

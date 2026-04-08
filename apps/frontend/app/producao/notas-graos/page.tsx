@@ -1214,6 +1214,10 @@ export default function NotasGraosPage() {
                     String(nf.status || "").toLowerCase() !== "canceled" &&
                     !!entradaRef &&
                     saldoAFixar > 0;
+                  const canEstornarVendaPendente =
+                    !isEntrada &&
+                    finalidadeKey === "venda" &&
+                    ["pending", "pendente"].includes(String(nf.status || "").toLowerCase());
                   const loteLabel =
                     !isEntrada && finalidadeKey === "devolucao"
                       ? "A fixar"
@@ -1327,6 +1331,17 @@ export default function NotasGraosPage() {
                                         ? "Sem saldo a fixar disponivel para estorno."
                                         : "Estornar devolucao"
                                   }
+                                >
+                                    Estornar
+                                  </button>
+                              ) : canEstornarVendaPendente ? (
+                                <button
+                                  onClick={() =>
+                                    requestConfirmEstorno([nf], `Estornar venda ${nf.number || `#${nf.id}`}`)
+                                  }
+                                  disabled={saving || estornoSaving}
+                                  className="rounded-xl border border-rose-400/25 bg-rose-500/10 px-2 py-1.5 text-[11px] font-semibold text-rose-200 disabled:cursor-not-allowed disabled:opacity-40"
+                                  title="Estornar venda"
                                 >
                                   Estornar
                                 </button>

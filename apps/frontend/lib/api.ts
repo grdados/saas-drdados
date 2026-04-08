@@ -2078,3 +2078,78 @@ export function updateConta(
     token
   );
 }
+
+export type AbastecimentoCombustivel = {
+  id: number;
+  date: string | null;
+  empreendimento: { id: number; code: string } | null;
+  empreendimento_id?: number | null;
+  deposito: { id: number; name: string; tipo?: "insumos" | "graos" | "combustivel" } | null;
+  deposito_id?: number | null;
+  centro_custo: { id: number; name: string } | null;
+  centro_custo_id?: number | null;
+  veiculo: { id: number; plate: string } | null;
+  veiculo_id?: number | null;
+  operacao: { id: number; name: string; kind: Operacao["kind"] } | null;
+  operacao_id?: number | null;
+  km: string;
+  quantity_liters: string;
+  unit_price: string;
+  total_value: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export function listAbastecimentosCombustivel(token: string) {
+  return request<AbastecimentoCombustivel[]>("/api/erp/estoque/abastecimentos-combustivel/", { method: "GET" }, token);
+}
+
+export function createAbastecimentoCombustivel(
+  token: string,
+  payload: Partial<{
+    date: string | null;
+    empreendimento_id: number | null;
+    deposito_id: number | null;
+    centro_custo_id: number | null;
+    veiculo_id: number | null;
+    operacao_id: number | null;
+    km: string | number;
+    quantity_liters: string | number;
+    unit_price: string | number;
+    notes: string;
+  }>
+) {
+  return request<AbastecimentoCombustivel>(
+    "/api/erp/estoque/abastecimentos-combustivel/",
+    { method: "POST", body: JSON.stringify(payload) },
+    token
+  );
+}
+
+export function updateAbastecimentoCombustivel(
+  token: string,
+  id: number,
+  payload: Partial<{
+    date: string | null;
+    empreendimento_id: number | null;
+    deposito_id: number | null;
+    centro_custo_id: number | null;
+    veiculo_id: number | null;
+    operacao_id: number | null;
+    km: string | number;
+    quantity_liters: string | number;
+    unit_price: string | number;
+    notes: string;
+  }>
+) {
+  return request<AbastecimentoCombustivel>(
+    `/api/erp/estoque/abastecimentos-combustivel/${id}/`,
+    { method: "PATCH", body: JSON.stringify(payload) },
+    token
+  );
+}
+
+export function deleteAbastecimentoCombustivel(token: string, id: number) {
+  return request<void>(`/api/erp/estoque/abastecimentos-combustivel/${id}/`, { method: "DELETE" }, token);
+}

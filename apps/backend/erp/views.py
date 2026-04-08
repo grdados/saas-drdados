@@ -292,6 +292,13 @@ class CombustivelViewSet(CompanyScopedViewSet):
     serializer_class = serializers.CombustivelSerializer
 
 
+class AbastecimentoCombustivelViewSet(CompanyScopedViewSet):
+    queryset = models.AbastecimentoCombustivel.objects.select_related(
+        "company", "empreendimento", "deposito", "centro_custo", "veiculo", "operacao"
+    )
+    serializer_class = serializers.AbastecimentoCombustivelSerializer
+
+
 class CultivarViewSet(CompanyScopedViewSet):
     queryset = models.Cultivar.objects.select_related("company")
     serializer_class = serializers.CultivarSerializer

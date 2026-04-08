@@ -1237,6 +1237,101 @@ class ContaReceberSerializer(serializers.ModelSerializer):
 CombustivelSerializer = _mk_serializer(models.Combustivel)
 
 
+class AbastecimentoCombustivelSerializer(serializers.ModelSerializer):
+    empreendimento = serializers.SerializerMethodField()
+    empreendimento_id = serializers.PrimaryKeyRelatedField(
+        source="empreendimento", queryset=models.Empreendimento.objects.all(), allow_null=True, required=False
+    )
+    deposito = serializers.SerializerMethodField()
+    deposito_id = serializers.PrimaryKeyRelatedField(
+        source="deposito", queryset=models.Deposito.objects.all(), allow_null=True, required=False
+    )
+    centro_custo = serializers.SerializerMethodField()
+    centro_custo_id = serializers.PrimaryKeyRelatedField(
+        source="centro_custo", queryset=models.CentroCusto.objects.all(), allow_null=True, required=False
+    )
+    veiculo = serializers.SerializerMethodField()
+    veiculo_id = serializers.PrimaryKeyRelatedField(
+        source="veiculo", queryset=models.TransportadorPlaca.objects.all(), allow_null=True, required=False
+    )
+    operacao = serializers.SerializerMethodField()
+    operacao_id = serializers.PrimaryKeyRelatedField(
+        source="operacao", queryset=models.Operacao.objects.all(), allow_null=True, required=False
+    )
+
+    class Meta:
+        model = models.AbastecimentoCombustivel
+        fields = [
+            "id",
+            "date",
+            "empreendimento",
+            "empreendimento_id",
+            "deposito",
+            "deposito_id",
+            "centro_custo",
+            "centro_custo_id",
+            "veiculo",
+            "veiculo_id",
+            "operacao",
+            "operacao_id",
+            "km",
+            "quantity_liters",
+            "unit_price",
+            "total_value",
+            "notes",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_empreendimento(self, obj):
+        if not getattr(obj, "empreendimento_id", None):
+            return None
+        return {"id": obj.empreendimento_id, "code": obj.empreendimento.code}
+
+    def get_deposito(self, obj):
+        if not getattr(obj, "deposito_id", None):
+            return None
+        return {"id": obj.deposito_id, "name": obj.deposito.name, "tipo": obj.deposito.tipo}
+
+    def get_centro_custo(self, obj):
+        if not getattr(obj, "centro_custo_id", None):
+            return None
+        return {"id": obj.centro_custo_id, "name": obj.centro_custo.name}
+
+    def get_veiculo(self, obj):
+        if not getattr(obj, "veiculo_id", None):
+            return None
+        return {"id": obj.veiculo_id, "plate": obj.veiculo.plate}
+
+    def get_operacao(self, obj):
+        if not getattr(obj, "operacao_id", None):
+            return None
+        return {"id": obj.operacao_id, "name": obj.operacao.name, "kind": obj.operacao.kind}
+
+    def validate(self, attrs):
+        company = get_current_company(self.context["request"].user) if self.context.get("request") else None
+        _validate_fk_company(attrs.get("empreendimento"), company, "empreendimento_id")
+        _validate_fk_company(attrs.get("deposito"), company, "deposito_id")
+        _validate_fk_company(attrs.get("centro_custo"), company, "centro_custo_id")
+        _validate_fk_company(attrs.get("veiculo"), company, "veiculo_id")
+        _validate_fk_company(attrs.get("operacao"), company, "operacao_id")
+
+        deposito = attrs.get("deposito")
+        if deposito is not None and deposito.tipo != models.Deposito.Tipo.COMBUSTIVEL:
+            raise serializers.ValidationError({"deposito_id": "Selecione um deposito do tipo combustivel."})
+
+        quantity_liters = attrs.get("quantity_liters")
+        unit_price = attrs.get("unit_price")
+        km = attrs.get("km")
+        if quantity_liters is not None and quantity_liters <= 0:
+            raise serializers.ValidationError({"quantity_liters": "Informe uma quantidade maior que zero."})
+        if unit_price is not None and unit_price < 0:
+            raise serializers.ValidationError({"unit_price": "Preco nao pode ser negativo."})
+        if km is not None and km < 0:
+            raise serializers.ValidationError({"km": "KM nao pode ser negativo."})
+        return attrs
+
+
 class ContaPagarSerializer(serializers.ModelSerializer):
     grupo = serializers.SerializerMethodField()
     grupo_id = serializers.PrimaryKeyRelatedField(
