@@ -294,7 +294,7 @@ class CombustivelViewSet(CompanyScopedViewSet):
 
 class AbastecimentoCombustivelViewSet(CompanyScopedViewSet):
     queryset = models.AbastecimentoCombustivel.objects.select_related(
-        "company", "empreendimento", "deposito", "centro_custo", "veiculo", "operacao"
+        "company", "empreendimento", "deposito", "centro_custo", "veiculo", "maquina", "operacao"
     )
     serializer_class = serializers.AbastecimentoCombustivelSerializer
 
@@ -325,7 +325,7 @@ class TalhaoViewSet(CompanyScopedViewSet):
 
 
 class MaquinaViewSet(CompanyScopedViewSet):
-    queryset = models.Maquina.objects.select_related("company")
+    queryset = models.Maquina.objects.select_related("company", "produtor", "fornecedor")
     serializer_class = serializers.MaquinaSerializer
 
 

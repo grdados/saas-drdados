@@ -1254,6 +1254,10 @@ class AbastecimentoCombustivelSerializer(serializers.ModelSerializer):
     veiculo_id = serializers.PrimaryKeyRelatedField(
         source="veiculo", queryset=models.TransportadorPlaca.objects.all(), allow_null=True, required=False
     )
+    maquina = serializers.SerializerMethodField()
+    maquina_id = serializers.PrimaryKeyRelatedField(
+        source="maquina", queryset=models.Maquina.objects.all(), allow_null=True, required=False
+    )
     operacao = serializers.SerializerMethodField()
     operacao_id = serializers.PrimaryKeyRelatedField(
         source="operacao", queryset=models.Operacao.objects.all(), allow_null=True, required=False
@@ -1272,6 +1276,8 @@ class AbastecimentoCombustivelSerializer(serializers.ModelSerializer):
             "centro_custo_id",
             "veiculo",
             "veiculo_id",
+            "maquina",
+            "maquina_id",
             "operacao",
             "operacao_id",
             "km",
@@ -1303,17 +1309,24 @@ class AbastecimentoCombustivelSerializer(serializers.ModelSerializer):
             return None
         return {"id": obj.veiculo_id, "plate": obj.veiculo.plate}
 
+    def get_maquina(self, obj):
+        if not getattr(obj, "maquina_id", None):
+            return None
+        return {"id": obj.maquina_id, "name": obj.maquina.name, "plate": obj.maquina.plate}
+
     def get_operacao(self, obj):
         if not getattr(obj, "operacao_id", None):
             return None
         return {"id": obj.operacao_id, "name": obj.operacao.name, "kind": obj.operacao.kind}
 
     def validate(self, attrs):
-        company = get_current_company(self.context["request"].user) if self.context.get("request") else None
+        request = self.context.get("request")
+        company = get_current_company(request.user) if request else None
         _validate_fk_company(attrs.get("empreendimento"), company, "empreendimento_id")
         _validate_fk_company(attrs.get("deposito"), company, "deposito_id")
         _validate_fk_company(attrs.get("centro_custo"), company, "centro_custo_id")
         _validate_fk_company(attrs.get("veiculo"), company, "veiculo_id")
+        _validate_fk_company(attrs.get("maquina"), company, "maquina_id")
         _validate_fk_company(attrs.get("operacao"), company, "operacao_id")
 
         deposito = attrs.get("deposito")
@@ -1329,6 +1342,10 @@ class AbastecimentoCombustivelSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"unit_price": "Preco nao pode ser negativo."})
         if km is not None and km < 0:
             raise serializers.ValidationError({"km": "KM nao pode ser negativo."})
+        veiculo = attrs.get("veiculo", getattr(self.instance, "veiculo", None))
+        maquina = attrs.get("maquina", getattr(self.instance, "maquina", None))
+        if veiculo is None and maquina is None:
+            raise serializers.ValidationError({"veiculo_id": "Selecione um veiculo ou uma maquina."})
         return attrs
 
 
@@ -2260,7 +2277,67 @@ class TalhaoSerializer(serializers.ModelSerializer):
             )
 
         return attrs
-MaquinaSerializer = _mk_serializer(models.Maquina)
+class MaquinaSerializer(serializers.ModelSerializer):
+    produtor = serializers.SerializerMethodField()
+    produtor_id = serializers.PrimaryKeyRelatedField(source="produtor", queryset=models.Produtor.objects.all(), allow_null=True, required=False)
+    fornecedor = serializers.SerializerMethodField()
+    fornecedor_id = serializers.PrimaryKeyRelatedField(source="fornecedor", queryset=models.Fornecedor.objects.all(), allow_null=True, required=False)
+
+    class Meta:
+        model = models.Maquina
+        fields = [
+            "id",
+            "name",
+            "short_name",
+            "brand",
+            "model",
+            "year",
+            "chassis",
+            "renavam",
+            "plate",
+            "engine",
+            "series",
+            "owner",
+            "color",
+            "produtor",
+            "produtor_id",
+            "purchase_date",
+            "sale_date",
+            "invoice_number",
+            "fornecedor",
+            "fornecedor_id",
+            "purchase_value",
+            "sale_value",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_produtor(self, obj):
+        return {"id": obj.produtor_id, "name": obj.produtor.name} if obj.produtor_id else None
+
+    def get_fornecedor(self, obj):
+        return {"id": obj.fornecedor_id, "name": obj.fornecedor.name} if obj.fornecedor_id else None
+
+    def validate(self, attrs):
+        instance = getattr(self, "instance", None)
+        request = self.context.get("request")
+        company = (instance.company if instance else None) or (get_current_company(request.user) if request else None)
+        if company is None:
+            raise serializers.ValidationError({"detail": "Empresa autenticada nao encontrada."})
+
+        for fk_field in ("produtor", "fornecedor"):
+            target = attrs.get(fk_field)
+            if target is not None and target.company_id != company.id:
+                raise serializers.ValidationError({f"{fk_field}_id": "Registro nao pertence a empresa autenticada."})
+
+        purchase_date = attrs.get("purchase_date", getattr(instance, "purchase_date", None))
+        sale_date = attrs.get("sale_date", getattr(instance, "sale_date", None))
+        if purchase_date and sale_date and sale_date < purchase_date:
+            raise serializers.ValidationError({"sale_date": "Data de venda nao pode ser anterior a data de compra."})
+
+        return attrs
+
 BenfeitoriaSerializer = _mk_serializer(models.Benfeitoria)
 BombaCombustivelSerializer = _mk_serializer(models.BombaCombustivel)
 

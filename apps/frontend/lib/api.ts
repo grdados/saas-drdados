@@ -1958,6 +1958,92 @@ export function updateTalhao(
   return request<Talhao>(`/api/erp/patrimonio/talhoes/${id}/`, { method: "PATCH", body: JSON.stringify(payload) }, token);
 }
 
+export type Maquina = {
+  id: number;
+  name: string;
+  short_name: string;
+  brand: string;
+  model: string;
+  year: string;
+  chassis: string;
+  renavam: string;
+  plate: string;
+  engine: string;
+  series: string;
+  owner: string;
+  color: string;
+  produtor: { id: number; name: string } | null;
+  produtor_id?: number | null;
+  purchase_date: string | null;
+  sale_date: string | null;
+  invoice_number: string;
+  fornecedor: { id: number; name: string } | null;
+  fornecedor_id?: number | null;
+  purchase_value: string;
+  sale_value: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+export function listMaquinas(token: string) {
+  return request<Maquina[]>("/api/erp/patrimonio/maquinas/", { method: "GET" }, token);
+}
+export function createMaquina(
+  token: string,
+  payload: Partial<{
+    name: string;
+    short_name: string;
+    brand: string;
+    model: string;
+    year: string;
+    chassis: string;
+    renavam: string;
+    plate: string;
+    engine: string;
+    series: string;
+    owner: string;
+    color: string;
+    produtor_id: number | null;
+    purchase_date: string | null;
+    sale_date: string | null;
+    invoice_number: string;
+    fornecedor_id: number | null;
+    purchase_value: string | number;
+    sale_value: string | number;
+    is_active: boolean;
+  }>
+) {
+  return request<Maquina>("/api/erp/patrimonio/maquinas/", { method: "POST", body: JSON.stringify(payload) }, token);
+}
+export function updateMaquina(
+  token: string,
+  id: number,
+  payload: Partial<{
+    name: string;
+    short_name: string;
+    brand: string;
+    model: string;
+    year: string;
+    chassis: string;
+    renavam: string;
+    plate: string;
+    engine: string;
+    series: string;
+    owner: string;
+    color: string;
+    produtor_id: number | null;
+    purchase_date: string | null;
+    sale_date: string | null;
+    invoice_number: string;
+    fornecedor_id: number | null;
+    purchase_value: string | number;
+    sale_value: string | number;
+    is_active: boolean;
+  }>
+) {
+  return request<Maquina>(`/api/erp/patrimonio/maquinas/${id}/`, { method: "PATCH", body: JSON.stringify(payload) }, token);
+}
+
 export type Operacao = {
   id: number;
   name: string;
@@ -2082,14 +2168,16 @@ export function updateConta(
 export type AbastecimentoCombustivel = {
   id: number;
   date: string | null;
-  empreendimento: { id: number; code: string } | null;
-  empreendimento_id?: number | null;
+  empreendimento: { id: string; code: string } | null;
+  empreendimento_id?: string | null;
   deposito: { id: number; name: string; tipo?: "insumos" | "graos" | "combustivel" } | null;
   deposito_id?: number | null;
   centro_custo: { id: number; name: string } | null;
   centro_custo_id?: number | null;
   veiculo: { id: number; plate: string } | null;
   veiculo_id?: number | null;
+  maquina: { id: number; name: string; plate: string } | null;
+  maquina_id?: number | null;
   operacao: { id: number; name: string; kind: Operacao["kind"] } | null;
   operacao_id?: number | null;
   km: string;
@@ -2109,10 +2197,11 @@ export function createAbastecimentoCombustivel(
   token: string,
   payload: Partial<{
     date: string | null;
-    empreendimento_id: number | null;
+    empreendimento_id: string | null;
     deposito_id: number | null;
     centro_custo_id: number | null;
     veiculo_id: number | null;
+    maquina_id: number | null;
     operacao_id: number | null;
     km: string | number;
     quantity_liters: string | number;
@@ -2132,10 +2221,11 @@ export function updateAbastecimentoCombustivel(
   id: number,
   payload: Partial<{
     date: string | null;
-    empreendimento_id: number | null;
+    empreendimento_id: string | null;
     deposito_id: number | null;
     centro_custo_id: number | null;
     veiculo_id: number | null;
+    maquina_id: number | null;
     operacao_id: number | null;
     km: string | number;
     quantity_liters: string | number;

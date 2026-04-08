@@ -671,6 +671,7 @@ class AbastecimentoCombustivel(models.Model):
     deposito = models.ForeignKey("erp.Deposito", null=True, blank=True, on_delete=models.PROTECT)
     centro_custo = models.ForeignKey("erp.CentroCusto", null=True, blank=True, on_delete=models.PROTECT)
     veiculo = models.ForeignKey("erp.TransportadorPlaca", null=True, blank=True, on_delete=models.PROTECT)
+    maquina = models.ForeignKey("erp.Maquina", null=True, blank=True, on_delete=models.PROTECT)
     operacao = models.ForeignKey("erp.Operacao", null=True, blank=True, on_delete=models.PROTECT)
     km = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     quantity_liters = models.DecimalField(max_digits=14, decimal_places=3, default=0)
@@ -687,6 +688,7 @@ class AbastecimentoCombustivel(models.Model):
             models.Index(fields=["company", "deposito"]),
             models.Index(fields=["company", "centro_custo"]),
             models.Index(fields=["company", "veiculo"]),
+            models.Index(fields=["company", "maquina"]),
             models.Index(fields=["company", "empreendimento"]),
         ]
 
@@ -729,7 +731,24 @@ class Talhao(CompanyNamedModel):
 
 
 class Maquina(CompanyNamedModel):
-    pass
+    short_name = models.CharField(max_length=120, blank=True, default="")
+    brand = models.CharField(max_length=120, blank=True, default="")
+    model = models.CharField(max_length=120, blank=True, default="")
+    year = models.CharField(max_length=10, blank=True, default="")
+    chassis = models.CharField(max_length=80, blank=True, default="")
+    renavam = models.CharField(max_length=40, blank=True, default="")
+    plate = models.CharField(max_length=16, blank=True, default="")
+    engine = models.CharField(max_length=80, blank=True, default="")
+    series = models.CharField(max_length=80, blank=True, default="")
+    owner = models.CharField(max_length=180, blank=True, default="")
+    color = models.CharField(max_length=40, blank=True, default="")
+    produtor = models.ForeignKey("erp.Produtor", null=True, blank=True, on_delete=models.PROTECT)
+    purchase_date = models.DateField(null=True, blank=True)
+    sale_date = models.DateField(null=True, blank=True)
+    invoice_number = models.CharField(max_length=60, blank=True, default="")
+    fornecedor = models.ForeignKey("erp.Fornecedor", null=True, blank=True, on_delete=models.PROTECT)
+    purchase_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    sale_value = models.DecimalField(max_digits=14, decimal_places=2, default=0)
 
 
 class Benfeitoria(CompanyNamedModel):
